@@ -3,7 +3,7 @@
 --[[
 	Note:
 	
-	the types can be simplified after testing.
+	May be a good idea to benchmark the npc system.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

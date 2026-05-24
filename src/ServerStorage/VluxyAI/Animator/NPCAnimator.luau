@@ -51,7 +51,6 @@ function NPCAnimator.new<_, T>(entity: Model, animations: T)
 
 	nPCAnimator.entity = entity :: Model
 	nPCAnimator.animator = entity:FindFirstChildOfClass("Animator") :: Animator
-	assert(nPCAnimator.animator, "Could not find animator inside entity! " .. entity:GetFullName())
 
 	nPCAnimator.animations = animations :: T
 	nPCAnimator.LoadedAnimations = {} :: { [number]: AnimationTrack }
@@ -62,6 +61,8 @@ function NPCAnimator.new<_, T>(entity: Model, animations: T)
 		@param self NPCAnimator - the object
 	]]
 	function nPCAnimator.Build(self: NPCAnimator)
+		assert(nPCAnimator.animator, "Could not find animator inside entity! " .. entity:GetFullName())
+
 		-- load animation tracks
 		for name, info in pairs(self.animations :: any) do
 			self:LoadAnimation(name, info)

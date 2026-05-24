@@ -58,6 +58,7 @@ function States.Init.Start(self)
 
 	--animation setup
 	self.animator = NPCAnimator.new(self.entity, animationInfo)
+	self._cleaner:Add(self.animator._cleaner)
 	self.animator:Build()
 end
 
