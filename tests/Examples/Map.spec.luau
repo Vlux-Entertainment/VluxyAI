@@ -77,7 +77,8 @@ return {
 	["the opening pass removes more walls and keeps every cell reachable"] = function(expect)
 		local Map = load()
 		local columns, rows = 12, 9
-		local closed = standingWalls(Map.Carve(columns, rows, Harness.FakeRandom.new(7), 0))
+		local closedEast, closedSouth = Map.Carve(columns, rows, Harness.FakeRandom.new(7), 0)
+		local closed = standingWalls(closedEast, closedSouth, columns, rows)
 		local east, south = Map.Carve(columns, rows, Harness.FakeRandom.new(7), 0.3)
 
 		expect.truthy(standingWalls(east, south, columns, rows) < closed, "fewer walls")
