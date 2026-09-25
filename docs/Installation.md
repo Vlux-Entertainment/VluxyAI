@@ -23,8 +23,8 @@ realm = "shared"
 VluxyAI = "greenviper126/vluxyai@0.2.0"
 ```
 
-Run `wally install`. Wally creates a `Packages` folder holding VluxyAI and its one dependency,
-[Trove](https://github.com/Sleitnick/RbxUtil/tree/main/modules/trove).
+Run `wally install`. Wally creates a `Packages` folder holding VluxyAI. It has no dependencies
+of its own.
 
 ## Rojo
 

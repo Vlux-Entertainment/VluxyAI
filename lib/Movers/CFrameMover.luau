@@ -17,11 +17,11 @@
 	than sinking the body to floor level.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -67,8 +67,8 @@ type self = {
 	_stuckTime: number,
 	_destroyed: boolean,
 
-	_trove: Trove.Trove,
-	_moveTrove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
+	_moveCleaner: Cleaner.Cleaner,
 }
 
 local CFrameMover = {}
@@ -230,7 +230,7 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		FormatMessage.Error(`CFrameMover.new: StuckTimeout must be above 0, got {resolved.StuckTimeout}`, 2)
 	end
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 
 	local self: self = {
 		StepReached = Signal.new(),
@@ -247,8 +247,8 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_stuckTime = 0,
 		_destroyed = false,
 
-		_trove = trove,
-		_moveTrove = trove:Extend(),
+		_cleaner = cleaner,
+		_moveCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, CFrameMover) :: any
@@ -267,7 +267,7 @@ function CFrameMover._finish(self: CFrameMover, reached: boolean)
 
 	self._path = nil
 	self._index = 0
-	self._moveTrove:Clean()
+	self._moveCleaner:Clean()
 
 	self.Arrived:Fire(reached)
 end
@@ -354,7 +354,7 @@ function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	self._index = 1
 
 	local RunService = game:GetService("RunService")
-	self._moveTrove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		self:_onHeartbeat(deltaTime)
 	end)
 end
@@ -415,7 +415,7 @@ function CFrameMover.Destroy(self: CFrameMover)
 
 	self:Stop()
 	self._destroyed = true
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	self.StepReached:Destroy()
 	self.Arrived:Destroy()

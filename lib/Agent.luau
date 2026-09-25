@@ -10,12 +10,12 @@
 	fake mover and a fake pathfinder.
 ]]
 
+local Cleaner = require(script.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Utility.FormatMessage)
 local Navigator = require(script.Parent.Navigator)
 local Runner = require(script.Parent.Brain.Runner)
 local Signal = require(script.Parent.Utility.Signal)
 local Tables = require(script.Parent.Utility.Tables)
-local Trove = require(script.Parent.Utility.Trove)
 local Types = require(script.Parent.Types)
 local Validate = require(script.Parent.Brain.Validate)
 
@@ -45,7 +45,7 @@ type self = {
 	_destroyed: boolean,
 	_eventsClosed: boolean,
 	_timers: { [string]: number },
-	_trove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local Agent = {}
@@ -98,7 +98,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_destroyed = false,
 		_eventsClosed = false,
 		_timers = {},
-		_trove = Trove.new(),
+		_cleaner = Cleaner.new(),
 	}
 
 	local agent = setmetatable(self, Agent)
@@ -335,7 +335,7 @@ function Agent.Start(self: Agent, manual: boolean?): Agent
 	-- The initial Enter may have destroyed the agent; a heartbeat would then outlive it.
 	if not manual and self._running then
 		local RunService = game:GetService("RunService")
-		self._trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+		self._cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 			self:_onHeartbeat(deltaTime)
 		end)
 	end
@@ -393,7 +393,7 @@ function Agent.Destroy(self: Agent)
 
 	self._destroyed = true
 	self._running = false
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	-- Every step is protected: one part failing to tear down must not keep the others alive.
 	local function guard(what: string, callback: () -> ())

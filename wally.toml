@@ -50,6 +50,5 @@ exclude = [
 [dependencies]
 
 #main:
-Trove = "sleitnick/trove@1.5.0"
 
 #optional:

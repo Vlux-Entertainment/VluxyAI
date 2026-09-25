@@ -14,11 +14,11 @@
 	round-trip. `HumanoidMover.ChooseStart` is that decision as a pure function, so it is specced.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -55,8 +55,8 @@ type self = {
 	_stuckTime: number,
 	_destroyed: boolean,
 
-	_trove: Trove.Trove,
-	_moveTrove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
+	_moveCleaner: Cleaner.Cleaner,
 }
 
 local HumanoidMover = {}
@@ -169,7 +169,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		end
 	end
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 
 	local self: self = {
 		StepReached = Signal.new(),
@@ -187,8 +187,8 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		_stuckTime = 0,
 		_destroyed = false,
 
-		_trove = trove,
-		_moveTrove = trove:Extend(),
+		_cleaner = cleaner,
+		_moveCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, HumanoidMover) :: any
@@ -208,7 +208,7 @@ function HumanoidMover._finish(self: HumanoidMover, reached: boolean)
 
 	self._path = nil
 	self._index = 0
-	self._moveTrove:Clean()
+	self._moveCleaner:Clean()
 
 	if not reached then
 		self._humanoid:MoveTo(self._root.Position)
@@ -339,17 +339,17 @@ function HumanoidMover.Follow(self: HumanoidMover, path: Types.Path)
 
 	if #path == 0 then
 		-- Nowhere to walk. Report it on the next frame rather than from inside Follow.
-		self._moveTrove:Connect(RunService.Heartbeat, function()
+		self._moveCleaner:Connect(RunService.Heartbeat, function()
 			self:_finish(false)
 		end)
 		return
 	end
 
-	self._moveTrove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		self:_onHeartbeat(deltaTime)
 	end)
 
-	self._moveTrove:Connect(self._humanoid.MoveToFinished, function(reached: boolean)
+	self._moveCleaner:Connect(self._humanoid.MoveToFinished, function(reached: boolean)
 		self:_onMoveToFinished(reached)
 	end)
 
@@ -410,7 +410,7 @@ function HumanoidMover.Destroy(self: HumanoidMover)
 
 	self:Stop()
 	self._destroyed = true
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	self.StepReached:Destroy()
 	self.Arrived:Destroy()

@@ -10,8 +10,8 @@
 	0 can be dropped by the engine and pop when brought back. It sits at ALMOST_ZERO instead.
 ]]
 
+local Cleaner = require(script.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Utility.FormatMessage)
-local Trove = require(script.Parent.Utility.Trove)
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ type self = {
 	_infos: { [string]: AnimationInfo },
 	_tracks: { [string]: AnimationTrack },
 	_loaded: boolean,
-	_trove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local NPCAnimator = {}
@@ -98,7 +98,7 @@ function NPCAnimator.new(entity: Model, animations: { [string]: AnimationInfo })
 		_infos = table.clone(animations),
 		_tracks = {},
 		_loaded = false,
-		_trove = Trove.new(),
+		_cleaner = Cleaner.new(),
 	}
 
 	return setmetatable(self, NPCAnimator)
@@ -146,14 +146,14 @@ function NPCAnimator.Load(self: NPCAnimator): NPCAnimator
 		animation.Name = name
 		animation.AnimationId = `rbxassetid://{info.Id}`
 		animation.Parent = self.Entity
-		self._trove:Add(animation)
+		self._cleaner:Add(animation)
 
 		local track = self._animator:LoadAnimation(animation)
 		track.Priority = info.Priority
 			or (if info.Weighted then Enum.AnimationPriority.Movement else Enum.AnimationPriority.Action)
 		track.Looped = info.Weighted
 		-- Play resets the speed, so it is given on every Play rather than set once here.
-		self._trove:Add(track)
+		self._cleaner:Add(track)
 
 		if info.Weighted then
 			track:Play(0, ALMOST_ZERO, info.Speed or 1)
@@ -257,7 +257,7 @@ function NPCAnimator.Destroy(self: NPCAnimator)
 		track:Stop()
 	end
 	table.clear(self._tracks)
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 end
 
 return NPCAnimator

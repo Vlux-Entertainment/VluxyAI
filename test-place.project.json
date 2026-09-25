@@ -17,12 +17,6 @@
 				"$className": "Folder",
 				"VluxyAI": {
 					"$path": "lib"
-				},
-				"Trove": {
-					"$path": "Packages/Trove.lua"
-				},
-				"_Index": {
-					"$path": "Packages/_Index"
 				}
 			}
 		},

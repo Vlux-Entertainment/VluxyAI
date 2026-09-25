@@ -42,6 +42,7 @@ local Watched = require(script.Senses.Watched)
 local Broadcaster = require(script.Sync.Broadcaster)
 local Replica = require(script.Sync.Replica)
 
+local Cleaner = require(script.Utility.Cleaner)
 local Signal = require(script.Utility.Signal)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -66,6 +67,7 @@ export type StepAction = Types.StepAction
 
 export type Signal<T...> = Types.Signal<T...>
 export type Connection = Types.Connection
+export type Cleaner = Cleaner.Cleaner
 
 export type Curve = Types.Curve
 export type Consideration<T> = Types.Consideration<T>
@@ -160,6 +162,14 @@ VluxyAI.ValidateBrain = Validate.Brain
 	Utility scoring: [Utility.Best], [Utility.Weighted], [Utility.Curves].
 ]=]
 VluxyAI.Utility = Utility
+
+--[=[
+	@within VluxyAI
+	@prop Cleaner Cleaner
+
+	The package's cleanup bag, for anything you build around an agent.
+]=]
+VluxyAI.Cleaner = Cleaner
 
 --[=[
 	@within VluxyAI

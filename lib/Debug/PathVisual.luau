@@ -6,9 +6,9 @@
 	Parts go under one shared `VluxyAI_Debug` folder in Workspace, made on first use.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -45,8 +45,8 @@ export type PathVisualOptions = {
 type self = {
 	_agent: Types.Agent,
 	_options: ResolvedOptions,
-	_trove: Trove.Trove,
-	_parts: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
+	_parts: Cleaner.Cleaner,
 }
 
 local PathVisual = {}
@@ -92,12 +92,12 @@ end
 function PathVisual.new(agent: Types.Agent, options: PathVisualOptions?): PathVisual
 	local resolved = Options.Resolve("PathVisual.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 	local self: self = {
 		_agent = agent,
 		_options = resolved,
-		_trove = trove,
-		_parts = trove:Extend(),
+		_cleaner = cleaner,
+		_parts = cleaner:Extend(),
 	}
 
 	local visual = setmetatable(self, PathVisual)
@@ -108,7 +108,7 @@ function PathVisual.new(agent: Types.Agent, options: PathVisualOptions?): PathVi
 		return visual
 	end
 
-	trove:Connect(navigator.PathChanged, function(path: Types.Path?)
+	cleaner:Connect(navigator.PathChanged, function(path: Types.Path?)
 		visual:_draw(path)
 	end)
 	visual:_draw(navigator:GetPath())
@@ -155,7 +155,7 @@ end
 	Removes the balls and stops listening.
 ]=]
 function PathVisual.Destroy(self: PathVisual)
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 end
 
 return PathVisual

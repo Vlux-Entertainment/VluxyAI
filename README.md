@@ -55,7 +55,8 @@ local agent = VluxyAI.Presets.Humanoid(rig) -- any Model with a PrimaryPart and 
 VluxyAI = "greenviper126/vluxyai@0.2.0"
 ```
 
-Then `wally install`. The package is `shared` realm: requiring it on a client is harmless.
+Then `wally install`. The package has no dependencies and is `shared` realm: requiring it on a
+client is harmless.
 
 ## Repository
 

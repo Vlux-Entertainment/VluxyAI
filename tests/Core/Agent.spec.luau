@@ -2,7 +2,7 @@
 
 --[[
 	The agent as a whole, with a fake pathfinder, mover and senses: tick order, the heartbeat
-	accumulator, the shorthand methods and teardown. Trove is the real package, loaded through
+	accumulator, the shorthand methods and teardown. The cleaner is the package's own, loaded through
 	the harness the same way the agent loads it in a game.
 ]]
 

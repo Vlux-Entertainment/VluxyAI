@@ -7,7 +7,7 @@
 local Tables = {}
 
 --[[
-	Deep-copies plain tables. Anything with a metatable (a class instance, a signal, a Trove) is
+	Deep-copies plain tables. Anything with a metatable (a class instance, a signal, a cleaner) is
 	shared, not copied: those are objects, and copying them would break their identity. Roblox
 	values like Vector3 are immutable and copy by reference anyway.
 ]]

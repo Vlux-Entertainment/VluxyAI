@@ -31,7 +31,7 @@ Three deliverables live here:
 | Package-only build | `rojo build default.project.json -o VluxyAI.rbxm` |
 | Lint / format | `selene lib examples tests` / `stylua lib examples tests` |
 | Type check | `rojo sourcemap test-place.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --defs=.luau-analyze/globalTypes.d.luau --platform=roblox lib examples` |
-| Install deps | `wally install` |
+| Install deps | none; `wally install` only when a consumer pins this package |
 | Docs preview | `moonwave dev` |
 
 Run `lune run tests/runner` before every commit. A spec is a table of
@@ -59,7 +59,7 @@ lib/
   Sync/              Broadcaster (server: state, position samples, events) and Replica (client: rig + Visuals)
   Combat/            Attack (Strike and the one generic state) and Kill (Live and BlackBox kills)
   Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
-  Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Trove (the one outside require)
+  Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Cleaner (cleanup bag)
 ```
 
 Rules that keep it composable and testable:
@@ -77,8 +77,8 @@ Rules that keep it composable and testable:
   path on a later frame, never inside `Follow`.
 - **Contracts, not registries.** No string-union catalogue of kinds, no `Register` call. A game
   passes its own pathfinder in; the package never learns it exists.
-- **The one outside require** is `lib/Utility/Trove.luau`, which walks three parents up to the
-  Wally sibling. Every other require is relative through `script`.
+- **No dependencies.** Cleanup goes through `Utility/Cleaner`, the package's own bag. Every
+  require is relative through `script`.
 
 ## Conventions
 
@@ -89,7 +89,7 @@ Rules that keep it composable and testable:
   plain `--[[ ]]` comment. Types are documented in `Types.luau` with `@interface` / `@type`.
 - Warnings and errors go through `Utility/FormatMessage` so they carry the `[VluxyAI]` prefix.
   Validation errors name the field path (`Definition.Brain.States.Hunt.Transitions[2].To`).
-- Cleanup is `Destroy`, never `Cleanup`, so Trove picks it up.
+- Cleanup is `Destroy`, never `Cleanup`, so a `Cleaner` (or a consumer's Trove) picks it up.
 - Classes: `local X = {}; X.__index = X`, a `type self = {}` for fields, `export type X = typeof(setmetatable({} :: self, X))`, private fields `_prefixed`.
 - Options tables: a frozen `DEFAULT_OPTIONS` at the top, resolved with `Utility/Options.Resolve`,
   which errors on unknown keys. Callback options with no default go in its `allowed` list.

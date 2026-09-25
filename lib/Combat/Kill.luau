@@ -18,10 +18,10 @@
 	death, so a client can lift whatever it put up.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	) :: typeof(LIVE_DEFAULTS)
 
 	local finished: Types.Signal<boolean> = Signal.new()
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 	local done = false
 
 	local announced = false
@@ -183,7 +183,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 			return
 		end
 		done = true
-		trove:Destroy()
+		cleaner:Destroy()
 		if announced and not killed then
 			agent:Emit(CANCEL_EVENT, { Kind = "Live", Victim = victim })
 		end
@@ -216,12 +216,12 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	end
 
 	held[victim] = true
-	trove:Add(function()
+	cleaner:Add(function()
 		held[victim] = nil
 	end)
 
 	-- The killer's end of the hold: no killer, no kill.
-	trove:Connect(agent.Destroyed, function()
+	cleaner:Connect(agent.Destroyed, function()
 		finish(false)
 	end)
 
@@ -234,7 +234,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	local wasPlatformStanding = humanoid.PlatformStand
 	root.Anchored = true
 	humanoid.PlatformStand = true
-	trove:Add(function()
+	cleaner:Add(function()
 		if humanoid.Health > 0 then
 			root.Anchored = wasAnchored
 			humanoid.PlatformStand = wasPlatformStanding
@@ -243,7 +243,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 
 	local stopKiller = playAnimation(agent.Entity, resolved.KillerAnimation)
 	local stopVictim = playAnimation(victim, resolved.VictimAnimation)
-	trove:Add(function()
+	cleaner:Add(function()
 		if stopKiller then
 			stopKiller()
 		end
@@ -254,7 +254,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 
 	local RunService = game:GetService("RunService")
 	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		-- Someone else got there first: this kill did not happen.
 		if humanoid.Health <= 0 then
 			finish(false)

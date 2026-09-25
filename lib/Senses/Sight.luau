@@ -169,7 +169,7 @@ end
 --[=[
 	@within Sight
 
-	Nothing to release; present so the sense satisfies [Types.Sense] and Trove.
+	Nothing to release; present so the sense satisfies [Types.Sense] and any cleanup helper.
 ]=]
 function Sight.Destroy(self: Sight)
 	local _ = self

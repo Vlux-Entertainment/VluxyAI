@@ -11,10 +11,10 @@
 	only forwards states and events.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ type self = {
 	_elapsed: number,
 	_lastPosition: Vector3?,
 	_lastYaw: number?,
-	_trove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local Broadcaster = {}
@@ -128,7 +128,7 @@ function Broadcaster.new(agent: Types.Agent, options: BroadcasterOptions?): Broa
 		FormatMessage.Error(`Broadcaster.new: PositionRate must be 0 or more, got {resolved.PositionRate}`, 2)
 	end
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 	local self: self = {
 		StateChanged = Signal.new(),
 		PositionChanged = Signal.new(),
@@ -139,18 +139,18 @@ function Broadcaster.new(agent: Types.Agent, options: BroadcasterOptions?): Broa
 		_elapsed = 0,
 		_lastPosition = nil,
 		_lastYaw = nil,
-		_trove = trove,
+		_cleaner = cleaner,
 	}
 
 	local broadcaster = setmetatable(self, Broadcaster) :: BroadcasterClass
 
-	trove:Connect(agent.StateChanged, function(new: string, old: string?)
+	cleaner:Connect(agent.StateChanged, function(new: string, old: string?)
 		self.StateChanged:Fire(new, old)
 	end)
-	trove:Connect(agent.Events, function(name: string, payload: any)
+	cleaner:Connect(agent.Events, function(name: string, payload: any)
 		self.EventSent:Fire(name, payload)
 	end)
-	trove:Connect(agent.Destroyed, function()
+	cleaner:Connect(agent.Destroyed, function()
 		-- Other Destroyed handlers (a kill being cancelled) still emit in this same tick.
 		task.defer(function()
 			broadcaster:Destroy()
@@ -159,7 +159,7 @@ function Broadcaster.new(agent: Types.Agent, options: BroadcasterOptions?): Broa
 
 	if resolved.PositionRate > 0 then
 		local RunService = game:GetService("RunService")
-		trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+		cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 			broadcaster:Step(deltaTime)
 		end)
 	end
@@ -227,7 +227,7 @@ end
 	Disconnects from the agent. Happens on its own when the agent is destroyed.
 ]=]
 function Broadcaster.Destroy(self: BroadcasterClass)
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 	self.StateChanged:Destroy()
 	self.PositionChanged:Destroy()
 	self.EventSent:Destroy()

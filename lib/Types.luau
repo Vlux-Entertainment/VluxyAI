@@ -37,7 +37,7 @@ local Types = {}
 	.Connected boolean -- `false` once disconnected.
 	.Disconnect (self: Connection) -> () -- Disconnects the handler.
 
-	What [Types.Signal] `Connect` returns. Trove accepts it directly.
+	What [Types.Signal] `Connect` returns. Any cleanup helper that calls `Disconnect` accepts it.
 ]=]
 export type Connection = {
 	Connected: boolean,
@@ -56,7 +56,7 @@ export type Connection = {
 	.Destroy (self: Signal<T...>) -> () -- Drops every handler and refuses new ones.
 
 	A small signal with the same surface as `RBXScriptSignal`, implemented in plain Luau so the
-	core runs outside Roblox. Movers and agents expose these; Trove can clean them up.
+	core runs outside Roblox. Movers and agents expose these; a [Cleaner] releases their connections.
 ]=]
 export type Signal<T...> = {
 	Connect: (self: Signal<T...>, handler: (T...) -> ()) -> Connection,
