@@ -14,7 +14,7 @@
 
 local CELL = 8
 local WALL = 1
-local WALL_HEIGHT = 12
+local WALL_HEIGHT = 6
 local FLOOR_TOP = 1
 local ORIGIN = Vector3.new(0, 0, 0)
 
@@ -324,10 +324,10 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 		end
 	end
 
-	-- Placements: the player in the first cell, the enemies spread out, a patrol node per
+	-- Placements: the player in the first cell, the four enemies spread out, a patrol node per
 	-- quadrant, the noise pad somewhere near the middle.
 	local playerCell: Cell = { Column = 1, Row = 1 }
-	local enemyCells = pickSpread(columns, rows, 6, 3, { playerCell }, random)
+	local enemyCells = pickSpread(columns, rows, 4, 4, { playerCell }, random)
 
 	local spawns: { [string]: Vector3 } = {}
 	for index, cell in enemyCells do

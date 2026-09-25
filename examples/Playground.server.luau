@@ -4,7 +4,8 @@
 	The playground. Builds the map, wires the noise signal to player jumps and the noise pad,
 	spawns one R15 rig per example enemy with animations, a debug label and a path visual, and
 	starts them. Colour says which enemy it is; transparency says how it moves: solid rigs walk
-	with the Humanoid mover, see-through ones are pivoted by the CFrame mover.
+	with the Humanoid mover, the see-through one is pivoted by the CFrame mover. The Guardian's
+	alarm goes through the same noise signal as player jumps, so the Stalker answers it.
 	Serve `test-place.project.json` and press Play.
 ]]
 
@@ -22,71 +23,53 @@ local Enemies = script.Parent.Enemies
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local ROSTER: {
+type Entry = {
+	Slot: string,
+	Name: string,
+	Module: ModuleScript,
+	Color: Color3,
+	Humanoid: boolean,
+	Transparency: number?,
+	Keys: { string },
+}
+
+local ROSTER: { Entry } = {
+	-- Solid rigs walk with the Humanoid mover.
 	{
-		Slot: string,
-		Name: string,
-		Module: ModuleScript,
-		Color: Color3,
-		Humanoid: boolean,
-		Transparency: number?,
-		Keys: { string },
-	}
-} =
+		Slot = "1",
+		Name = "Stalker",
+		Module = Enemies.Stalker,
+		Color = Color3.fromRGB(220, 70, 70), -- red: patrols, hears, hunts, searches
+		Humanoid = true,
+		Keys = { "SeenTarget", "SeenDistance", "HeardAt" },
+	},
 	{
-		-- Solid rigs walk with the Humanoid mover.
-		{
-			Slot = "1",
-			Name = "Wanderer",
-			Module = Enemies.Wanderer,
-			Color = Color3.fromRGB(90, 200, 120), -- green: harmless
-			Humanoid = true,
-			Keys = {},
-		},
-		{
-			Slot = "2",
-			Name = "Stalker",
-			Module = Enemies.Stalker,
-			Color = Color3.fromRGB(220, 70, 70), -- red: chases on sight
-			Humanoid = true,
-			Keys = { "SeenTarget", "SeenDistance" },
-		},
-		{
-			Slot = "3",
-			Name = "Patroller",
-			Module = Enemies.Patroller,
-			Color = Color3.fromRGB(240, 200, 60), -- yellow: reacts to noise
-			Humanoid = true,
-			Keys = { "HeardPosition", "HeardLoudness" },
-		},
-		{
-			Slot = "4",
-			Name = "Hunter",
-			Module = Enemies.Hunter,
-			Color = Color3.fromRGB(230, 130, 40), -- orange: picks its prey
-			Humanoid = true,
-			Keys = { "SeenTargets", "NearestDistance" },
-		},
-		-- See-through rigs are pivoted by the CFrame mover; the Humanoid does no work.
-		{
-			Slot = "5",
-			Name = "Ghost",
-			Module = Enemies.Ghost,
-			Color = Color3.fromRGB(170, 190, 255), -- pale blue: floats
-			Humanoid = false,
-			Transparency = 0.6,
-			Keys = { "SeenTarget" },
-		},
-		{
-			Slot = "6",
-			Name = "Watcher",
-			Module = Enemies.Watcher,
-			Color = Color3.fromRGB(40, 40, 45), -- near black: only moves unseen
-			Humanoid = false,
-			Transparency = 0.35,
-			Keys = { "IsWatched", "SeenTarget", "SeenDistance" },
-		},
-	}
+		Slot = "2",
+		Name = "Hunter",
+		Module = Enemies.Hunter,
+		Color = Color3.fromRGB(230, 130, 40), -- orange: scores its prey, sprints, tires
+		Humanoid = true,
+		Keys = { "SeenTargets", "NearestDistance", "Stamina" },
+	},
+	{
+		Slot = "3",
+		Name = "Guardian",
+		Module = Enemies.Guardian,
+		Color = Color3.fromRGB(60, 140, 230), -- blue: holds its ground, raises the alarm
+		Humanoid = true,
+		Keys = { "SeenTarget", "SeenDistance" },
+	},
+	-- A see-through rig is pivoted by the CFrame mover; its Humanoid does no work.
+	{
+		Slot = "4",
+		Name = "Watcher",
+		Module = Enemies.Watcher,
+		Color = Color3.fromRGB(40, 40, 45), -- near black: only moves unseen
+		Humanoid = false,
+		Transparency = 0.35,
+		Keys = { "IsWatched", "SeenTarget", "SeenDistance" },
+	},
+}
 
 ------------------------------------------------------------------------------------------------------------------------
 

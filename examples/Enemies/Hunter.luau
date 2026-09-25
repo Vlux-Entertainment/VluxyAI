@@ -1,33 +1,84 @@
 --!strict
 
 --[[
-	Hunter: like the Stalker, but with several players in view it chooses which one to chase by
-	utility scoring: closer is better, hurt is better, and the player it already chases gets a
-	bonus so it does not flip-flop. Shows Utility choosing a target while transitions still
-	choose the mode, and Proximity supplying the reach check.
+	Hunter: the utility-scoring predator. It roams between the map's nodes, choosing the next one
+	by score (far from here, not visited lately), and with players in view chooses which one to
+	chase by score (close, hurt, and the one it already chases). It sprints while hunting, tires,
+	and has to rest; stamina comes from a custom sense written right here, in a dozen lines, that
+	watches how fast the rig is moving.
 
-	Considerations read the blackboard and cheap properties of the candidate itself (its position,
-	its health); they never raycast. That is the line: the world is sampled by senses, and a
-	candidate is inspected by the code that has to rank it.
+	Shows: Utility.Weighted for destinations and Utility.Best for targets while transitions still
+	choose the mode, a custom sense, Proximity for the reach check, and a cheap property of the
+	candidate (its health) read by a consideration.
 
-	Blackboard (from Sight and Proximity): SeenTargets, SeenPosition, NearestTarget, NearestDistance.
-	Data: Target (the chosen root). Timers: Attack.
+	Blackboard (from Sight, Proximity, Stamina): SeenTargets, SeenPosition, NearestTarget,
+	NearestDistance, Stamina. Data: Nodes, VisitedAt, Target, Random. Timers: Attack.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
-local Locomotion = require(script.Parent.Parent.Locomotion)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local Curves = VluxyAI.Utility.Curves
 
+local ROAM_SPEED = 9
+local HUNT_SPEED = 18
 local ATTACK_RANGE = 4
-local ATTACK_DAMAGE = 15
-local ATTACK_COOLDOWN = 1.2
+local STAMINA_DRAIN = 0.12 -- per second while sprinting
+local STAMINA_REGEN = 0.2 -- per second otherwise
 
-local considerations: { VluxyAI.Consideration<BasePart> } = {
-	-- Closer scores higher, and sharply so.
+------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	A custom sense: writes `Stamina` in [0, 1], draining while the rig moves faster than a walk
+	and recovering otherwise. A sense is anything with Tick; this one needs no options.
+]]
+local Stamina = {}
+Stamina.__index = Stamina
+
+function Stamina.new(): VluxyAI.Sense
+	return setmetatable({ _last = nil :: Vector3? }, Stamina) :: any
+end
+
+function Stamina.Tick(self: any, agent: VluxyAI.Agent, deltaTime: number)
+	local position = agent:GetPosition()
+	local speed = if self._last then (position - self._last).Magnitude / math.max(deltaTime, 1e-4) else 0
+	self._last = position
+
+	local stamina = agent.Blackboard.Stamina or 1
+	if speed > ROAM_SPEED + 1 then
+		stamina -= STAMINA_DRAIN * deltaTime
+	else
+		stamina += STAMINA_REGEN * deltaTime
+	end
+	agent.Blackboard.Stamina = math.clamp(stamina, 0, 1)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+-- Which node to roam to next: prefer far ones and ones not visited for a while.
+local roamConsiderations: { VluxyAI.Consideration<Vector3> } = {
+	{
+		Input = function(agent: VluxyAI.Agent, node: Vector3)
+			return (node - agent:GetPosition()).Magnitude
+		end,
+		Max = 80,
+		Curve = Curves.SquareRoot,
+	},
+	{
+		Input = function(agent: VluxyAI.Agent, node: Vector3)
+			local visitedAt = agent.Data.VisitedAt[node]
+			return if visitedAt then os.clock() - visitedAt else 60
+		end,
+		Max = 60,
+		Curve = Curves.Quadratic,
+	},
+}
+
+-- Which player to chase: close, hurt, and sticky to the current choice.
+local chaseConsiderations: { VluxyAI.Consideration<BasePart> } = {
 	{
 		Input = function(agent: VluxyAI.Agent, root: BasePart)
 			return (root.Position - agent:GetPosition()).Magnitude
@@ -36,7 +87,6 @@ local considerations: { VluxyAI.Consideration<BasePart> } = {
 		Invert = true,
 		Curve = Curves.Quadratic,
 	},
-	-- Hurt players are easier prey. Never below 0.3 so health alone cannot veto.
 	{
 		Input = function(_agent: VluxyAI.Agent, root: BasePart)
 			local humanoid = VluxyAI.Perception.HumanoidOf(root)
@@ -48,7 +98,6 @@ local considerations: { VluxyAI.Consideration<BasePart> } = {
 			return 0.3 + 0.7 * x
 		end,
 	},
-	-- Stick with the current target unless someone is clearly better.
 	{
 		Input = function(agent: VluxyAI.Agent, root: BasePart)
 			return if agent.Data.Target == root then 1 else 0.6
@@ -56,7 +105,18 @@ local considerations: { VluxyAI.Consideration<BasePart> } = {
 	},
 }
 
--- The chosen target is the nearest thing and it is within reach.
+local function seesSomeone(agent: VluxyAI.Agent): boolean
+	return #agent.Blackboard.SeenTargets > 0
+end
+
+local function exhausted(agent: VluxyAI.Agent): boolean
+	return agent.Blackboard.Stamina <= 0
+end
+
+local function rested(agent: VluxyAI.Agent): boolean
+	return agent.Blackboard.Stamina >= 0.8
+end
+
 local function targetInReach(agent: VluxyAI.Agent): boolean
 	local blackboard = agent.Blackboard
 	return agent.Data.Target ~= nil
@@ -65,28 +125,48 @@ local function targetInReach(agent: VluxyAI.Agent): boolean
 end
 
 local Brain: VluxyAI.Brain = {
-	Initial = "Idle",
+	Initial = "Roam",
 	States = {
-		Idle = {
+		Roam = {
 			Enter = function(agent: VluxyAI.Agent)
-				agent:Stop()
+				agent:SetSpeed(ROAM_SPEED)
 				agent.Data.Target = nil
+				local node = VluxyAI.Utility.Weighted(agent, agent.Data.Nodes, roamConsiderations, agent.Data.Random)
+				if node then
+					agent.Data.Destination = node
+					agent:MoveTo(node)
+				end
 			end,
 			Transitions = {
 				{
 					To = "Hunt",
 					When = function(agent: VluxyAI.Agent)
-						return #agent.Blackboard.SeenTargets > 0
+						return seesSomeone(agent) and agent.Blackboard.Stamina > 0.3
+					end,
+				},
+				-- Re-enter to pick the next node.
+				{
+					To = "Roam",
+					When = function(agent: VluxyAI.Agent)
+						local status = agent:GetPathStatus()
+						if status == "Arrived" and agent.Data.Destination then
+							agent.Data.VisitedAt[agent.Data.Destination] = os.clock()
+						end
+						return status == "Arrived" or status == "Failed"
 					end,
 				},
 			},
 		},
 
 		Hunt = {
+			Enter = function(agent: VluxyAI.Agent)
+				agent:SetSpeed(HUNT_SPEED)
+			end,
 			Transitions = {
 				{ To = "Attack", When = targetInReach },
+				{ To = "Rest", When = exhausted },
 				{
-					To = "Idle",
+					To = "Roam",
 					When = function(agent: VluxyAI.Agent)
 						return agent.Blackboard.SeenPosition == nil
 					end,
@@ -94,7 +174,7 @@ local Brain: VluxyAI.Brain = {
 			},
 			Update = function(agent: VluxyAI.Agent)
 				local visible = agent.Blackboard.SeenTargets :: { BasePart }
-				local chosen = VluxyAI.Utility.Best(agent, visible, considerations)
+				local chosen = VluxyAI.Utility.Best(agent, visible, chaseConsiderations)
 
 				if chosen then
 					agent.Data.Target = chosen
@@ -107,30 +187,21 @@ local Brain: VluxyAI.Brain = {
 			end,
 		},
 
-		Attack = {
+		Rest = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent:StartTimer("Attack", ATTACK_COOLDOWN)
-				Locomotion.PlayAttack(agent)
-
-				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Data.Target)
-				if humanoid then
-					humanoid:TakeDamage(ATTACK_DAMAGE)
-				end
+				agent.Data.Target = nil
 			end,
 			Transitions = {
-				{
-					To = "Hunt",
-					When = function(agent: VluxyAI.Agent)
-						return agent:TimerDone("Attack")
-					end,
-				},
+				{ To = "Roam", When = rested },
 			},
 		},
+
+		Attack = Combat.AttackState({ Damage = 15, Cooldown = 1.2, TargetKey = "NearestTarget", Then = "Hunt" }),
 	},
 }
 
-local function Hunter(model: Model, _context: Context.Context): VluxyAI.Agent
+local function Hunter(model: Model, context: Context.Context): VluxyAI.Agent
 	return VluxyAI.new(model)
 		:SetName("Hunter")
 		:UseBrain(Brain)
@@ -138,9 +209,12 @@ local function Hunter(model: Model, _context: Context.Context): VluxyAI.Agent
 			VluxyAI.Pathfinders.Straight.new(),
 			VluxyAI.Pathfinders.Navmesh.new(),
 		}))
-		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = 13 }))
+		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = ROAM_SPEED }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 50, FieldOfView = 140, Memory = 3 }))
 		:AddSense(VluxyAI.Senses.Proximity.new({ Range = 60 }))
+		:AddSense(Stamina.new())
+		:SetBlackboard({ Stamina = 1 })
+		:SetData({ Nodes = context.Map.PatrolNodes, VisitedAt = {}, Random = context.Random })
 		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
 end

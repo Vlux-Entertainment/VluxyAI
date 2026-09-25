@@ -17,8 +17,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
-local Locomotion = require(script.Parent.Parent.Locomotion)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local ATTACK_RANGE = 3.5
@@ -82,26 +82,12 @@ local Brain: VluxyAI.Brain = {
 			end,
 		},
 
-		Attack = {
-			Enter = function(agent: VluxyAI.Agent)
-				agent:Stop()
-				agent:StartTimer("Attack", ATTACK_COOLDOWN)
-				Locomotion.PlayAttack(agent)
-
-				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Blackboard.SeenTarget)
-				if humanoid then
-					humanoid:TakeDamage(ATTACK_DAMAGE)
-				end
-			end,
-			Transitions = {
-				{
-					To = "Aware",
-					When = function(agent: VluxyAI.Agent)
-						return agent:TimerDone("Attack")
-					end,
-				},
-			},
-		},
+		Attack = Combat.AttackState({
+			Damage = ATTACK_DAMAGE,
+			Cooldown = ATTACK_COOLDOWN,
+			TargetKey = "SeenTarget",
+			Then = "Aware",
+		}),
 	},
 }
 
