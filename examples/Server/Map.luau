@@ -6,16 +6,15 @@
 	the pathfinders have real choices. Reproducible from a seed, from a fresh `rojo build`, with
 	no Studio-authored parts.
 
-	Cells are 8 studs wide with 1-stud walls between them, so a 2-stud-radius agent has 4 studs of
-	navmesh down every corridor. The floor's top sits `FLOOR_TOP` studs above the world origin, so
-	the map never fights a baseplate at zero, and every position the map hands out is at that
-	height.
+	Cells are 16 studs wide with 1-stud walls between them, so there is room to move and to be
+	seen. There is no floor part and no border: the place's baseplate at y = 0 is the floor, and
+	the maze stands on it. Every position the map hands out is at floor height.
 ]]
 
-local CELL = 8
+local CELL = 16
 local WALL = 1
 local WALL_HEIGHT = 6
-local FLOOR_TOP = 1
+local FLOOR_TOP = 0
 local ORIGIN = Vector3.new(0, 0, 0)
 
 local DEFAULT_OPTIONS = {
@@ -35,7 +34,6 @@ export type MapOptions = {
 
 export type BuiltMap = {
 	Folder: Folder,
-	Floor: BasePart,
 	Seed: number,
 	Spawns: { [string]: Vector3 },
 	PatrolNodes: { Vector3 },
@@ -259,46 +257,7 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 	local depth = rows * CELL
 	local wallColor = Color3.fromRGB(120, 120, 130)
 
-	local floor = makePart(
-		"Floor",
-		Vector3.new(width + WALL, 1, depth + WALL),
-		ORIGIN + Vector3.new(width / 2, FLOOR_TOP - 0.5, depth / 2),
-		Color3.fromRGB(70, 70, 75),
-		folder
-	)
-	floor.Material = Enum.Material.Concrete
-
 	local wallY = FLOOR_TOP + WALL_HEIGHT / 2
-
-	-- Border.
-	makePart(
-		"Wall",
-		Vector3.new(width + WALL, WALL_HEIGHT, WALL),
-		ORIGIN + Vector3.new(width / 2, wallY, 0),
-		wallColor,
-		folder
-	)
-	makePart(
-		"Wall",
-		Vector3.new(width + WALL, WALL_HEIGHT, WALL),
-		ORIGIN + Vector3.new(width / 2, wallY, depth),
-		wallColor,
-		folder
-	)
-	makePart(
-		"Wall",
-		Vector3.new(WALL, WALL_HEIGHT, depth + WALL),
-		ORIGIN + Vector3.new(0, wallY, depth / 2),
-		wallColor,
-		folder
-	)
-	makePart(
-		"Wall",
-		Vector3.new(WALL, WALL_HEIGHT, depth + WALL),
-		ORIGIN + Vector3.new(width, wallY, depth / 2),
-		wallColor,
-		folder
-	)
 
 	-- Interior walls still standing after both passes.
 	for row = 1, rows do
@@ -388,7 +347,6 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 
 	return {
 		Folder = folder,
-		Floor = floor,
 		Seed = resolved.Seed,
 		Spawns = spawns,
 		PatrolNodes = patrolNodes,

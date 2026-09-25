@@ -151,7 +151,14 @@ local Brain: VluxyAI.Brain = {
 			end,
 		},
 
-		Attack = Combat.AttackState({ Damage = 10, Cooldown = 1, TargetKey = "SeenTarget", Then = "Hunt" }),
+		-- The finishing blow is a live kill: the stalker holds you while both animations play.
+		Attack = Combat.AttackState({
+			Damage = 34,
+			Cooldown = 1.8,
+			TargetKey = "SeenTarget",
+			Then = "Hunt",
+			Kill = "Live",
+		}),
 	},
 }
 

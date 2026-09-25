@@ -419,6 +419,7 @@ export type AgentDefinition = {
 	.Pathfinder Pathfinder? -- The pathfinder, if any.
 	.StateChanged Signal<(string, string?)> -- Fired with the new and previous state names.
 	.Destroyed Signal<()> -- Fired once, at the end of `Destroy`, so anything built around the agent can go with it.
+	.Events Signal<(string, any)> -- Everything the agent announces through [Agent:Emit]; a [Broadcaster] relays it to clients.
 	.GetState (self: Agent) -> string? -- The current state name, `nil` before `Start`.
 	.SetState (self: Agent, name: string) -> () -- Force a transition, re-entering if already there.
 	.MoveTo (self: Agent, target: Vector3) -> () -- Shorthand for `Navigator:MoveTo`. Errors without a navigator.
@@ -433,6 +434,7 @@ export type AgentDefinition = {
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
+	.Emit (self: Agent, name: string, payload: any?) -> () -- Announces something for clients: a scream, a kill, a door. Fires `Events`.
 	.Destroy (self: Agent) -> () -- Exits the current state, stops, destroys every part.
 
 	The running AI. Handed to every `Enter`, `Update`, `Exit`, `When` and `Input` function.
@@ -449,6 +451,7 @@ export type Agent = {
 	Pathfinder: Pathfinder?,
 	StateChanged: Signal<(string, string?)>,
 	Destroyed: Signal<()>,
+	Events: Signal<(string, any)>,
 
 	GetState: (self: Agent) -> string?,
 	SetState: (self: Agent, name: string) -> (),
@@ -464,7 +467,78 @@ export type Agent = {
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,
+	Emit: (self: Agent, name: string, payload: any?) -> (),
 	Destroy: (self: Agent) -> (),
+}
+
+------------------------------------------------------------------------------------------------------------------------
+--CLIENT----------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@interface ClientState
+	@within Types
+
+	.Enter ((replica: any) -> ())? -- Runs when the server enters the state of that name.
+	.Update ((replica: any, deltaTime: number) -> ())? -- Runs every frame while it is current.
+	.Exit ((replica: any) -> ())? -- Runs when the server leaves it.
+
+	The client's side of one server state: what a [Replica] does while the enemy is in it. The
+	same shape as a [Types.State] without transitions, since the server decides those.
+]=]
+export type ClientState = {
+	Enter: ((replica: any) -> ())?,
+	Update: ((replica: any, deltaTime: number) -> ())?,
+	Exit: ((replica: any) -> ())?,
+}
+
+--[=[
+	@type Visuals { [string]: ClientState }
+	@within Types
+
+	Client states keyed by server state name. Only the states a client needs to react to are
+	listed; the rest are tracked without doing anything.
+]=]
+export type Visuals = { [string]: ClientState }
+
+--[=[
+	@interface Snapshot
+	@within Types
+
+	.State string? -- The current state name.
+	.Position Vector3 -- The rig's pivot position.
+	.Yaw number -- Facing in radians about Y.
+
+	Everything a client that just joined needs, from [Broadcaster.Snapshot] to [Replica.ApplySnapshot].
+]=]
+export type Snapshot = {
+	State: string?,
+	Position: Vector3,
+	Yaw: number,
+}
+
+--[=[
+	@type KillKind "Live" | "BlackBox"
+	@within Types
+
+	How a [Kill] is presented: played out in the world, or cut to black.
+]=]
+export type KillKind = "Live" | "BlackBox"
+
+--[=[
+	@interface KillEvent
+	@within Types
+
+	.Kind KillKind
+	.Victim Model -- The character being killed.
+	.Duration number -- Seconds until the victim dies, for the client to match.
+
+	The payload of the `"Kill"` event an agent emits.
+]=]
+export type KillEvent = {
+	Kind: KillKind,
+	Victim: Model,
+	Duration: number,
 }
 
 return Types

@@ -19,7 +19,13 @@ export type AttackOptions = {
 	TargetKey: string,
 	-- The state to return to once the cooldown ends.
 	Then: string,
+	-- How a blow that would finish the victim is delivered. Default: plain damage.
+	Kill: VluxyAI.KillKind?,
 }
+
+-- Roblox's own R15 animations for the live kill: a swing for the killer, a flail for the victim.
+local KILLER_ANIMATION = 522635514
+local VICTIM_ANIMATION = 507767968
 
 local Combat = {}
 
@@ -34,6 +40,32 @@ function Combat.Hurt(target: BasePart?, damage: number)
 end
 
 --[[
+	Strikes a target: a kill of the chosen kind when the blow would finish them, damage otherwise.
+]]
+function Combat.Strike(agent: VluxyAI.Agent, target: BasePart?, damage: number, kill: VluxyAI.KillKind?)
+	local humanoid = if target then VluxyAI.Perception.HumanoidOf(target) else nil
+	local character = if target then VluxyAI.Perception.CharacterOf(target) else nil
+	if humanoid == nil or character == nil then
+		return
+	end
+
+	if kill == nil or humanoid.Health > damage then
+		Locomotion.PlayAttack(agent)
+		humanoid:TakeDamage(damage)
+		return
+	end
+
+	if kill == "Live" then
+		VluxyAI.Combat.Kill.Live(agent, character, {
+			KillerAnimation = KILLER_ANIMATION,
+			VictimAnimation = VICTIM_ANIMATION,
+		})
+	else
+		VluxyAI.Combat.Kill.BlackBox(agent, character)
+	end
+end
+
+--[[
 	A state that strikes once on entry and leaves when its cooldown is over.
 ]]
 function Combat.AttackState(options: AttackOptions): VluxyAI.State
@@ -41,8 +73,7 @@ function Combat.AttackState(options: AttackOptions): VluxyAI.State
 		Enter = function(agent: VluxyAI.Agent)
 			agent:Stop()
 			agent:StartTimer("Attack", options.Cooldown)
-			Locomotion.PlayAttack(agent)
-			Combat.Hurt(agent.Blackboard[options.TargetKey], options.Damage)
+			Combat.Strike(agent, agent.Blackboard[options.TargetKey], options.Damage, options.Kill)
 		end,
 		Transitions = {
 			{

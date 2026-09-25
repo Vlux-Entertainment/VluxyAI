@@ -16,8 +16,9 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `rok
 Three deliverables live here:
 
 1. **`lib/`** — the Wally package (what ships; see `include`/`exclude` in `wally.toml`).
-2. **`examples/`** — the four example AIs, the R15 rig, combat and locomotion helpers, and the playground
-   that builds a seeded maze and spawns them.
+2. **`examples/Server`** — the four example AIs, the R15 rig, combat and locomotion helpers, and the
+   playground that builds a seeded maze, spawns them and relays them over one RemoteEvent.
+   **`examples/Client`** — the replicas: per-enemy client visuals and the kill presentation.
    Excluded from the package; mounted by `test-place.project.json`.
 3. **Docs** — Moonwave site (`moonwave.toml`, `docs/*.md`), generated into `build/`.
 
@@ -26,7 +27,7 @@ Three deliverables live here:
 | Task | Command |
 |---|---|
 | Headless tests | `lune run tests/runner` (add a substring to filter, `--json` for machine output) |
-| Test place sync | `rojo serve test-place.project.json` |
+| Test place sync | `rojo serve test-place.project.json` (needs a baseplate at y = 0 in the place) |
 | Package-only build | `rojo build default.project.json -o VluxyAI.rbxm` |
 | Lint / format | `selene lib examples tests` / `stylua lib examples tests` |
 | Type check | `rojo sourcemap test-place.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --defs=.luau-analyze/globalTypes.d.luau --platform=roblox lib examples` |
@@ -54,6 +55,8 @@ lib/
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
   Animator.luau      NPC animation helper carried over from 0.1
+  Sync/              Broadcaster (server: state, position samples, events) and Replica (client: rig + Visuals)
+  Combat/Kill        Live (held pose + animations) and BlackBox (announce, delay, cut) kills
   Debug/             PathVisual (waypoint balls), StateLabel (billboard); opt-in, make parts
   Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Trove (the one outside require)
 ```

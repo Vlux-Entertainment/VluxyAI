@@ -22,7 +22,7 @@ local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local ATTACK_RANGE = 3.5
-local ATTACK_DAMAGE = 35
+local ATTACK_DAMAGE = 100
 local ATTACK_COOLDOWN = 1.5
 
 local function seesSomeone(agent: VluxyAI.Agent): boolean
@@ -82,11 +82,13 @@ local Brain: VluxyAI.Brain = {
 			end,
 		},
 
+		-- One touch is the end: a black-box kill, the screen cuts before anything is seen.
 		Attack = Combat.AttackState({
 			Damage = ATTACK_DAMAGE,
 			Cooldown = ATTACK_COOLDOWN,
 			TargetKey = "SeenTarget",
 			Then = "Aware",
+			Kill = "BlackBox",
 		}),
 	},
 }

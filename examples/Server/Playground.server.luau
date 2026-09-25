@@ -6,6 +6,10 @@
 	starts them. Colour says which enemy it is; transparency says how it moves: solid rigs walk
 	with the Humanoid mover, the see-through one is pivoted by the CFrame mover. The Guardian's
 	alarm goes through the same noise signal as player jumps, so the Stalker answers it.
+
+	Every agent gets a Broadcaster whose state changes and events go out over one RemoteEvent,
+	VluxyAISync, in mirror mode: the rigs replicate on their own, the clients add visuals and
+	present kills. Late joiners get a snapshot per agent.
 	Serve `test-place.project.json` and press Play.
 ]]
 
@@ -134,7 +138,22 @@ local context: Context.Context = {
 -- Give the navmesh a moment to bake around the freshly built walls before anyone plans.
 task.wait(1)
 
+local sync = Instance.new("RemoteEvent")
+sync.Name = "VluxyAISync"
+sync.Parent = ReplicatedStorage
+
 local agents: { VluxyAI.Agent } = {}
+local broadcasters: { [Model]: VluxyAI.Broadcaster } = {}
+
+--[[
+	Everything a client needs about every agent, for one that just joined.
+]]
+local function sendSnapshots(player: Player)
+	for model, broadcaster in broadcasters do
+		local snapshot = broadcaster:Snapshot()
+		sync:FireClient(player, { Kind = "Snapshot", Id = model, Name = model.Name, Snapshot = snapshot })
+	end
+end
 
 for _, entry in ROSTER do
 	local spawn: Vector3? = map.Spawns[entry.Slot]
@@ -162,8 +181,23 @@ for _, entry in ROSTER do
 		print(`[{agent.Name}] {old or "-"} -> {new}`)
 	end)
 
+	-- Mirror mode: no position stream, the replicated rig is the truth. States and events only.
+	local broadcaster = VluxyAI.Sync.Broadcaster.new(agent, { PositionRate = 0 })
+	broadcaster.StateChanged:Connect(function(state)
+		sync:FireAllClients({ Kind = "State", Id = model, Name = model.Name, State = state })
+	end)
+	broadcaster.EventSent:Connect(function(name, payload)
+		sync:FireAllClients({ Kind = "Event", Id = model, Name = model.Name, Event = name, Payload = payload })
+	end)
+	broadcasters[model] = broadcaster
+
 	agent:Start()
 	table.insert(agents, agent)
+end
+
+Players.PlayerAdded:Connect(sendSnapshots)
+for _, player in Players:GetPlayers() do
+	sendSnapshots(player)
 end
 
 print(`Playground: {#agents} agents running`)

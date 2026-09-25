@@ -21,7 +21,13 @@ mover; the see-through one is pivoted by the CFrame mover and its Humanoid does 
 | **Guardian** | blue, solid | Wanders its territory, raises the alarm on an intruder, chases on a leash, returns home | Two agents cooperating through the game's noise signal, a brain built around a place, leash logic as transitions |
 | **Watcher** | near black, see-through | Dormant until it spots you; moves only while nobody looks; strikes when close and unwatched | The Watched sense from the players' side, the CFrame mover halting an anchored rig |
 
-The enemy modules live in `examples/Enemies/`. Each is a function from a rig and a shared context
+The client half lives in `examples/Client/`: one [Replica](/api/Replica) per rig in mirror mode,
+per-enemy visuals (a glow while hunting, a shout while the Guardian raises the alarm, a creeping
+vignette while the Watcher advances unseen), and the two kill presentations. The Stalker finishes
+you with a live kill you watch; the Watcher with a black-box kill that cuts to black. See
+[Client visuals and kills](ClientVisuals).
+
+The enemy modules live in `examples/Server/Enemies/`. Each is a function from a rig and a shared context
 to a built agent, with the brain table at the top of the file. They are short on purpose: read them
 as the reference for how the API is meant to look.
 

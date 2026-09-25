@@ -30,7 +30,7 @@
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
 			"Examples": {
-				"$path": "examples"
+				"$path": "examples/Server"
 			}
 		},
 
@@ -45,6 +45,12 @@
 			"$className": "StarterPlayer",
 			"$properties": {
 				"CameraMaxZoomDistance": 120
+			},
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"Examples": {
+					"$path": "examples/Client"
+				}
 			}
 		}
 	}

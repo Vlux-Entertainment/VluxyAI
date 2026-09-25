@@ -9,7 +9,7 @@
 local Harness = require("../Support/Harness")
 
 local function load()
-	return Harness.Load("examples/Map.luau")
+	return Harness.Load("examples/Server/Map.luau")
 end
 
 local function reachable(east: { { boolean } }, south: { { boolean } }, columns: number, rows: number): number

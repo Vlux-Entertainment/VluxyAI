@@ -35,6 +35,7 @@ type self = {
 	Pathfinder: Types.Pathfinder?,
 	StateChanged: Types.Signal<(string, string?)>,
 	Destroyed: Types.Signal<()>,
+	Events: Types.Signal<(string, any)>,
 
 	_runner: Runner.Runner,
 	_navigator: Navigator.Navigator?,
@@ -86,6 +87,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		Pathfinder = definition.Pathfinder,
 		StateChanged = Signal.new(),
 		Destroyed = Signal.new(),
+		Events = Signal.new(),
 
 		_runner = nil :: any,
 		_navigator = nil,
@@ -344,6 +346,21 @@ end
 
 --[=[
 	@within Agent
+	@param name string -- `"Scream"`, `"Kill"`, `"DoorOpened"`: whatever your client understands.
+	@param payload any? -- Anything a remote can carry.
+
+	Announces something for clients. Fires `Events`; a [Broadcaster] relays it, a [Replica]
+	dispatches it to `On(name, ...)` handlers. Does nothing after `Destroy`.
+]=]
+function Agent.Emit(self: Agent, name: string, payload: any?)
+	if self._destroyed then
+		return
+	end
+	self.Events:Fire(name, payload)
+end
+
+--[=[
+	@within Agent
 
 	Exits the current state, stops moving, and destroys the navigator, every sense, the mover and
 	the pathfinder that have a `Destroy`, then fires `Destroyed`. Safe to call twice. The entity
@@ -389,6 +406,7 @@ function Agent.Destroy(self: Agent)
 	end
 
 	self.StateChanged:Destroy()
+	self.Events:Destroy()
 	self.Destroyed:Fire()
 	self.Destroyed:Destroy()
 end

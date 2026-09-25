@@ -15,6 +15,8 @@ local Runner = require(script.Brain.Runner)
 local Utility = require(script.Brain.Utility)
 local Validate = require(script.Brain.Validate)
 
+local Kill = require(script.Combat.Kill)
+
 local PathVisual = require(script.Debug.PathVisual)
 local StateLabel = require(script.Debug.StateLabel)
 
@@ -30,6 +32,9 @@ local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
 local Watched = require(script.Senses.Watched)
+
+local Broadcaster = require(script.Sync.Broadcaster)
+local Replica = require(script.Sync.Replica)
 
 local Signal = require(script.Utility.Signal)
 
@@ -60,9 +65,18 @@ export type Curve = Types.Curve
 export type Consideration<T> = Types.Consideration<T>
 export type Scored<T> = Types.Scored<T>
 
+export type ClientState = Types.ClientState
+export type Visuals = Types.Visuals
+export type Snapshot = Types.Snapshot
+export type KillKind = Types.KillKind
+export type KillEvent = Types.KillEvent
+
 export type Builder = Builder.Builder
 export type Animator = Animator.NPCAnimator
 export type AnimationInfo = Animator.AnimationInfo
+export type Broadcaster = Broadcaster.Broadcaster
+export type Replica = Replica.Replica
+export type KillHandle = Kill.KillHandle
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -200,6 +214,28 @@ VluxyAI.Perception = Perception
 	The NPC animation helper.
 ]=]
 VluxyAI.Animator = Animator
+
+--[=[
+	@within VluxyAI
+	@prop Sync { Broadcaster: Broadcaster, Replica: Replica }
+
+	Client-side presentation: a [Broadcaster] watches an agent on the server, a [Replica] drives
+	a rig and your client states on the client. The game owns the remotes between them.
+]=]
+VluxyAI.Sync = {
+	Broadcaster = Broadcaster,
+	Replica = Replica,
+}
+
+--[=[
+	@within VluxyAI
+	@prop Combat { Kill: Kill }
+
+	[Kill.Live] and [Kill.BlackBox]: the two ways an agent kills a character.
+]=]
+VluxyAI.Combat = {
+	Kill = Kill,
+}
 
 --[=[
 	@within VluxyAI
