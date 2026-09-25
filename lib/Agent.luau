@@ -43,6 +43,7 @@ type self = {
 	_accumulator: number,
 	_running: boolean,
 	_destroyed: boolean,
+	_eventsClosed: boolean,
 	_timers: { [string]: number },
 	_trove: Trove.Trove,
 }
@@ -95,6 +96,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_accumulator = 0,
 		_running = false,
 		_destroyed = false,
+		_eventsClosed = false,
 		_timers = {},
 		_trove = Trove.new(),
 	}
@@ -369,7 +371,9 @@ end
 	dispatches it to `On(name, ...)` handlers. Does nothing after `Destroy`.
 ]=]
 function Agent.Emit(self: Agent, name: string, payload: any?)
-	if self._destroyed then
+	-- Events keep flowing through Destroy itself (a cancelled kill announces from an Exit that
+	-- Destroy runs) and close only at the very end.
+	if self._eventsClosed then
 		return
 	end
 	self.Events:Fire(name, payload)
@@ -391,17 +395,31 @@ function Agent.Destroy(self: Agent)
 	self._running = false
 	self._trove:Destroy()
 
-	self._runner:Stop()
+	-- Every step is protected: one part failing to tear down must not keep the others alive.
+	local function guard(what: string, callback: () -> ())
+		local ok, err = pcall(callback :: any)
+		if not ok then
+			FormatMessage.Warn(`{self.Name}: {what} errored during Destroy: {tostring(err)}`)
+		end
+	end
+
+	guard("the current state's Exit", function()
+		self._runner:Stop()
+	end)
 
 	if self._navigator then
-		self._navigator:Destroy()
+		guard("the navigator", function()
+			(self._navigator :: Navigator.Navigator):Destroy()
+		end)
 	end
 
 	local asContract = (self :: any) :: Types.Agent
 	for _, sense in self.Senses do
 		local destroy = sense.Destroy
 		if destroy then
-			destroy(sense, asContract)
+			guard("a sense", function()
+				destroy(sense, asContract)
+			end)
 		end
 	end
 
@@ -409,7 +427,9 @@ function Agent.Destroy(self: Agent)
 	if mover then
 		local destroy = mover.Destroy
 		if destroy then
-			destroy(mover)
+			guard("the mover", function()
+				destroy(mover)
+			end)
 		end
 	end
 
@@ -417,14 +437,18 @@ function Agent.Destroy(self: Agent)
 	if pathfinder then
 		local destroy = pathfinder.Destroy
 		if destroy then
-			destroy(pathfinder)
+			guard("the pathfinder", function()
+				destroy(pathfinder)
+			end)
 		end
 	end
 
 	self.StateChanged:Destroy()
-	self.Events:Destroy()
+	-- Destroyed handlers may still Emit (a kill being cancelled); Events closes after them.
 	self.Destroyed:Fire()
 	self.Destroyed:Destroy()
+	self._eventsClosed = true
+	self.Events:Destroy()
 end
 
 return Agent

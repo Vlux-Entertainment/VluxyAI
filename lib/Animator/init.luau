@@ -152,11 +152,11 @@ function NPCAnimator.Load(self: NPCAnimator): NPCAnimator
 		track.Priority = info.Priority
 			or (if info.Weighted then Enum.AnimationPriority.Movement else Enum.AnimationPriority.Action)
 		track.Looped = info.Weighted
-		track:AdjustSpeed(info.Speed or 1)
+		-- Play resets the speed, so it is given on every Play rather than set once here.
 		self._trove:Add(track)
 
 		if info.Weighted then
-			track:Play()
+			track:Play(0, ALMOST_ZERO, info.Speed or 1)
 			track:AdjustWeight(ALMOST_ZERO)
 		end
 
@@ -202,7 +202,7 @@ function NPCAnimator.Play(self: NPCAnimator, name: string, fade: number?, weight
 		FormatMessage.Error(`{self.Entity:GetFullName()}: "{name}" is weighted; use SetWeight`, 2)
 	end
 
-	track:Play(fade, weight, speed)
+	track:Play(fade, weight, speed or self._infos[name].Speed or 1)
 
 	return self
 end

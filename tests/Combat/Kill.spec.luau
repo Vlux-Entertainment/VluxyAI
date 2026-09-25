@@ -135,12 +135,14 @@ return {
 		local warnings = {}
 		local heartbeat = Harness.ManualHeartbeat()
 		local Kill = Harness.Load("lib/Combat/Kill.luau", {
-			services = { RunService = {
-				Heartbeat = heartbeat,
-				IsServer = function()
-					return true
-				end,
-			} },
+			services = {
+				RunService = {
+					Heartbeat = heartbeat,
+					IsServer = function()
+						return true
+					end,
+				},
+			},
 			warn = function(message)
 				table.insert(warnings, tostring(message))
 			end,
@@ -163,12 +165,14 @@ return {
 		local warnings = {}
 		local heartbeat = Harness.ManualHeartbeat()
 		local Kill = Harness.Load("lib/Combat/Kill.luau", {
-			services = { RunService = {
-				Heartbeat = heartbeat,
-				IsServer = function()
-					return true
-				end,
-			} },
+			services = {
+				RunService = {
+					Heartbeat = heartbeat,
+					IsServer = function()
+						return true
+					end,
+				},
+			},
 			warn = function(message)
 				table.insert(warnings, tostring(message))
 			end,

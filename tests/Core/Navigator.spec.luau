@@ -475,6 +475,33 @@ return {
 		expect.equal(s.navigator:GetStatus(), "Idle")
 	end,
 
+	["Stop during Planning then MoveTo never has two plans in flight"] = function(expect)
+		local inFlight = 0
+		local peak = 0
+		local s = setup({
+			plan = function(_from, to)
+				inFlight += 1
+				peak = math.max(peak, inFlight)
+				task.wait()
+				task.wait()
+				inFlight -= 1
+				return { { Position = to, Action = "Walk" } }
+			end,
+		})
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.navigator:Stop()
+		s.navigator:MoveTo(Vector3.new(90, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Idle", "waiting for the old plan to come back")
+		for _ = 1, 8 do
+			task.wait()
+		end
+		expect.equal(peak, 1, "one FindPath at a time")
+		expect.equal(#s.pathfinder.Calls, 2, "the new target was planned once the old plan returned")
+		expect.equal(s.navigator:GetStatus(), "Moving")
+		expect.near(s.mover.Followed[1][1].Position.X, 90, 1e-6, "and it is the new target that is followed")
+	end,
+
 	["a plan that finishes after a newer plan is thrown away"] = function(expect)
 		local calls = 0
 		local s = setup({

@@ -112,6 +112,23 @@ return {
 		expect.equal((got :: any)[2], 3)
 	end,
 
+	["Destroy wakes a waiting thread with nothing"] = function(expect)
+		local Signal = load()
+		local signal = Signal.new()
+		local woke = false
+		local got = "unset"
+
+		task.spawn(function()
+			got = signal:Wait()
+			woke = true
+		end)
+		signal:Destroy()
+		task.wait()
+		expect.truthy(woke)
+		expect.equal(got, nil)
+		expect.equal(signal:Wait(), nil, "Wait on a destroyed signal returns at once")
+	end,
+
 	["DisconnectAll drops every handler but keeps the signal usable"] = function(expect)
 		local Signal = load()
 		local signal = Signal.new()

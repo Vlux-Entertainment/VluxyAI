@@ -65,12 +65,14 @@ export type GraphOptions = {
 	.AutoLink boolean? -- Turn the automatic linking off to use only explicit links. Default `true`.
 	.Ignore { Instance }? -- Instances the linking rays pass through (the node parts themselves always are).
 	.CanLink ((a: Vector3, b: Vector3) -> boolean)? -- Replaces the ray test: return `true` when an agent can walk from `a` to `b`. Ask your navmesh here for anything but flat floors.
+	.Graph GraphOptions? -- Options for the graph itself (`NearestLimit`, `LineOfSight`).
 ]=]
 export type GraphBuildOptions = {
 	LinkRadius: number?,
 	AutoLink: boolean?,
 	Ignore: { Instance }?,
 	CanLink: ((a: Vector3, b: Vector3) -> boolean)?,
+	Graph: GraphOptions?,
 }
 
 type ResolvedOptions = {
@@ -331,7 +333,7 @@ end
 ]=]
 function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): Types.Pathfinder
 	local resolved =
-		Options.Resolve("Graph.FromInstances", BUILD_DEFAULTS, options :: any, { "CanLink" }) :: typeof(BUILD_DEFAULTS)
+		Options.Resolve("Graph.FromInstances", BUILD_DEFAULTS, options :: any, { "CanLink", "Graph" }) :: typeof(BUILD_DEFAULTS) & { Graph: GraphOptions? }
 
 	local instances: { Instance } = {}
 	local positions: { Vector3 } = {}
@@ -414,7 +416,7 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 		end
 	end
 
-	return Graph.new(nodes)
+	return Graph.new(nodes, resolved.Graph)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -438,7 +440,7 @@ end
 	@param from Vector3
 	@param to Vector3
 	@param agent Agent
-	@return Path? -- The route's node positions as Walk steps, trimmed of nodes already behind the agent or the target, then `to`.
+	@return Path? -- The route's node positions as Walk steps, trimmed of nodes already behind the agent or the target, then `to` lowered to the exit node's floor.
 	@return string? -- `no node near <from|to>` or `no route`.
 ]=]
 function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
@@ -463,7 +465,10 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 	for _, index in route do
 		table.insert(path, { Position = self._nodes[index].Position, Action = "Walk" })
 	end
-	table.insert(path, { Position = to, Action = "Walk" })
+	-- Steps are floor positions; the target is usually a root. The exit node's floor is the best
+	-- estimate of the floor under it.
+	local floorY = self._nodes[goal].Position.Y
+	table.insert(path, { Position = Vector3.new(to.X, floorY, to.Z), Action = "Walk" })
 
 	return path, nil
 end

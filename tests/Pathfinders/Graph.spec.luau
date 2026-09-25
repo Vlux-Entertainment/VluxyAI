@@ -103,6 +103,9 @@ return {
 		expect.equal(xs[4], "20,0", "leaves from the node nearest the target")
 		expect.equal(xs[5], "21,1", "ends at the target itself")
 		expect.equal(path[1].Action, "Walk")
+
+		local lifted = graph:FindPath(Vector3.new(-2, 0, 8), Vector3.new(21, 3, 1), Fakes.Agent())
+		expect.equal(lifted[#lifted].Position.Y, 0, "a root-height target is lowered to the exit node's floor")
 	end,
 
 	["FindPath fails with a reason when no node is near or there is no route"] = function(expect)

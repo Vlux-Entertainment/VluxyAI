@@ -48,6 +48,7 @@ type self = {
 	_plannedTarget: Vector3?,
 	_plannedAt: number,
 	_needsPlan: boolean,
+	_planning: boolean,
 	_generation: number,
 	_stopping: boolean,
 	_following: boolean,
@@ -112,6 +113,7 @@ function Navigator.new(
 		_plannedTarget = nil,
 		_plannedAt = -math.huge,
 		_needsPlan = false,
+		_planning = false,
 		_generation = 0,
 		_stopping = false,
 		_following = false,
@@ -271,6 +273,7 @@ function Navigator._plan(self: Navigator)
 
 	self._status = "Planning"
 	self._needsPlan = false
+	self._planning = true
 	self._plannedTarget = target
 	self._plannedAt = os.clock()
 
@@ -284,7 +287,17 @@ function Navigator._plan(self: Navigator)
 			path = nil
 		end
 
-		if self._destroyed or self._generation ~= generation then
+		self._planning = false
+
+		if self._destroyed then
+			return
+		end
+		if self._generation ~= generation then
+			-- Superseded while in flight (a Stop, a new target). Only one FindPath may run at a
+			-- time on a pathfinder that keeps state, so the newer wish waited for this one.
+			if self._target ~= nil then
+				self:_planIfDue(true)
+			end
 			return
 		end
 
@@ -316,7 +329,7 @@ end
 ]]
 function Navigator._planIfDue(self: Navigator, force: boolean)
 	local target = self._target
-	if target == nil or self._status == "Planning" then
+	if target == nil or self._planning then
 		return
 	end
 

@@ -77,6 +77,7 @@ local function setup(options: {
 	floorHeight: ((point: any) -> number)?,
 	straight: any?,
 	players: { any }?,
+	touching: { any }?,
 }?)
 	local resolved = options or {}
 	local world = fakeWorld({
@@ -84,6 +85,12 @@ local function setup(options: {
 		floorAt = resolved.floorAt,
 		floorHeight = resolved.floorHeight,
 	})
+	world.Overlaps = {} :: { any }
+	world.Touching = resolved.touching or {}
+	function world.GetPartBoundsInRadius(_self, position, radius, params)
+		table.insert(world.Overlaps, { Position = position, Radius = radius, Params = params })
+		return world.Touching
+	end
 	local params = {}
 
 	local Straight = Harness.Load("lib/Pathfinders/Straight.luau", {
@@ -94,6 +101,11 @@ local function setup(options: {
 					local created = {}
 					table.insert(params, created)
 					return created
+				end,
+			},
+			OverlapParams = {
+				new = function()
+					return {}
 				end,
 			},
 		},
@@ -249,6 +261,26 @@ return {
 		expect.equal(seen, s.agent)
 		expect.equal(#s.params[1].FilterDescendantsInstances, 1)
 		expect.equal(s.params[1].FilterDescendantsInstances[1], extra)
+	end,
+
+	["a body already overlapping a wall is blocked before the sweep"] = function(expect)
+		local s = setup({
+			touching = {
+				{
+					GetFullName = function()
+						return "Workspace.Map.Wall"
+					end,
+				},
+			},
+		})
+
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(path, nil)
+		expect.equal(reason, "blocked by Workspace.Map.Wall at the start")
+		expect.equal(#s.world.Sweeps, 0)
+		expect.equal(#s.world.Overlaps, 1)
+		expect.equal(s.world.Overlaps[1].Position, Vector3.new(0, 2.5, 0), "checked at the body centre")
+		expect.near(s.world.Overlaps[1].Radius, 1.8, 1e-6, "a little inside the body radius")
 	end,
 
 	["FindPath reports what the sweep hit"] = function(expect)

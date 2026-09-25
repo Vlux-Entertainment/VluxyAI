@@ -151,7 +151,10 @@ function Broadcaster.new(agent: Types.Agent, options: BroadcasterOptions?): Broa
 		self.EventSent:Fire(name, payload)
 	end)
 	trove:Connect(agent.Destroyed, function()
-		broadcaster:Destroy()
+		-- Other Destroyed handlers (a kill being cancelled) still emit in this same tick.
+		task.defer(function()
+			broadcaster:Destroy()
+		end)
 	end)
 
 	if resolved.PositionRate > 0 then

@@ -17,6 +17,7 @@ type Handler = {
 
 type self = {
 	_handlers: { Handler },
+	_waiting: { thread },
 	_destroyed: boolean,
 }
 
@@ -74,6 +75,7 @@ end
 function Signal.new<T...>(): Types.Signal<T...>
 	local self: self = {
 		_handlers = {},
+		_waiting = {},
 		_destroyed = false,
 	}
 
@@ -113,12 +115,23 @@ end
 	@yields
 	@return T...
 
-	Yields the calling thread until the next fire and returns what was fired.
+	Yields the calling thread until the next fire and returns what was fired. If the signal is
+	destroyed while waiting, returns nothing, so a state that waited on `Arrived` wakes up when
+	its agent is destroyed and can check `agent:IsDestroyed()`.
 ]=]
 function Signal.Wait(self: self): ...any
+	if self._destroyed then
+		return nil
+	end
+
 	local thread = coroutine.running()
+	table.insert(self._waiting, thread)
 
 	Signal.Once(self, function(...)
+		local index = table.find(self._waiting, thread)
+		if index then
+			table.remove(self._waiting, index)
+		end
 		task.spawn(thread, ...)
 	end)
 
@@ -165,6 +178,13 @@ end
 function Signal.Destroy(self: self)
 	Signal.DisconnectAll(self)
 	self._destroyed = true
+
+	-- Nobody will fire again; let the waiters go rather than hang forever.
+	local waiting = self._waiting
+	self._waiting = {}
+	for _, thread in waiting do
+		task.spawn(thread)
+	end
 end
 
 return Signal

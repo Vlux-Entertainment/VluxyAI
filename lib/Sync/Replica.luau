@@ -391,7 +391,10 @@ function Replica.Destroy(self: ReplicaClass)
 	local state = self._state
 	local visual = if state then self._visuals[state] else nil
 	if visual and visual.Exit then
-		visual.Exit(self :: any)
+		local ok, err = pcall(visual.Exit :: any, self)
+		if not ok then
+			FormatMessage.Warn(`Replica: Exit of "{state :: string}" errored during Destroy: {tostring(err)}`)
+		end
 	end
 	self._state = nil
 

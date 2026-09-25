@@ -427,6 +427,53 @@ return {
 		expect.equal(received, agent)
 	end,
 
+	["a part that errors on Destroy does not stop the rest, and Destroyed still fires"] = function(expect)
+		local warnings = {}
+		local Agent = load({ warnings = warnings })
+		local mover = Fakes.Mover(Vector3.new(0, 0, 0))
+		local broken = {
+			Tick = function() end,
+			Destroy = function()
+				error("sense broke")
+			end,
+		}
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+			Senses = { broken },
+		})
+		local destroyed = false
+		agent.Destroyed:Connect(function()
+			destroyed = true
+		end)
+
+		agent:Start(true)
+		agent:Destroy()
+		expect.truthy(mover.Destroyed, "the mover after the broken sense was still destroyed")
+		expect.truthy(destroyed)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "sense broke")
+	end,
+
+	["Emit still works from a Destroyed handler and stops afterwards"] = function(expect)
+		local Agent = load()
+		local agent = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		local seen = {}
+		agent.Events:Connect(function(name)
+			table.insert(seen, name)
+		end)
+		agent.Destroyed:Connect(function()
+			agent:Emit("LastWords")
+		end)
+
+		agent:Start(true)
+		agent:Destroy()
+		agent:Emit("TooLate")
+		expect.sequence(seen, { "LastWords" })
+	end,
+
 	["a sense without Destroy is fine"] = function(expect)
 		local Agent = load()
 		local sense = { Tick = function() end }

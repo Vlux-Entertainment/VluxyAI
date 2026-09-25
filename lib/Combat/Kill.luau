@@ -103,7 +103,7 @@ end
 --[[
 	Plays an animation on a rig's Animator if it has one, returning the track.
 ]]
-local function playAnimation(character: Model, id: number?): AnimationTrack?
+local function playAnimation(character: Model, id: number?): (() -> ())?
 	if id == nil then
 		return nil
 	end
@@ -120,7 +120,12 @@ local function playAnimation(character: Model, id: number?): AnimationTrack?
 	track.Priority = Enum.AnimationPriority.Action4
 	track:Play()
 
-	return track
+	-- A track per kill would pile up on a long-lived killer's Animator; both go with the hold.
+	return function()
+		track:Stop()
+		track:Destroy()
+		animation:Destroy()
+	end
 end
 
 local function killHumanoid(character: Model)
@@ -236,14 +241,14 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 		end
 	end)
 
-	local killerTrack = playAnimation(agent.Entity, resolved.KillerAnimation)
-	local victimTrack = playAnimation(victim, resolved.VictimAnimation)
+	local stopKiller = playAnimation(agent.Entity, resolved.KillerAnimation)
+	local stopVictim = playAnimation(victim, resolved.VictimAnimation)
 	trove:Add(function()
-		if killerTrack then
-			killerTrack:Stop()
+		if stopKiller then
+			stopKiller()
 		end
-		if victimTrack then
-			victimTrack:Stop()
+		if stopVictim then
+			stopVictim()
 		end
 	end)
 

@@ -9,6 +9,7 @@ local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local roblox = require("@lune/roblox")
+local task = require("@lune/task")
 local CFrame = roblox.CFrame
 local Vector3 = roblox.Vector3
 
@@ -118,6 +119,7 @@ return {
 		end)
 
 		s.agent.Destroyed:Fire()
+		task.wait()
 		s.agent.StateChanged:Fire("Hunt", "Idle")
 		expect.equal(relayed, 0)
 		expect.equal(s.heartbeat:Count(), 0)

@@ -180,7 +180,7 @@ end
 	@param to Vector3 -- Any height; the floor under it is used.
 	@param agent Agent -- Handed to `Ignore`.
 	@return Path? -- Two Walk steps, the floor positions under `from` and `to`, when the way is clear.
-	@return string? -- `blocked by <full name>` when the sweep hits, `no floor at <point>` when a floor ray misses, `floor drops <studs> at <point>` when the floor falls more than `MaxDrop` between two samples.
+	@return string? -- `blocked by <full name>` when the sweep hits or the body already overlaps something, `no floor at <point>` when a floor ray misses, `floor drops <studs> at <point>` when the floor falls more than `MaxDrop` between two samples.
 ]=]
 function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
 	local options = self._options
@@ -223,6 +223,16 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 	local offset = (floorTo + lift) - start
 
 	if offset.Magnitude > ZERO_LENGTH then
+		-- A sweep ignores what its sphere already overlaps, so a body pressed against a wall would
+		-- sweep straight through it. Check the start on its own first.
+		local overlap = OverlapParams.new()
+		overlap.FilterType = Enum.RaycastFilterType.Exclude
+		overlap.FilterDescendantsInstances = ignore
+		local touching = workspace:GetPartBoundsInRadius(start, options.AgentRadius * 0.9, overlap)
+		if #touching > 0 then
+			return nil, `blocked by {touching[1]:GetFullName()} at the start`
+		end
+
 		local hit = workspace:Spherecast(start, options.AgentRadius, offset, params)
 		if hit then
 			return nil, `blocked by {hit.Instance:GetFullName()}`
