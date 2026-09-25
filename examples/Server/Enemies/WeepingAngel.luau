@@ -1,7 +1,7 @@
 --!strict
 
 --[[
-	Watcher: the weeping angel. It never patrols. Once it has spotted you it only moves while
+	Weeping Angel: the statue that moves when you blink. It never patrols. Once it has spotted you it only moves while
 	nobody is looking at it, freezes the instant anyone is, and strikes when it gets close while
 	unwatched. If it loses you for long enough it goes dormant again. Shows the Watched sense
 	(the sight check run from the players' side) and the CFrame mover halting an anchored rig
@@ -93,9 +93,9 @@ local Brain: VluxyAI.Brain = {
 	},
 }
 
-local function Watcher(model: Model, _context: Context.Context): VluxyAI.Agent
+local function WeepingAngel(model: Model, _context: Context.Context): VluxyAI.Agent
 	return VluxyAI.new(model)
-		:SetName("Watcher")
+		:SetName("WeepingAngel")
 		:UseBrain(Brain)
 		:UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
 			VluxyAI.Pathfinders.Straight.new(),
@@ -109,4 +109,4 @@ local function Watcher(model: Model, _context: Context.Context): VluxyAI.Agent
 		:Build()
 end
 
-return Watcher :: Context.Enemy
+return WeepingAngel :: Context.Enemy

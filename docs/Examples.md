@@ -19,12 +19,12 @@ mover; the see-through one is pivoted by the CFrame mover and its Humanoid does 
 | **Stalker** | red, solid | Patrols, investigates noises, hunts on sight with memory, searches around the last sighting, attacks with a clear line | Sight and Hearing, blackboard memory, prioritised transitions, a state walking a list of points, Ladder(Straight, Navmesh) |
 | **Hunter** | orange, solid | Roams between nodes chosen by score, chases the player chosen by score, sprints until a stamina sense says it must rest | Utility for destinations and targets, a custom sense in a dozen lines, Proximity for reach |
 | **Guardian** | blue, solid | Wanders its territory, raises the alarm on an intruder, chases on a leash, returns home | Two agents cooperating through the game's noise signal, a brain built around a place, leash logic as transitions |
-| **Watcher** | near black, see-through | Dormant until it spots you; moves only while nobody looks; strikes when close and unwatched | The Watched sense from the players' side, the CFrame mover halting an anchored rig |
+| **Weeping Angel** | near black, see-through | Dormant until it spots you; moves only while nobody looks; strikes when close and unwatched | The Watched sense from the players' side, the CFrame mover halting an anchored rig |
 
 The client half lives in `examples/Client/`: one [Replica](/api/Replica) per rig in mirror mode,
 per-enemy visuals (a glow while hunting, a shout while the Guardian raises the alarm, a creeping
-vignette while the Watcher advances unseen), and the two kill presentations. The Stalker finishes
-you with a live kill you watch; the Watcher with a black-box kill that cuts to black. See
+vignette while the Weeping Angel advances unseen), and the two kill presentations. The Stalker finishes
+you with a live kill you watch; the Weeping Angel with a black-box kill that cuts to black. See
 [Client visuals and kills](ClientVisuals).
 
 The enemy modules live in `examples/Server/Enemies/`. Each is a function from a rig and a shared context
@@ -38,7 +38,7 @@ that the Stalker's [Hearing](/api/Hearing) sense listens to. That is the whole i
 game owns the signal, the sense subscribes, and an agent may fire it too. Fire it from a door
 slam, a dropped object, a gunshot.
 
-## The Watcher rule
+## The Weeping Angel rule
 
 Dormant until it sees someone. Then it advances only while `IsWatched` is false, freezes the tick
 anyone looks, strikes when close, and goes dormant again once Sight's memory of the last position

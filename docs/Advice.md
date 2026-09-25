@@ -40,7 +40,7 @@ decision to attack or flee; write it as a transition, where you can read it.
 ## Watch the tick
 
 The default tick is `0.1` seconds. A fast enemy that must freeze the instant it is seen (the
-Watcher) runs at `0.05`. A slow patroller is fine at `0.25`. Senses cost raycasts per tick, so
+Weeping Angel) runs at `0.05`. A slow patroller is fine at `0.25`. Senses cost raycasts per tick, so
 the tick is your budget knob.
 
 ## Give the navmesh a second

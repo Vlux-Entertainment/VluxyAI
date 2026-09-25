@@ -7,7 +7,7 @@
 	lives here, and the server never knows.
 
 	These are deliberately simple: a Highlight while an enemy is hunting, a shout bubble while the
-	Guardian raises the alarm, a creeping vignette while the Watcher advances unseen.
+	Guardian raises the alarm, a creeping vignette while the Weeping Angel advances unseen.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -49,7 +49,7 @@ local function glowWhile(color: Color3): VluxyAI.ClientState
 end
 
 --[[
-	A screen-space vignette for the Watcher: the closer it gets while you are not looking, the
+	A screen-space vignette for the Weeping Angel: the closer it gets while you are not looking, the
 	darker the edges. Update runs every frame, so it tracks distance.
 ]]
 local function vignetteState(): VluxyAI.ClientState
@@ -57,7 +57,7 @@ local function vignetteState(): VluxyAI.ClientState
 		Enter = function(replica: VluxyAI.Replica)
 			local Players = game:GetService("Players")
 			local gui = Instance.new("ScreenGui")
-			gui.Name = "WatcherVignette"
+			gui.Name = "WeepingAngelVignette"
 			gui.IgnoreGuiInset = true
 			gui.ResetOnSpawn = false
 			local frame = Instance.new("Frame")
@@ -131,7 +131,7 @@ Visuals.Guardian = {
 	Chase = glowWhile(Color3.fromRGB(80, 160, 255)),
 } :: VluxyAI.Visuals
 
-Visuals.Watcher = {
+Visuals.WeepingAngel = {
 	Advance = vignetteState(),
 } :: VluxyAI.Visuals
 

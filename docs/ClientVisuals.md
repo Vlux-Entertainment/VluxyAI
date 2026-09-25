@@ -90,7 +90,7 @@ replica:On("Kill", function(event)
 end)
 ```
 
-The playground's Stalker finishes you with a live kill and its Watcher with a black-box one;
+The playground's Stalker finishes you with a live kill and its Weeping Angel with a black-box one;
 `examples/Client/Kills.luau` is the presentation.
 
 ## Anything else

@@ -66,8 +66,8 @@ local ROSTER: { Entry } = {
 	-- A see-through rig is pivoted by the CFrame mover; its Humanoid does no work.
 	{
 		Slot = "4",
-		Name = "Watcher",
-		Module = Enemies.Watcher,
+		Name = "WeepingAngel",
+		Module = Enemies.WeepingAngel,
 		Color = Color3.fromRGB(40, 40, 45), -- near black: only moves unseen
 		Humanoid = false,
 		Transparency = 0.35,
