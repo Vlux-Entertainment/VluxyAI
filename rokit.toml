@@ -1,0 +1,12 @@
+# Pinned toolchain for this repo. Rokit reads this from the working directory,
+# so `rojo`, `wally`, `lune` etc. resolve to these versions here.
+# Kept in step with TheLaundryShift, which consumes this package.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.7.0"
+wally = "UpliftGames/wally@0.3.2"
+wally-package-types = "JohnnyMorganz/wally-package-types@1.6.2"
+selene = "Kampfkarren/selene@0.31.0"
+stylua = "JohnnyMorganz/StyLua@2.5.2"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.70.0"
+lune = "lune-org/lune@0.10.5"

@@ -23,8 +23,7 @@
     "Players": {
       "$className": "Players",
       "$properties": {
-        "CharacterAutoLoads": true,
-        "UseStrafingAnimations": false
+        "CharacterAutoLoads": true
       }
     },
 
