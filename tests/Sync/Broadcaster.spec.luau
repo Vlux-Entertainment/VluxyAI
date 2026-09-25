@@ -85,6 +85,15 @@ return {
 		expect.near(s.samples[3].Yaw, math.pi / 2, 1e-3)
 	end,
 
+	["frames near the interval do not halve the rate"] = function(expect)
+		local s = setup({ PositionRate = 10, MoveEpsilon = 0 })
+		for index = 1, 60 do
+			s.move(CFrame.new(index, 0, 0))
+			s.heartbeat:Fire(0.09)
+		end
+		expect.truthy(#s.samples >= 50, `about 54 samples in 5.4 seconds, got {#s.samples}`)
+	end,
+
 	["a rate of zero sends nothing and connects no heartbeat"] = function(expect)
 		local s = setup({ PositionRate = 0 })
 		expect.equal(s.heartbeat:Count(), 0)

@@ -70,7 +70,7 @@ type BroadcasterClass = typeof(setmetatable({} :: self, Broadcaster))
 	@within Broadcaster
 
 	.StateChanged Signal<(string, string?)> -- Relayed from the agent.
-	.PositionChanged Signal<(Vector3, number)> -- A floor position and a yaw, at `PositionRate`.
+	.PositionChanged Signal<(Vector3, number)> -- The rig's pivot position and yaw, at `PositionRate`.
 	.EventSent Signal<(string, any)> -- Relayed from `agent.Events`.
 	.Step (self: Broadcaster, deltaTime: number) -> ()
 	.Snapshot (self: Broadcaster) -> Snapshot
@@ -99,7 +99,9 @@ end
 	@class Broadcaster
 
 	Watches an [Agent] on the server and produces what a client [Replica] consumes: state
-	changes, position samples at a rate, and emitted events. Wire its signals to your remotes:
+	changes, pivot position samples at a rate, and emitted events. Make it before `agent:Start()`
+	so the initial state is relayed; nothing emitted before it existed is replayed. Wire its
+	signals to your remotes:
 
 	```lua
 	local broadcaster = VluxyAI.Sync.Broadcaster.new(agent)
@@ -174,11 +176,14 @@ function Broadcaster.Step(self: BroadcasterClass, deltaTime: number)
 		return
 	end
 
+	local interval = 1 / rate
 	self._elapsed += deltaTime
-	if self._elapsed < 1 / rate then
+	if self._elapsed < interval then
 		return
 	end
-	self._elapsed = 0
+	-- Carry the remainder so frames near the interval do not halve the rate; cap it so a long
+	-- stall does not burst.
+	self._elapsed = math.min(self._elapsed - interval, interval)
 
 	local pivot = self._agent.Entity:GetPivot()
 	local position = pivot.Position

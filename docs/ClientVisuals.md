@@ -12,8 +12,8 @@ them to you, because every game shapes its remotes differently.
 
 **[Broadcaster](/api/Broadcaster)** watches an agent on the server. It fires `StateChanged` on
 every state change, `EventSent` for everything the agent [emits](/api/Agent#Emit), and, at a rate
-you choose, `PositionChanged` with a floor position and a yaw. `Snapshot()` is for a player who
-just joined.
+you choose, `PositionChanged` with the rig's pivot position and a yaw. `Snapshot()` is for a
+player who just joined. Make the broadcaster before `agent:Start()` so the first state is relayed.
 
 **[Replica](/api/Replica)** lives on the client with a rig and a table of client states, the
 **Visuals**. `SetState(name)` runs the old state's `Exit` and the new one's `Enter`;
@@ -92,6 +92,13 @@ end)
 
 The playground's Stalker finishes you with a live kill and its Weeping Angel with a black-box one;
 `examples/Client/Kills.luau` is the presentation.
+
+## Ids over the wire
+
+The playground sends the rig itself as the id, which is fine while the rig has replicated to
+every client (the test place has streaming off and spawns before anyone joins). With
+`StreamingEnabled`, an instance that has not streamed in arrives as `nil`; send a string key
+instead (a `SyncId` attribute, a name) and resolve the rig lazily on the client.
 
 ## Anything else
 

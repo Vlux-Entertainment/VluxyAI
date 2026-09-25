@@ -174,6 +174,70 @@ return {
 		expect.equal(s.heartbeat:Count(), 0)
 	end,
 
+	["SetState from inside Exit does not run that Exit again, and an erroring Exit still moves on"] = function(expect)
+		local warnings = {}
+		local heartbeat = Harness.ManualHeartbeat()
+		local Replica = Harness.Load("lib/Sync/Replica.luau", {
+			services = { RunService = { Heartbeat = heartbeat } },
+			warn = function(message)
+				table.insert(warnings, tostring(message))
+			end,
+		})
+		local log = {}
+		local replica
+		replica = Replica.new({
+			Entity = fakePivot(Vector3.new()),
+			Visuals = {
+				A = {
+					Exit = function()
+						table.insert(log, "exit A")
+						replica:SetState("C")
+					end,
+				},
+				B = {
+					Enter = function()
+						table.insert(log, "enter B")
+					end,
+				},
+				C = {
+					Enter = function()
+						table.insert(log, "enter C")
+					end,
+					Exit = function()
+						error("broken")
+					end,
+				},
+			},
+		})
+
+		replica:SetState("A")
+		replica:SetState("B")
+		expect.equal(replica:GetState(), "B", "the outer SetState still lands on B")
+		expect.sequence(log, { "exit A", "enter C", "enter B" })
+
+		replica:SetState("C")
+		replica:SetState("A")
+		expect.equal(replica:GetState(), "A", "an erroring Exit does not stick the replica")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "broken")
+	end,
+
+	["a handler disconnected by an earlier handler in the same dispatch does not run"] = function(expect)
+		local s = setup()
+		local log = {}
+		local second
+		s.replica:On("Kill", function()
+			table.insert(log, "first")
+			second:Disconnect()
+		end)
+		second = s.replica:On("Kill", function()
+			table.insert(log, "second")
+		end)
+		s.replica:Receive("Kill", {})
+		task.wait()
+		expect.sequence(log, { "first" })
+	end,
+
 	["an unknown option or a bad entity is refused"] = function(expect)
 		local s = setup()
 		local message = expect.errors(function()

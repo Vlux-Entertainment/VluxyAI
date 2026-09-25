@@ -5,9 +5,9 @@
 	player's own death gets the full treatment; someone else's is left to the world (a live kill
 	is visible anyway, a black-box one just happens).
 
-	Live: a red flash, and the camera locked on the victim for the hold, so you watch it happen.
-	Black box: an immediate cut to black for the announced duration, a beat longer than the
-	death so the respawn happens behind it.
+	Live: a red flash, and the camera watching the killer for the hold, so you see it happen.
+	Black box: an immediate cut to black that lifts when you respawn (with a fallback timer), so
+	the death and the respawn happen behind it.
 ]]
 
 local Players = game:GetService("Players")
@@ -48,13 +48,19 @@ function Kills.Present(replica: VluxyAI.Replica, event: VluxyAI.KillEvent)
 
 	if event.Kind == "BlackBox" then
 		local gui = screen("BlackBox", Color3.new(0, 0, 0), 0)
-		task.delay(event.Duration + 1.5, function()
-			gui:Destroy()
-		end)
+		local lifted = false
+		local function lift()
+			if not lifted then
+				lifted = true
+				gui:Destroy()
+			end
+		end
+		Players.LocalPlayer.CharacterAdded:Once(lift)
+		task.delay(event.Duration + 10, lift)
 		return
 	end
 
-	-- Live: a flash, then the camera holds on the scene until the victim dies.
+	-- Live: a flash, then the camera watches the killer until you respawn.
 	local gui, frame = screen("KillFlash", Color3.new(0.6, 0, 0), 0.3)
 	TweenService:Create(frame, TweenInfo.new(event.Duration), { BackgroundTransparency = 1 }):Play()
 	task.delay(event.Duration, function()
@@ -63,11 +69,25 @@ function Kills.Present(replica: VluxyAI.Replica, event: VluxyAI.KillEvent)
 
 	local camera = workspace.CurrentCamera
 	local previousType = camera.CameraType
+	local previousSubject = camera.CameraSubject
 	camera.CameraType = Enum.CameraType.Watch
-	camera.CameraSubject = replica.Entity:FindFirstChildOfClass("Humanoid") or camera.CameraSubject
-	task.delay(event.Duration + 0.5, function()
+	camera.CameraSubject = replica.Entity:FindFirstChildOfClass("Humanoid") or previousSubject
+
+	local restored = false
+	local function restore()
+		if restored then
+			return
+		end
+		restored = true
 		camera.CameraType = previousType
+		-- After a respawn the new character's humanoid is the subject Roblox would have chosen.
+		local character = Players.LocalPlayer.Character
+		camera.CameraSubject = (character and character:FindFirstChildOfClass("Humanoid")) or previousSubject
+	end
+	Players.LocalPlayer.CharacterAdded:Once(function()
+		task.defer(restore)
 	end)
+	task.delay(event.Duration + 10, restore)
 end
 
 return Kills

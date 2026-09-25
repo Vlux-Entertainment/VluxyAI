@@ -40,7 +40,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Puppet boolean? -- `true` to move the rig toward streamed positions. Default `false`.
 	.Smoothing number? -- Studs per second of catch-up in puppet mode; `0` snaps. Default `24`.
 	.TurnSmoothing number? -- Radians per second of turning in puppet mode; `0` snaps. Default `12`.
-	.HeightOffset number? -- Added to streamed positions. Default `0`.
+	.HeightOffset number? -- Added to streamed positions, for a client rig whose pivot sits higher than the server's. Default `0`.
 ]=]
 export type ReplicaOptions = {
 	Entity: PVInstance,
@@ -58,6 +58,11 @@ type ResolvedOptions = {
 	HeightOffset: number,
 }
 
+type Handler = {
+	Callback: (payload: any) -> (),
+	Connection: Types.Connection,
+}
+
 type self = {
 	Entity: PVInstance,
 	Data: { [string]: any },
@@ -69,7 +74,8 @@ type self = {
 	_state: string?,
 	_targetPosition: Vector3?,
 	_targetYaw: number?,
-	_handlers: { [string]: { (payload: any) -> () } },
+	_handlers: { [string]: { Handler } },
+	_exiting: string?,
 	_destroyed: boolean,
 	_trove: Trove.Trove,
 }
@@ -182,6 +188,7 @@ function Replica.new(options: ReplicaOptions): Replica
 		_targetPosition = nil,
 		_targetYaw = nil,
 		_handlers = {},
+		_exiting = nil,
 		_destroyed = false,
 		_trove = trove,
 	}
@@ -210,6 +217,8 @@ end
 
 	Runs the current visual state's `Exit`, then the new one's `Enter`, and fires `StateChanged`.
 	A state with no visuals is tracked all the same. Setting the current state again re-enters it.
+	A `SetState` made from inside `Exit` does not run that Exit again; an Exit or Enter that errors
+	is warned about and the state still moves on.
 ]=]
 function Replica.SetState(self: ReplicaClass, name: string)
 	if self._destroyed then
@@ -218,8 +227,13 @@ function Replica.SetState(self: ReplicaClass, name: string)
 
 	local previous = self._state
 	local previousVisual = if previous then self._visuals[previous] else nil
-	if previousVisual and previousVisual.Exit then
-		previousVisual.Exit(self :: any)
+	if previousVisual and previousVisual.Exit and self._exiting ~= previous then
+		self._exiting = previous
+		local ok, err = pcall(previousVisual.Exit :: any, self)
+		self._exiting = nil
+		if not ok then
+			FormatMessage.Warn(`Replica: Exit of "{previous :: string}" errored: {tostring(err)}`)
+		end
 	end
 
 	self._state = name
@@ -227,13 +241,16 @@ function Replica.SetState(self: ReplicaClass, name: string)
 
 	local visual = self._visuals[name]
 	if visual and visual.Enter then
-		visual.Enter(self :: any)
+		local ok, err = pcall(visual.Enter :: any, self)
+		if not ok then
+			FormatMessage.Warn(`Replica: Enter of "{name}" errored: {tostring(err)}`)
+		end
 	end
 end
 
 --[=[
 	@within Replica
-	@param position Vector3 -- A floor position from the stream.
+	@param position Vector3 -- The server rig's pivot position from the stream.
 	@param yaw number? -- Facing in radians about Y, as the [Broadcaster] samples it.
 
 	Where the rig should be. In puppet mode the rig smooths toward it every frame; in mirror
@@ -274,18 +291,21 @@ function Replica.On(self: ReplicaClass, name: string, handler: (payload: any) ->
 		handlers = {}
 		self._handlers[name] = handlers
 	end
-	table.insert(handlers, handler)
 
+	local entry: Handler
 	local connection: Types.Connection = {
 		Connected = true,
 		Disconnect = function(this)
-			local index = table.find(handlers, handler)
+			local index = table.find(handlers, entry)
 			if index then
 				table.remove(handlers, index)
 			end
 			this.Connected = false
 		end,
 	}
+	entry = { Callback = handler, Connection = connection }
+	table.insert(handlers, entry)
+
 	return connection
 end
 
@@ -304,8 +324,10 @@ function Replica.Receive(self: ReplicaClass, name: string, payload: any)
 	self.Events:Fire(name, payload)
 	local handlers = self._handlers[name]
 	if handlers then
-		for _, handler in table.clone(handlers) do
-			task.spawn(handler, payload)
+		for _, entry in table.clone(handlers) do
+			if entry.Connection.Connected then
+				task.spawn(entry.Callback, payload)
+			end
 		end
 	end
 end

@@ -19,7 +19,8 @@ export type AttackOptions = {
 	TargetKey: string,
 	-- The state to return to once the cooldown ends.
 	Then: string,
-	-- How a blow that would finish the victim is delivered. Default: plain damage.
+	-- How a blow that would finish the victim is delivered. Default: plain damage. A live kill
+	-- keeps the state until the hold ends, however short the cooldown.
 	Kill: VluxyAI.KillKind?,
 }
 
@@ -55,14 +56,21 @@ function Combat.Strike(agent: VluxyAI.Agent, target: BasePart?, damage: number, 
 		return
 	end
 
+	local handle
 	if kill == "Live" then
-		VluxyAI.Combat.Kill.Live(agent, character, {
+		handle = VluxyAI.Combat.Kill.Live(agent, character, {
 			KillerAnimation = KILLER_ANIMATION,
 			VictimAnimation = VICTIM_ANIMATION,
 		})
 	else
-		VluxyAI.Combat.Kill.BlackBox(agent, character)
+		handle = VluxyAI.Combat.Kill.BlackBox(agent, character)
 	end
+
+	-- The attack state waits for the kill to end before it leaves, so the killer stands still.
+	agent.Data.Killing = true
+	handle.Finished:Once(function()
+		agent.Data.Killing = false
+	end)
 end
 
 --[[
@@ -79,7 +87,7 @@ function Combat.AttackState(options: AttackOptions): VluxyAI.State
 			{
 				To = options.Then,
 				When = function(agent: VluxyAI.Agent)
-					return agent:TimerDone("Attack")
+					return agent:TimerDone("Attack") and not agent.Data.Killing
 				end,
 			},
 		},

@@ -29,6 +29,7 @@ local function fakeVictim(withHumanoid: boolean?)
 		self.AutoOwnership += 1
 	end
 
+	root.Anchored = false
 	local victim = { PrimaryPart = root, Humanoid = humanoid }
 	function victim.FindFirstChildOfClass(_self, className)
 		if className == "Humanoid" and withHumanoid ~= false then
@@ -51,6 +52,7 @@ local function setup()
 	local events = {}
 	local agent = {
 		Name = "Killer",
+		Running = true,
 		Entity = {
 			GetPivot = function()
 				return CFrame.new(10, 0, 0)
@@ -60,10 +62,14 @@ local function setup()
 			end,
 		},
 		Events = Signal.new(),
+		Destroyed = Signal.new(),
 		Emit = function(_self, name, payload)
 			table.insert(events, { Name = name, Payload = payload })
 		end,
 	}
+	function agent.IsRunning(self)
+		return self.Running
+	end
 	return { Kill = Kill, agent = agent, heartbeat = heartbeat, events = events }
 end
 
@@ -83,13 +89,12 @@ return {
 		expect.equal(s.events[1].Payload.Kind, "Live")
 		expect.equal(s.events[1].Payload.Victim, victim)
 		expect.equal(s.events[1].Payload.Duration, 1)
-		expect.equal(root.Owners[1], "server")
+		expect.truthy(root.Anchored, "the root is anchored for the hold")
 		expect.truthy(humanoid.PlatformStand)
 
 		s.heartbeat:Fire(0.5)
 		expect.near(root.CFrame.Position.X, 10, 1e-4, "held in front of the killer")
 		expect.near(root.CFrame.Position.Z, -3, 1e-4)
-		expect.equal(root.AssemblyLinearVelocity, Vector3.zero)
 		expect.equal(humanoid.Health, 100, "alive during the hold")
 
 		s.heartbeat:Fire(0.5)
@@ -114,7 +119,7 @@ return {
 		expect.sequence(outcomes, { false })
 		expect.equal(humanoid.Health, 100)
 		expect.falsy(humanoid.PlatformStand, "restored")
-		expect.equal(root.AutoOwnership, 1, "ownership handed back")
+		expect.falsy(root.Anchored, "unanchored again")
 		expect.equal(s.heartbeat:Count(), 0)
 
 		handle:Cancel()
@@ -144,6 +149,86 @@ return {
 		expect.equal(#warnings, 1)
 	end,
 
+	["a victim already held by a live kill is refused"] = function(expect)
+		local warnings = {}
+		local heartbeat = Harness.ManualHeartbeat()
+		local Kill = Harness.Load("lib/Combat/Kill.luau", {
+			services = { RunService = { Heartbeat = heartbeat } },
+			warn = function(message)
+				table.insert(warnings, tostring(message))
+			end,
+		})
+		local s = setup()
+		local victim, _root, humanoid = fakeVictim()
+		local outcomes = {}
+
+		local first = Kill.Live(s.agent, victim, { Duration = 1 })
+		local second = Kill.Live(s.agent, victim, { Duration = 1 })
+		second.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		task.wait()
+		expect.sequence(outcomes, { false })
+		expect.includes(warnings[1], "already being killed")
+
+		first:Cancel()
+		expect.falsy(humanoid.PlatformStand, "the refused hold did not disturb the first one")
+		local third = Kill.Live(s.agent, victim, { Duration = 1 })
+		expect.truthy(humanoid.PlatformStand, "free again after the first was released")
+		third:Cancel()
+	end,
+
+	["the killer being destroyed mid-hold releases the victim alive"] = function(expect)
+		local s = setup()
+		local victim, _root, humanoid = fakeVictim()
+		local outcomes = {}
+
+		local handle = s.Kill.Live(s.agent, victim, { Duration = 2 })
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		s.heartbeat:Fire(0.5)
+		s.agent.Destroyed:Fire()
+		expect.sequence(outcomes, { false })
+		expect.equal(humanoid.Health, 100)
+		expect.falsy(humanoid.PlatformStand)
+		expect.equal(s.heartbeat:Count(), 0)
+	end,
+
+	["a kill from an agent that is not running is refused"] = function(expect)
+		local s = setup()
+		s.agent.Running = false
+		local victim = fakeVictim()
+		local outcomes = {}
+		local handle = s.Kill.Live(s.agent, victim)
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		local box = s.Kill.BlackBox(s.agent, victim)
+		box.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		task.wait()
+		expect.sequence(outcomes, { false, false })
+		expect.equal(#s.events, 0, "nothing announced")
+	end,
+
+	["a victim who dies of something else mid-hold is not this kill"] = function(expect)
+		local s = setup()
+		local victim, _root, humanoid = fakeVictim()
+		local outcomes = {}
+
+		local handle = s.Kill.Live(s.agent, victim, { Duration = 2 })
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		s.heartbeat:Fire(0.5)
+		humanoid.Health = 0
+		s.heartbeat:Fire(0.5)
+		expect.sequence(outcomes, { false })
+		expect.equal(s.heartbeat:Count(), 0)
+	end,
+
 	["BlackBox announces at once and kills after the delay"] = function(expect)
 		local s = setup()
 		local victim, _root, humanoid = fakeVictim()
@@ -160,6 +245,19 @@ return {
 		task.wait(0.1)
 		expect.equal(humanoid.Health, 0)
 		expect.sequence(outcomes, { true })
+	end,
+
+	["BlackBox on a victim who died meanwhile reports false"] = function(expect)
+		local s = setup()
+		local victim, _root, humanoid = fakeVictim()
+		local outcomes = {}
+		local handle = s.Kill.BlackBox(s.agent, victim, { Delay = 0.05 })
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		humanoid.Health = 0
+		task.wait(0.1)
+		expect.sequence(outcomes, { false })
 	end,
 
 	["BlackBox cancelled within the delay spares the victim"] = function(expect)

@@ -4,9 +4,10 @@
 	Two ways an agent kills a character, both decided and finished on the server, both announced
 	through the agent's event channel so clients can present them.
 
-	Live: the victim is taken from their player, held in a pose relative to the killer for the
-	length of the animation while both rigs play their animation, and killed at the end. Everyone
-	in the world sees it happen.
+	Live: the victim's root is anchored and held in a pose relative to the killer for the length
+	of the animation while both rigs play their animation, and killed at the end. Everyone in the
+	world sees it happen. Anchoring makes the hold server-authoritative whoever owns the root,
+	which network ownership alone does not.
 
 	Black box: the kill is announced at once and resolved after a short delay, during which the
 	client is expected to cut to black (or whatever it likes). The hard cut hides any gap
@@ -25,6 +26,9 @@ local Types = require(script.Parent.Parent.Types)
 ------------------------------------------------------------------------------------------------------------------------
 
 local EVENT = "Kill"
+
+-- Victims currently held by a live kill, so a second killer cannot take the same one.
+local held: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local LIVE_DEFAULTS = table.freeze({
 	-- Seconds the hold and the animations last before the victim dies.
@@ -131,10 +135,13 @@ end
 	@param options LiveKillOptions?
 	@return KillHandle
 
-	Emits `Kill` with `Kind = "Live"`, takes the victim's root for the server, holds it at
-	`Offset` from the killer every frame, plays the animations, and after `Duration` sets the
-	victim's health to zero. `Cancel` releases the victim alive. A victim with no humanoid or root
-	is finished at once with `false`.
+	Emits `Kill` with `Kind = "Live"`, anchors the victim's root, holds it at `Offset` from the
+	killer every frame, plays the animations, and after `Duration` sets the victim's health to
+	zero (bypassing a ForceField, as a kill should). `Cancel` releases the victim alive.
+
+	Finishes `false` at once, with a warning, when the victim has no humanoid or root, is dead, or
+	is already held by another live kill, or when the agent is not running. Finishes `false` if the
+	killer is destroyed or the victim dies of something else during the hold.
 ]=]
 function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?): KillHandle
 	local resolved = Options.Resolve(
@@ -166,28 +173,44 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 
 	local humanoid = victim:FindFirstChildOfClass("Humanoid")
 	local root = victim.PrimaryPart
+	local refusal: string? = nil
 	if humanoid == nil or root == nil then
-		FormatMessage.Warn(`{agent.Name}: Kill.Live needs a Humanoid and a PrimaryPart on {victim:GetFullName()}`)
+		refusal = `Kill.Live needs a Humanoid and a PrimaryPart on {victim:GetFullName()}`
+	elseif humanoid.Health <= 0 then
+		refusal = `Kill.Live: {victim:GetFullName()} is already dead`
+	elseif held[victim] then
+		refusal = `Kill.Live: {victim:GetFullName()} is already being killed`
+	elseif not agent:IsRunning() then
+		refusal = "Kill.Live: the agent is not running"
+	end
+	if refusal ~= nil or humanoid == nil or root == nil then
+		FormatMessage.Warn(`{agent.Name}: {refusal}`)
 		task.defer(finish, false)
 		return handle
 	end
 
+	held[victim] = true
+	trove:Add(function()
+		held[victim] = nil
+	end)
+
+	-- The killer's end of the hold: no killer, no kill.
+	trove:Connect(agent.Destroyed, function()
+		finish(false)
+	end)
+
 	agent:Emit(EVENT, { Kind = "Live", Victim = victim, Duration = resolved.Duration })
 
-	-- Take the victim: the server drives their root for the length of the hold.
-	local ownerOk = pcall(function()
-		root:SetNetworkOwner(nil)
-	end)
+	-- Take the victim: an anchored root is the server's whoever owns it, and PlatformStand keeps
+	-- the humanoid from trying to walk. Both are put back if the victim leaves alive.
+	local wasAnchored = root.Anchored
 	local wasPlatformStanding = humanoid.PlatformStand
+	root.Anchored = true
 	humanoid.PlatformStand = true
 	trove:Add(function()
 		if humanoid.Health > 0 then
+			root.Anchored = wasAnchored
 			humanoid.PlatformStand = wasPlatformStanding
-			if ownerOk then
-				pcall(function()
-					root:SetNetworkOwnershipAuto()
-				end)
-			end
 		end
 	end)
 
@@ -205,9 +228,14 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	local RunService = game:GetService("RunService")
 	local elapsed = 0
 	trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+		-- Someone else got there first: this kill did not happen.
+		if humanoid.Health <= 0 then
+			finish(false)
+			return
+		end
+
 		elapsed += deltaTime
 		root.CFrame = agent.Entity:GetPivot() * resolved.Offset
-		root.AssemblyLinearVelocity = Vector3.zero
 
 		if elapsed >= resolved.Duration then
 			killHumanoid(victim)
@@ -226,7 +254,8 @@ end
 	@return KillHandle
 
 	Emits `Kill` with `Kind = "BlackBox"` at once and sets the victim's health to zero after
-	`Delay`. `Cancel` within the delay spares them.
+	`Delay`. `Cancel` within the delay spares them. Finishes `false` if the victim died of
+	something else meanwhile, or if the agent was not running to begin with.
 ]=]
 function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillOptions?): KillHandle
 	local resolved = Options.Resolve("Kill.BlackBox", BLACK_BOX_DEFAULTS, options :: any) :: typeof(BLACK_BOX_DEFAULTS)
@@ -241,15 +270,25 @@ function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillO
 		finished:Fire(killed)
 	end
 
-	agent:Emit(EVENT, { Kind = "BlackBox", Victim = victim, Duration = resolved.Delay })
+	if not agent:IsRunning() then
+		FormatMessage.Warn(`{agent.Name}: Kill.BlackBox: the agent is not running`)
+		task.defer(finish, false)
+	else
+		agent:Emit(EVENT, { Kind = "BlackBox", Victim = victim, Duration = resolved.Delay })
 
-	task.delay(resolved.Delay, function()
-		if done then
-			return
-		end
-		killHumanoid(victim)
-		finish(true)
-	end)
+		task.delay(resolved.Delay, function()
+			if done then
+				return
+			end
+			local humanoid = victim:FindFirstChildOfClass("Humanoid")
+			if humanoid == nil or humanoid.Health <= 0 then
+				finish(false)
+				return
+			end
+			killHumanoid(victim)
+			finish(true)
+		end)
+	end
 
 	return {
 		Finished = finished,
