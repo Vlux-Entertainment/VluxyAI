@@ -44,7 +44,7 @@ local function setup(options: any?)
 		-- Two authored nodes then the target.
 		return { walk(50, 0, "n1"), walk(100, 0, "n2"), { Position = to, Action = "Walk", Label = "goal" } }
 	end)
-	local localPathfinder = fakePathfinder("Local", function(_from, to)
+	local localPathfinder = fakePathfinder("Local", function(from, to)
 		return {
 			{ Position = from, Action = "Walk", Label = "L:from" },
 			{ Position = to, Action = "Walk", Label = "L:to" },
