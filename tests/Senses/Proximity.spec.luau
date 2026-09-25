@@ -115,6 +115,15 @@ return {
 		expect.includes(message, "Range")
 	end,
 
+	["an unknown option is refused, naming the module"] = function(expect)
+		local Proximity = Harness.Load("lib/Senses/Proximity.luau", { globals = SenseFakes.Globals() })
+		local message = expect.errors(function()
+			Proximity.new({ Rnage = 10 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI] Proximity.new")
+		expect.includes(message, "Rnage")
+	end,
+
 	["Destroy is safe to call"] = function(expect)
 		local s = setup()
 		s.proximity:Destroy()

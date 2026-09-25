@@ -16,6 +16,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
 local Types = require(script.Parent.Parent.Types)
 
@@ -30,20 +31,20 @@ local DEFAULT_OPTIONS = table.freeze({
 	@within Proximity
 
 	.Range number? -- Studs within which a target counts as nearby. Default `100`.
-	.Targets ((agent: Agent) -> { BasePart })? -- What to measure. Default every alive player's root.
+	.Targets ((agent: Agent) -> { BasePart })? -- What to measure. Default [Perception.AliveRoots], every alive player's root.
 ]=]
 export type ProximityOptions = {
 	Range: number?,
 	Targets: ((agent: Types.Agent) -> { BasePart })?,
 }
 
-type Options = {
+type ResolvedOptions = {
 	Range: number,
 	Targets: (agent: Types.Agent) -> { BasePart },
 }
 
 type self = {
-	_options: Options,
+	_options: ResolvedOptions,
 }
 
 local Proximity = {}
@@ -57,19 +58,19 @@ export type Proximity = typeof(setmetatable({} :: self, Proximity))
 	@class Proximity
 
 	A [Types.Sense] that writes who is within `Range` of the agent, nearest first, with no regard
-	for sight. Writes `NearbyTargets`, `NearestTarget` and `NearestDistance`.
+	for sight. Writes `NearbyTargets`, `NearestTarget` and `NearestDistance`. Distances are
+	`math.huge` when there is nothing to measure.
 ]=]
 
 --[=[
 	@within Proximity
 	@param options ProximityOptions?
 	@return Proximity
+	@error "unknown option" -- A key not in [ProximityOptions].
+	@error "Range must be zero or more"
 ]=]
 function Proximity.new(options: ProximityOptions?): Types.Sense
-	local resolved = table.clone(DEFAULT_OPTIONS) :: any
-	for key, value in (options or {}) :: any do
-		resolved[key] = value
-	end
+	local resolved = Options.Resolve("Proximity.new", DEFAULT_OPTIONS, options :: any, { "Targets" }) :: ResolvedOptions
 	resolved.Targets = resolved.Targets or Perception.AliveRoots
 
 	if resolved.Range < 0 then

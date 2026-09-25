@@ -1,8 +1,9 @@
 --!strict
 
 --[[
-	Watched: the observer's cone, the observer's eye, the observer's ray, and how long it has been
-	since anyone looked. Observers are fake characters and `workspace.Raycast` is faked.
+	Watched: the observer's cone, the observer's eye (head by default, `Eye` when given), the
+	observer's ray, and how long it has been since anyone looked. Observers are fake characters
+	and `workspace.Raycast` is faked.
 ]]
 
 local Harness = require("../Support/Harness")
@@ -98,6 +99,55 @@ return {
 		local t = setup({ watched = { Targets = SenseFakes.Targets({ bodyOnly.Root }) } })
 		t.watched:Tick(t.agent, 0.1)
 		expect.falsy(t.blackboard.IsWatched, "the head looks away though the root faces the agent")
+	end,
+
+	["a custom Eye replaces the head: its position is the ray's origin and its LookVector the cone"] = function(expect)
+		local rays: { SenseFakes.Ray } = {}
+		local watcher = observer("A", 10, AWAY, AWAY)
+		local cameraAt = Vector3.new(0, 4, -14)
+		local eyes: { any } = {}
+		local s = setup({
+			watched = {
+				Targets = SenseFakes.Targets({ watcher.Root }),
+				Eye = function(root)
+					table.insert(eyes, root)
+					return SenseFakes.Facing(cameraAt, AGENT_AT - cameraAt)
+				end,
+			},
+			rays = rays,
+		})
+
+		s.watched:Tick(s.agent, 0.1)
+		expect.equal(eyes[1], watcher.Root, "Eye receives the root")
+		expect.truthy(s.blackboard.IsWatched, "the camera faces the agent though head and root do not")
+		expect.equal(rays[1].From, cameraAt)
+		expect.equal(rays[1].Direction, AGENT_AT - cameraAt)
+
+		local t = setup({
+			watched = {
+				Targets = SenseFakes.Targets({ observer("B", 10).Root }),
+				Eye = function()
+					return SenseFakes.Facing(Vector3.new(0, 0, -10), AWAY)
+				end,
+			},
+		})
+		t.watched:Tick(t.agent, 0.1)
+		expect.falsy(t.blackboard.IsWatched, "the camera looks away though the head faces the agent")
+	end,
+
+	["an Eye returning nil falls back to the head"] = function(expect)
+		local watcher = observer("A", 10, AWAY, TOWARDS_AGENT)
+		local s = setup({
+			watched = {
+				Targets = SenseFakes.Targets({ watcher.Root }),
+				Eye = function()
+					return nil
+				end,
+			},
+		})
+
+		s.watched:Tick(s.agent, 0.1)
+		expect.truthy(s.blackboard.IsWatched)
 	end,
 
 	["an obstructed observer is not watching"] = function(expect)
@@ -268,6 +318,15 @@ return {
 			Watched.new({ Range = -1 })
 		end)
 		expect.includes(message, "Range")
+	end,
+
+	["an unknown option is refused, naming the module"] = function(expect)
+		local Watched = Harness.Load("lib/Senses/Watched.luau", { globals = SenseFakes.Globals() })
+		local message = expect.errors(function()
+			Watched.new({ Rnage = 10 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI] Watched.new")
+		expect.includes(message, "Rnage")
 	end,
 
 	["Destroy is safe to call"] = function(expect)

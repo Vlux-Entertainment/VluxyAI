@@ -1,7 +1,8 @@
 --!strict
 
 --[[
-	The pure helpers every sense is built on: the view cone test and the distance sort.
+	The pure helpers every sense is built on: the view cone test, the distance sort, and the
+	lookups from a part to its position, eye, character and humanoid.
 ]]
 
 local Harness = require("../Support/Harness")
@@ -166,5 +167,39 @@ return {
 
 		local loose = SenseFakes.Part(ORIGIN)
 		expect.equal(Perception.EyeOf(loose), loose, "a part with no model is its own eye")
+	end,
+
+	["CharacterOf: the nearest ancestor Model, or nil"] = function(expect)
+		local Perception = load()
+
+		local character = SenseFakes.Character("A", ORIGIN, AHEAD, AHEAD)
+		expect.equal(Perception.CharacterOf(character.Root), character.Model)
+		expect.equal(Perception.CharacterOf(character.Head), character.Model, "any part of the character")
+
+		expect.equal(Perception.CharacterOf(SenseFakes.Part(ORIGIN)), nil, "a loose part has no character")
+	end,
+
+	["HumanoidOf: the Humanoid inside the part's character, or nil"] = function(expect)
+		local Perception = load()
+
+		local character = SenseFakes.Character("A", ORIGIN, AHEAD)
+		expect.equal(Perception.HumanoidOf(character.Root), character.Humanoid)
+
+		expect.equal(Perception.HumanoidOf(SenseFakes.Part(ORIGIN)), nil, "no character")
+
+		local hollow = SenseFakes.Character("B", ORIGIN, AHEAD)
+		hollow.Model.FindFirstChildOfClass = function()
+			return nil
+		end
+		expect.equal(Perception.HumanoidOf(hollow.Root), nil, "a character without a Humanoid")
+	end,
+
+	["IgnoreList: the agent's entity alone"] = function(expect)
+		local Perception = load()
+		local agent = SenseFakes.Agent(ORIGIN)
+
+		local list = Perception.IgnoreList(agent)
+		expect.equal(#list, 1)
+		expect.equal(list[1], agent.Entity)
 	end,
 }

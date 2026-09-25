@@ -4,10 +4,14 @@
 	Hunter: like the Stalker, but with several players in view it chooses which one to chase by
 	utility scoring: closer is better, hurt is better, and the player it already chases gets a
 	bonus so it does not flip-flop. Shows Utility choosing a target while transitions still
-	choose the mode.
+	choose the mode, and Proximity supplying the reach check.
 
-	Blackboard (from Sight and Proximity): SeenTargets, SeenPosition, NearestDistance.
-	Data: Target (the chosen root), AttackUntil.
+	Considerations read the blackboard and cheap properties of the candidate itself (its position,
+	its health); they never raycast. That is the line: the world is sampled by senses, and a
+	candidate is inspected by the code that has to rank it.
+
+	Blackboard (from Sight and Proximity): SeenTargets, SeenPosition, NearestTarget, NearestDistance.
+	Data: Target (the chosen root). Timers: Attack.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,16 +25,10 @@ local ATTACK_RANGE = 4
 local ATTACK_DAMAGE = 15
 local ATTACK_COOLDOWN = 1.2
 
-local function healthOf(root: BasePart): number
-	local character = root:FindFirstAncestorOfClass("Model")
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	return if humanoid then humanoid.Health else 100
-end
-
 local considerations: { VluxyAI.Consideration<BasePart> } = {
 	-- Closer scores higher, and sharply so.
 	{
-		Input = function(agent, root)
+		Input = function(agent: VluxyAI.Agent, root: BasePart)
 			return (root.Position - agent:GetPosition()).Magnitude
 		end,
 		Max = 60,
@@ -40,7 +38,8 @@ local considerations: { VluxyAI.Consideration<BasePart> } = {
 	-- Hurt players are easier prey. Never below 0.3 so health alone cannot veto.
 	{
 		Input = function(_agent: VluxyAI.Agent, root: BasePart)
-			return healthOf(root)
+			local humanoid = VluxyAI.Perception.HumanoidOf(root)
+			return if humanoid then humanoid.Health else 100
 		end,
 		Max = 100,
 		Invert = true,
@@ -50,15 +49,18 @@ local considerations: { VluxyAI.Consideration<BasePart> } = {
 	},
 	-- Stick with the current target unless someone is clearly better.
 	{
-		Input = function(agent, root)
+		Input = function(agent: VluxyAI.Agent, root: BasePart)
 			return if agent.Data.Target == root then 1 else 0.6
 		end,
 	},
 }
 
+-- The chosen target is the nearest thing and it is within reach.
 local function targetInReach(agent: VluxyAI.Agent): boolean
-	local target = agent.Data.Target :: BasePart?
-	return target ~= nil and (target.Position - agent:GetPosition()).Magnitude <= ATTACK_RANGE
+	local blackboard = agent.Blackboard
+	return agent.Data.Target ~= nil
+		and blackboard.NearestTarget == agent.Data.Target
+		and blackboard.NearestDistance <= ATTACK_RANGE
 end
 
 local Brain: VluxyAI.Brain = {
@@ -107,21 +109,21 @@ local Brain: VluxyAI.Brain = {
 		Attack = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent.Data.AttackUntil = os.clock() + ATTACK_COOLDOWN
+				agent:StartTimer("Attack", ATTACK_COOLDOWN)
 
-				local target = agent.Data.Target :: BasePart
-				local character = target:FindFirstAncestorOfClass("Model")
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Data.Target)
 				if humanoid then
 					humanoid:TakeDamage(ATTACK_DAMAGE)
 				end
 			end,
-			Update = function(agent: VluxyAI.Agent)
-				if os.clock() < agent.Data.AttackUntil then
-					return nil
-				end
-				return "Hunt"
-			end,
+			Transitions = {
+				{
+					To = "Hunt",
+					When = function(agent: VluxyAI.Agent)
+						return agent:TimerDone("Attack")
+					end,
+				},
+			},
 		},
 	},
 }
@@ -131,13 +133,13 @@ local function Hunter(model: Model, _context: Context.Context): VluxyAI.Agent
 		:SetName("Hunter")
 		:UseBrain(Brain)
 		:UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
-			VluxyAI.Pathfinders.Straight.new({ Radius = 2, Height = 5 }),
-			VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }),
+			VluxyAI.Pathfinders.Straight.new(),
+			VluxyAI.Pathfinders.Navmesh.new(),
 		}))
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = 13 }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 50, FieldOfView = 140, Memory = 3 }))
 		:AddSense(VluxyAI.Senses.Proximity.new({ Range = 60 }))
-		:SetNavigation({ RepathInterval = 0.25, ArriveDistance = 2 })
+		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
 end
 

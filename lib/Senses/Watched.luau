@@ -2,9 +2,17 @@
 
 --[[
 	Who is looking at the agent: the Weeping Angel sense. Sight turned around. For each target
-	root the observer's eye is its character's `Head` when it has one, else the root; the agent is
-	watched when its pivot is inside the observer's view cone and, if required, a ray from that eye
-	to the pivot hits nothing but the agent's own entity.
+	root the observer's eye is whatever `Eye` returns for it; by default its character's `Head`
+	when it has one, else the root ([Perception.EyeOf]). The agent is watched when its pivot is
+	inside the observer's view cone and, if required, a ray from that eye to the pivot hits nothing
+	but the agent's own entity.
+
+	The default eye judges "looking" by the head's facing. On a default rig the head turns with
+	the body, so that is the walk direction, not where the player's camera points: a player
+	walking towards the agent while looking over their shoulder counts as watching. A game that
+	wants true camera direction replicates the camera's look to the server and passes `Eye`, which
+	returns a CFrame for the root (the position is the eye, the LookVector the camera). Returning
+	`nil` from `Eye` falls back to the default for that root.
 
 	Writes to the blackboard:
 
@@ -25,6 +33,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
 local Types = require(script.Parent.Parent.Types)
 
@@ -43,8 +52,9 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Range number? -- Studs from which an observer can see the agent. Default `60`.
 	.FieldOfView number? -- The full angle of the observer's view cone, in degrees. Default `90`.
 	.RequireLineOfSight boolean? -- Cast a ray from the observer to the agent, or trust the cone alone. Default `true`.
-	.Targets ((agent: Agent) -> { BasePart })? -- Who might be looking. Default every alive player's root.
+	.Targets ((agent: Agent) -> { BasePart })? -- Who might be looking. Default [Perception.AliveRoots], every alive player's root.
 	.Ignore ((agent: Agent) -> { Instance })? -- Extra instances the observer's ray passes through, on top of the observer's own character. Default none.
+	.Eye ((root: BasePart) -> CFrame?)? -- Where an observer looks from and which way: a replicated camera, say. `nil` falls back to the default. Default the head's CFrame when the character has one, else the root's.
 ]=]
 export type WatchedOptions = {
 	Range: number?,
@@ -52,18 +62,20 @@ export type WatchedOptions = {
 	RequireLineOfSight: boolean?,
 	Targets: ((agent: Types.Agent) -> { BasePart })?,
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
+	Eye: ((root: BasePart) -> CFrame?)?,
 }
 
-type Options = {
+type ResolvedOptions = {
 	Range: number,
 	FieldOfView: number,
 	RequireLineOfSight: boolean,
 	Targets: (agent: Types.Agent) -> { BasePart },
 	Ignore: (agent: Types.Agent) -> { Instance },
+	Eye: (root: BasePart) -> CFrame?,
 }
 
 type self = {
-	_options: Options,
+	_options: ResolvedOptions,
 }
 
 local Watched = {}
@@ -81,28 +93,40 @@ local function nothing(agent: Types.Agent): { Instance }
 	return {}
 end
 
+--[[
+	The default Eye: the head's CFrame when the character has one, else the root's.
+]]
+local function headOrRoot(root: BasePart): CFrame?
+	return Perception.EyeOf(root).CFrame
+end
+
 --[=[
 	@class Watched
 
 	A [Types.Sense] that writes who is looking at the agent. An observer sees the agent when the
 	agent's pivot is inside the observer's `FieldOfView` cone within `Range`, and (unless
-	`RequireLineOfSight` is off) a ray from the observer's head to the pivot reaches the agent's
+	`RequireLineOfSight` is off) a ray from the observer's eye to the pivot reaches the agent's
 	entity. Writes `WatchedBy`, `IsWatched`, `WatchedAt` and `UnwatchedFor`, which is what a
-	freeze-when-seen state reads.
+	freeze-when-seen state reads. Distances are `math.huge` when there is nothing to measure.
+
+	By default an observer's eye is its character's head, so "looking" means the head's facing,
+	which on a default rig is the walk direction rather than the camera. A game that wants the
+	real camera direction replicates it to the server and passes `Eye`.
 ]=]
 
 --[=[
 	@within Watched
 	@param options WatchedOptions?
 	@return Watched
+	@error "unknown option" -- A key not in [WatchedOptions].
+	@error "Range must be zero or more"
 ]=]
 function Watched.new(options: WatchedOptions?): Types.Sense
-	local resolved = table.clone(DEFAULT_OPTIONS) :: any
-	for key, value in (options or {}) :: any do
-		resolved[key] = value
-	end
+	local resolved =
+		Options.Resolve("Watched.new", DEFAULT_OPTIONS, options :: any, { "Targets", "Ignore", "Eye" }) :: ResolvedOptions
 	resolved.Targets = resolved.Targets or Perception.AliveRoots
 	resolved.Ignore = resolved.Ignore or nothing
+	resolved.Eye = resolved.Eye or headOrRoot
 
 	if resolved.Range < 0 then
 		FormatMessage.Error("Watched: Range must be zero or more", 3)
@@ -132,8 +156,8 @@ function Watched.Tick(self: Watched, agent: Types.Agent, deltaTime: number)
 
 	local watchers: { BasePart } = {}
 	for _, root in options.Targets(agent) do
-		local eye = Perception.EyeOf(root)
-		local inCone = Perception.InCone(eye.CFrame, position, options.FieldOfView, options.Range)
+		local eye = options.Eye(root) or headOrRoot(root) :: CFrame
+		local inCone = Perception.InCone(eye, position, options.FieldOfView, options.Range)
 		if not inCone then
 			continue
 		end

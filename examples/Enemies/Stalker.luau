@@ -6,8 +6,8 @@
 	transitions choosing the mode, and the Ladder pathfinder trying a straight line before the
 	navmesh.
 
-	Blackboard (from Sight): SeenTarget, SeenDistance, SeenPosition, SeenAt.
-	Data: AttackUntil (cooldown end).
+	Blackboard (from Sight): SeenTarget, SeenDistance, SeenPosition.
+	Timers: Attack (the cooldown).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,9 +19,17 @@ local ATTACK_RANGE = 4
 local ATTACK_DAMAGE = 10
 local ATTACK_COOLDOWN = 1
 
-local function canAttack(agent: VluxyAI.Agent): boolean
-	local blackboard = agent.Blackboard
-	return blackboard.SeenTarget ~= nil and blackboard.SeenDistance <= ATTACK_RANGE
+local function seesSomeone(agent: VluxyAI.Agent): boolean
+	return agent.Blackboard.SeenTarget ~= nil
+end
+
+local function forgot(agent: VluxyAI.Agent): boolean
+	return agent.Blackboard.SeenPosition == nil
+end
+
+-- Sight only sees with a clear line, so SeenDistance is "close and nothing in the way".
+local function inReach(agent: VluxyAI.Agent): boolean
+	return agent.Blackboard.SeenDistance <= ATTACK_RANGE
 end
 
 local Brain: VluxyAI.Brain = {
@@ -32,24 +40,14 @@ local Brain: VluxyAI.Brain = {
 				agent:Stop()
 			end,
 			Transitions = {
-				{
-					To = "Chase",
-					When = function(agent: VluxyAI.Agent)
-						return agent.Blackboard.SeenTarget ~= nil
-					end,
-				},
+				{ To = "Chase", When = seesSomeone },
 			},
 		},
 
 		Chase = {
 			Transitions = {
-				{ To = "Attack", When = canAttack },
-				{
-					To = "Idle",
-					When = function(agent: VluxyAI.Agent)
-						return agent.Blackboard.SeenPosition == nil
-					end,
-				},
+				{ To = "Attack", When = inReach },
+				{ To = "Idle", When = forgot },
 			},
 			Update = function(agent: VluxyAI.Agent)
 				-- SeenPosition lingers for Sight's Memory after the target is lost, so the stalker
@@ -62,21 +60,21 @@ local Brain: VluxyAI.Brain = {
 		Attack = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent.Data.AttackUntil = os.clock() + ATTACK_COOLDOWN
+				agent:StartTimer("Attack", ATTACK_COOLDOWN)
 
-				local target = agent.Blackboard.SeenTarget :: BasePart
-				local character = target:FindFirstAncestorOfClass("Model")
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Blackboard.SeenTarget)
 				if humanoid then
 					humanoid:TakeDamage(ATTACK_DAMAGE)
 				end
 			end,
-			Update = function(agent: VluxyAI.Agent)
-				if os.clock() < agent.Data.AttackUntil then
-					return nil
-				end
-				return if agent.Blackboard.SeenTarget then "Chase" else "Idle"
-			end,
+			Transitions = {
+				{
+					To = "Chase",
+					When = function(agent: VluxyAI.Agent)
+						return agent:TimerDone("Attack")
+					end,
+				},
+			},
 		},
 	},
 }
@@ -86,12 +84,12 @@ local function Stalker(model: Model, _context: Context.Context): VluxyAI.Agent
 		:SetName("Stalker")
 		:UseBrain(Brain)
 		:UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
-			VluxyAI.Pathfinders.Straight.new({ Radius = 2, Height = 5 }),
-			VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }),
+			VluxyAI.Pathfinders.Straight.new(),
+			VluxyAI.Pathfinders.Navmesh.new(),
 		}))
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = 14 }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 45, FieldOfView = 120, Memory = 4 }))
-		:SetNavigation({ RepathInterval = 0.25, ArriveDistance = 2 })
+		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
 end
 

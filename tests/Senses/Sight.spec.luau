@@ -51,7 +51,7 @@ return {
 		s.sight:Tick(s.agent, 0.1)
 		expect.equal(#s.blackboard.SeenTargets, 0)
 		expect.equal(s.blackboard.SeenTarget, nil)
-		expect.equal(s.blackboard.SeenDistance, nil)
+		expect.equal(s.blackboard.SeenDistance, math.huge, "no distance to measure")
 		expect.equal(s.blackboard.SeenPosition, nil)
 		expect.equal(s.blackboard.SeenAt, nil)
 	end,
@@ -152,20 +152,17 @@ return {
 		expect.equal(rays[1].Params.FilterType, roblox.Enum.RaycastFilterType.Exclude)
 	end,
 
-	["the default Ignore is the agent's entity and its descendants"] = function(expect)
+	["the default Ignore is the agent's entity alone; the filter covers its descendants"] = function(expect)
 		local rays: { SenseFakes.Ray } = {}
 		local s = setup({
 			sight = { Targets = SenseFakes.Targets({ SenseFakes.Part(Vector3.new(0, 0, -10)) }) },
 			rays = rays,
 		})
-		local limb = { Name = "Arm" }
-		s.agent.Entity.GetDescendants = function()
-			return { limb }
-		end
 
 		s.sight:Tick(s.agent, 0.1)
-		expect.equal(rays[1].Params.FilterDescendantsInstances[1], s.agent.Entity)
-		expect.equal(rays[1].Params.FilterDescendantsInstances[2], limb)
+		local filter = rays[1].Params.FilterDescendantsInstances
+		expect.equal(#filter, 1)
+		expect.equal(filter[1], s.agent.Entity)
 	end,
 
 	["no ray is cast for a target outside the cone"] = function(expect)
@@ -214,7 +211,7 @@ return {
 		s.clock:Advance(1)
 		s.sight:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.SeenTarget, nil)
-		expect.equal(s.blackboard.SeenDistance, nil)
+		expect.equal(s.blackboard.SeenDistance, math.huge)
 		expect.equal(#s.blackboard.SeenTargets, 0)
 		expect.equal(s.blackboard.SeenPosition, Vector3.new(0, 0, -10), "remembered")
 		expect.equal(s.blackboard.SeenAt, 100, "the sighting time, not now")
@@ -261,6 +258,15 @@ return {
 			Sight.new({ Range = -1 })
 		end)
 		expect.includes(message, "[VluxyAI]")
+	end,
+
+	["an unknown option is refused, naming the module"] = function(expect)
+		local Sight = Harness.Load("lib/Senses/Sight.luau", { globals = SenseFakes.Globals() })
+		local message = expect.errors(function()
+			Sight.new({ Rnage = 10 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI] Sight.new")
+		expect.includes(message, "Rnage")
 	end,
 
 	["Destroy is safe to call"] = function(expect)

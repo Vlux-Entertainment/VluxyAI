@@ -19,7 +19,7 @@ local ALMOST_ZERO = 0.001
 
 --[=[
 	@interface AnimationInfo
-	@within Animator
+	@within NPCAnimator
 
 	.Id number -- The animation asset id.
 	.Weighted boolean -- `true` for a looped, always-playing track blended by weight; `false` for a one-shot.
@@ -51,7 +51,7 @@ NPCAnimator.__index = NPCAnimator
 export type NPCAnimator = typeof(setmetatable({} :: self, NPCAnimator))
 
 --[=[
-	@class Animator
+	@class NPCAnimator
 
 	Plays and blends animations on an NPC rig by name.
 
@@ -70,7 +70,7 @@ export type NPCAnimator = typeof(setmetatable({} :: self, NPCAnimator))
 ]=]
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@param entity Model -- Needs an `Animator` somewhere inside (usually under the Humanoid or AnimationController).
 	@param animations { [string]: AnimationInfo }
 	@return Animator
@@ -129,7 +129,7 @@ function NPCAnimator._track(self: NPCAnimator, name: string): AnimationTrack
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@return Animator
 
 	Loads every animation. Weighted tracks start playing at almost-zero weight so they blend in
@@ -167,7 +167,7 @@ function NPCAnimator.Load(self: NPCAnimator): NPCAnimator
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@param name string
 	@param weight number -- `0` to `1`. Clamped above zero so the track never drops out.
 	@param fade number? -- Seconds to blend. Default `0.1`.
@@ -186,7 +186,7 @@ function NPCAnimator.SetWeight(self: NPCAnimator, name: string, weight: number, 
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@param name string
 	@param fade number?
 	@param weight number?
@@ -208,7 +208,7 @@ function NPCAnimator.Play(self: NPCAnimator, name: string, fade: number?, weight
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@param name string
 	@param fade number?
 	@return Animator
@@ -228,7 +228,7 @@ function NPCAnimator.Stop(self: NPCAnimator, name: string, fade: number?): NPCAn
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@param name string
 	@return AnimationTrack
 	@error string -- Unknown name.
@@ -240,7 +240,7 @@ function NPCAnimator.GetTrack(self: NPCAnimator, name: string): AnimationTrack
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 	@return { [string]: AnimationInfo } -- The table given to `new`.
 ]=]
 function NPCAnimator.GetAnimations(self: NPCAnimator): { [string]: AnimationInfo }
@@ -248,7 +248,7 @@ function NPCAnimator.GetAnimations(self: NPCAnimator): { [string]: AnimationInfo
 end
 
 --[=[
-	@within Animator
+	@within NPCAnimator
 
 	Stops and destroys every track and the Animation instances it made.
 ]=]

@@ -2,17 +2,20 @@
 
 --[[
 	A mover for a rig: walks each step of a path with `Humanoid:MoveTo` and advances on
-	`MoveToFinished`. Roblox's own MoveTo timeout (8 seconds) and a Heartbeat stuck check are both
-	give-ups that fire `Arrived(false)`; the Navigator re-plans from there.
+	`MoveToFinished`. A Heartbeat stuck check is the give-up that fires `Arrived(false)`; the
+	Navigator re-plans from there. Roblox's own MoveTo timeout is not a give-up: it fires
+	`MoveToFinished(false)` eight seconds after every `MoveTo` whether or not the rig is getting
+	there, so a long straight step re-issues the `MoveTo` while the stuck check still sees progress.
 
 	Two Roblox-specific decisions: the root's network owner is set to the server in `new`, because
 	a client-owned NPC ignores server MoveTo calls and that is the first thing everyone hits; and a
-	leading step within `SkipDistance` of the rig is skipped, because a navmesh path starts at the
-	agent's own position and walking to where you already stand wastes a MoveTo round-trip.
-	`Humanoid.ChooseStart` is that decision as a pure function, so it is specced.
+	run of leading plain Walk steps within `SkipDistance` of the rig is skipped, because a navmesh
+	path starts at the agent's own position and walking to where you already stand wastes a MoveTo
+	round-trip. `HumanoidMover.ChooseStart` is that decision as a pure function, so it is specced.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Trove = require(script.Parent.Parent.Utility.Trove)
@@ -28,7 +31,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	ServerOwned = true,
 })
 
-type Options = {
+type ResolvedOptions = {
 	Speed: number,
 	StuckTimeout: number,
 	StuckDistance: number,
@@ -43,7 +46,7 @@ type self = {
 	_model: Model,
 	_root: BasePart,
 	_humanoid: Humanoid,
-	_options: Options,
+	_options: ResolvedOptions,
 	_speed: number,
 
 	_path: Types.Path?,
@@ -63,12 +66,12 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 
 --[=[
 	@interface HumanoidOptions
-	@within Humanoid
+	@within HumanoidMover
 
 	.Speed number? -- `WalkSpeed`, studs per second. Default `16`.
 	.StuckTimeout number? -- Seconds without moving `StuckDistance` before giving up. Default `3`.
 	.StuckDistance number? -- Studs the root must move within `StuckTimeout` to count as progress. Default `0.5`.
-	.SkipDistance number? -- Leading steps within this horizontal distance of the rig are skipped. Default `1`.
+	.SkipDistance number? -- Leading plain Walk steps within this horizontal distance of the rig are skipped. Default `1`.
 	.ServerOwned boolean? -- Set the root's network owner to the server in `new`. Default `true`.
 ]=]
 export type HumanoidOptions = {
@@ -80,11 +83,16 @@ export type HumanoidOptions = {
 }
 
 --[=[
-	@class Humanoid
+	@class HumanoidMover
 
 	A [Types.Mover] for a model with a `Humanoid` and a `PrimaryPart`: walks each step with
-	`MoveTo`, jumps at `Jump` steps, and gives up when Roblox's MoveTo times out or the rig stops
-	making progress. Exposed as `VluxyAI.Movers.Humanoid`.
+	`MoveTo`, jumps at `Jump` steps, and gives up when the rig stops making progress for
+	`StuckTimeout` seconds. Exposed as `VluxyAI.Movers.Humanoid`.
+
+	Roblox fires `MoveToFinished(false)` eight seconds after any `MoveTo`, reached or not, so a step
+	further than eight seconds of walking would otherwise end a healthy walk. The mover re-issues
+	the `MoveTo` for the same step while the stuck check sees progress and only gives up when the
+	stuck check agrees.
 
 	Follows the two mover rules: `Follow` fires `Arrived(false)` for the path it replaces before
 	starting the new one, and the new path is only ever reported from a later frame, because
@@ -94,19 +102,26 @@ export type HumanoidOptions = {
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@param path Path
 	@param position Vector3 -- Where the rig is.
 	@param skipDistance number -- Horizontal distance within which a leading step is already reached.
 	@return number -- The index of the first step to walk toward; `#path + 1` only when the path is empty.
 
-	Skips the run of leading steps that sit within `skipDistance` of `position`, because a navmesh
-	path starts where the agent already stands. The last step is never skipped, so there is always
-	something to walk toward and arrival is always reported from `MoveToFinished`.
+	Skips the run of leading plain `Walk` steps that sit within `skipDistance` of `position`,
+	because a navmesh path starts where the agent already stands. A labelled, `Jump` or `Custom`
+	step is never skipped, even one under the agent: it carries meaning (a door at the agent's
+	feet) that `StepReached` must report. The last step is never skipped either, so there is
+	always something to walk toward and arrival is always reported from `MoveToFinished`.
 ]=]
 function HumanoidMover.ChooseStart(path: Types.Path, position: Vector3, skipDistance: number): number
 	local index = 1
-	while index < #path and Tables.FlatDistance(path[index].Position, position) <= skipDistance do
+	while index < #path do
+		local step = path[index]
+		local plain = step.Action == "Walk" and step.Label == nil
+		if not plain or Tables.FlatDistance(step.Position, position) > skipDistance then
+			break
+		end
 		index += 1
 	end
 
@@ -116,13 +131,15 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@param model Model -- Needs a `PrimaryPart` and a `Humanoid` child.
 	@param options HumanoidOptions?
-	@return Humanoid
+	@return HumanoidMover
 	@error string -- The model has no `PrimaryPart` or no `Humanoid`.
+	@error "unknown option" -- A key that is not in `HumanoidOptions`.
 
-	Sets `WalkSpeed` to `Speed` and, with `ServerOwned`, hands the root to the server.
+	Sets `WalkSpeed` to `Speed` and, with `ServerOwned`, hands the root to the server. That fails,
+	with a warning, unless the model is a descendant of Workspace and unanchored before this call.
 ]=]
 function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 	local root = model.PrimaryPart
@@ -135,18 +152,21 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		return FormatMessage.Error(`{model:GetFullName()} has no Humanoid; the Humanoid mover needs one`, 2)
 	end
 
-	local resolved = table.clone(DEFAULT_OPTIONS)
-	for key, value in (options or {}) :: { [string]: any } do
-		resolved[key] = value
-	end
+	local resolved = Options.Resolve("Humanoid.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	humanoid.WalkSpeed = resolved.Speed
 
 	if resolved.ServerOwned then
-		-- Fails on the client and for a part that is anchored or welded to one; neither is fatal.
-		pcall(function()
+		local ok, err = pcall(function()
 			root:SetNetworkOwner(nil)
 		end)
+		if not ok then
+			FormatMessage.Warn(
+				`Humanoid.new: could not hand {model:GetFullName()} to the server ({tostring(err)}); `
+					.. "the model must be a descendant of Workspace and unanchored before Humanoid.new, "
+					.. "or a client-owned rig will ignore MoveTo"
+			)
+		end
 	end
 
 	local trove = Trove.new()
@@ -220,7 +240,26 @@ function HumanoidMover._walkTo(self: HumanoidMover, index: number)
 end
 
 --[[
-	`MoveToFinished` for the current step: advance, or give up when Roblox timed out.
+	The stuck check, shared by the Heartbeat and by MoveToFinished(false): notes progress when the
+	root has moved `StuckDistance` since the last note, and answers `true` once `StuckTimeout`
+	seconds have passed without one.
+]]
+function HumanoidMover._isStuck(self: HumanoidMover): boolean
+	local position = self._root.Position
+	if (position - self._stuckPosition).Magnitude >= self._options.StuckDistance then
+		self._stuckPosition = position
+		self._stuckTime = 0
+		return false
+	end
+
+	return self._stuckTime >= self._options.StuckTimeout
+end
+
+--[[
+	`MoveToFinished` for the current step: advance, or on `false` (Roblox's own timeout, which
+	fires eight seconds after every MoveTo regardless of progress) ask the stuck check. While it
+	sees progress the same step's MoveTo is re-issued and the stuck clock is left alone; only when
+	it agrees the rig is stuck is the path given up.
 ]]
 function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 	local path = self._path
@@ -229,7 +268,11 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 	end
 
 	if not reached then
-		self:_finish(false)
+		if self:_isStuck() then
+			self:_finish(false)
+		else
+			self._humanoid:MoveTo(path[self._index].Position)
+		end
 		return
 	end
 
@@ -250,22 +293,16 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 end
 
 --[[
-	The stuck check: `StuckTimeout` seconds without the root moving `StuckDistance` is a give-up.
+	Advances the stuck clock; `StuckTimeout` seconds without the root moving `StuckDistance` is a
+	give-up.
 ]]
 function HumanoidMover._onHeartbeat(self: HumanoidMover, deltaTime: number)
 	if self._path == nil then
 		return
 	end
 
-	local position = self._root.Position
-	if (position - self._stuckPosition).Magnitude >= self._options.StuckDistance then
-		self._stuckPosition = position
-		self._stuckTime = 0
-		return
-	end
-
 	self._stuckTime += deltaTime
-	if self._stuckTime >= self._options.StuckTimeout then
+	if self:_isStuck() then
 		self:_finish(false)
 	end
 end
@@ -273,7 +310,7 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@param path Path
 
 	Starts along `path`, replacing any current one. The replaced path gets `Arrived(false)` before
@@ -311,7 +348,7 @@ function HumanoidMover.Follow(self: HumanoidMover, path: Types.Path)
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 
 	Cancels the walk. Fires `Arrived(false)` if a path was in progress.
 ]=]
@@ -320,7 +357,7 @@ function HumanoidMover.Stop(self: HumanoidMover)
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@return Vector3 -- The `PrimaryPart` position.
 ]=]
 function HumanoidMover.GetPosition(self: HumanoidMover): Vector3
@@ -328,7 +365,7 @@ function HumanoidMover.GetPosition(self: HumanoidMover): Vector3
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@return number -- Studs per second.
 ]=]
 function HumanoidMover.GetSpeed(self: HumanoidMover): number
@@ -336,7 +373,7 @@ function HumanoidMover.GetSpeed(self: HumanoidMover): number
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@param studsPerSecond number -- Becomes the humanoid's `WalkSpeed`.
 ]=]
 function HumanoidMover.SetSpeed(self: HumanoidMover, studsPerSecond: number)
@@ -345,7 +382,7 @@ function HumanoidMover.SetSpeed(self: HumanoidMover, studsPerSecond: number)
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 	@return boolean -- `true` while a path is in progress.
 ]=]
 function HumanoidMover.IsMoving(self: HumanoidMover): boolean
@@ -353,7 +390,7 @@ function HumanoidMover.IsMoving(self: HumanoidMover): boolean
 end
 
 --[=[
-	@within Humanoid
+	@within HumanoidMover
 
 	Stops, then drops the signals. The model is left alone; it is yours.
 ]=]

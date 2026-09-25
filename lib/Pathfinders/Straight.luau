@@ -2,19 +2,23 @@
 
 --[[
 	The "can I go straight there" leg. Sweeps a sphere the size of the agent's body from `from` to
-	`to`; if nothing is in the way (and, with `FloorCheck`, there is floor under every few studs of
-	the segment) the path is the two endpoints and no planning happened.
+	`to`; if nothing is in the way (and, with `FloorCheck`, there is floor under the whole segment)
+	the path is the two endpoints and no planning happened.
 
 	The one decision worth knowing: `from` and `to` may be at any height (a mover reports its root,
 	a target is often a player's root, a node is on the floor), so with `FloorCheck` on both are
-	projected onto the floor by the same downward rays that check the segment, and the path holds
-	those floor positions, which is what a [Types.Step] promises. The sweep then runs between the
-	two body centres, `Height / 2` above the floor points. With `FloorCheck` off the positions are
-	used as given. `Sample` is pure and specced; the casts run under a fake workspace in the spec
-	and are play-tested for real.
+	projected onto the floor by a downward ray that may go a body's height plus `MaxDrop` below
+	them, and the path holds those floor positions, which is what a [Types.Step] promises. The
+	sweep then runs between the two body centres, `AgentHeight / 2` above the floor points. The
+	samples between sit on the projected floor line, so their rays only go `MaxDrop` below them,
+	every `AgentRadius` studs at most so no gap the body could fall through slips between two
+	samples, and each floor hit may be at most `MaxDrop` below the previous one. With `FloorCheck`
+	off the positions are used as given. `Sample` is pure and specced; the casts run under a fake
+	workspace in the spec and are play-tested for real.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -23,28 +27,31 @@ local Types = require(script.Parent.Parent.Types)
 local ZERO_LENGTH = 1e-4
 
 local DEFAULT_OPTIONS = table.freeze({
-	Radius = 2,
-	Height = 5,
+	AgentRadius = 2,
+	AgentHeight = 5,
 	FloorCheck = true,
 	FloorSpacing = 4,
 	MaxDrop = 6,
 	Ignore = nil :: ((agent: Types.Agent) -> { Instance })?,
 })
 
+-- Keys with no default value, so the resolver still accepts them.
+local OPTIONAL_KEYS = { "Ignore" }
+
 --[=[
 	@interface StraightOptions
 	@within Straight
 
-	.Radius number? -- Radius of the swept sphere, the agent's half width. Must be below `Height / 2` or the sweep scrapes the floor. Default `2`.
-	.Height number? -- The agent's height; the sweep runs `Height / 2` above the floor. Default `5`.
+	.AgentRadius number? -- Radius of the swept sphere, the agent's half width. Must be below `AgentHeight / 2` or the sweep scrapes the floor. Default `2`.
+	.AgentHeight number? -- The agent's height; the sweep runs `AgentHeight / 2` above the floor. Default `5`.
 	.FloorCheck boolean? -- Require floor under the segment and project the endpoints onto it. Default `true`.
-	.FloorSpacing number? -- Studs between floor samples along the segment. Default `4`.
-	.MaxDrop number? -- Studs below a position's body centre the floor may still be. Default `6`.
+	.FloorSpacing number? -- Studs between floor samples along the segment; never more than `AgentRadius`, so a gap the body could fall through is always sampled. Default `4`.
+	.MaxDrop number? -- Studs the floor may be below a sample, and below the previous sample's floor. Default `6`.
 	.Ignore ((agent: Agent) -> { Instance })? -- Instances the casts pass through. Default: [Straight.DefaultIgnore], the agent's entity and every player's character.
 ]=]
 export type Options = {
-	Radius: number?,
-	Height: number?,
+	AgentRadius: number?,
+	AgentHeight: number?,
 	FloorCheck: boolean?,
 	FloorSpacing: number?,
 	MaxDrop: number?,
@@ -52,8 +59,8 @@ export type Options = {
 }
 
 type ResolvedOptions = {
-	Radius: number,
-	Height: number,
+	AgentRadius: number,
+	AgentHeight: number,
 	FloorCheck: boolean,
 	FloorSpacing: number,
 	MaxDrop: number,
@@ -91,18 +98,11 @@ export type Straight = typeof(setmetatable({} :: self, Straight))
 	@error "unknown option" -- A key that is not in `StraightOptions`.
 ]=]
 function Straight.new(options: Options?): Types.Pathfinder
-	local resolved = table.clone(DEFAULT_OPTIONS)
-	local given: { [string]: any } = options or {}
-	for key, value in given do
-		if (DEFAULT_OPTIONS :: any)[key] == nil and key ~= "Ignore" then
-			FormatMessage.Error(`Straight.new: unknown option "{key}"`, 2)
-		end
-		(resolved :: any)[key] = value
-	end
+	local resolved = Options.Resolve("Straight.new", DEFAULT_OPTIONS, options :: any, OPTIONAL_KEYS) :: ResolvedOptions
 
-	if resolved.Radius >= resolved.Height / 2 then
+	if resolved.AgentRadius >= resolved.AgentHeight / 2 then
 		FormatMessage.Warn(
-			`Straight.new: Radius ({resolved.Radius}) is not below Height / 2 ({resolved.Height / 2}), so the sweep touches the floor`
+			`Straight.new: AgentRadius ({resolved.AgentRadius}) is not below AgentHeight / 2 ({resolved.AgentHeight / 2}), so the sweep touches the floor`
 		)
 	end
 
@@ -180,7 +180,7 @@ end
 	@param to Vector3 -- Any height; the floor under it is used.
 	@param agent Agent -- Handed to `Ignore`.
 	@return Path? -- Two Walk steps, the floor positions under `from` and `to`, when the way is clear.
-	@return string? -- `blocked by <full name>` when the sweep hits, `no floor at <point>` when a floor ray misses.
+	@return string? -- `blocked by <full name>` when the sweep hits, `no floor at <point>` when a floor ray misses, `floor drops <studs> at <point>` when the floor falls more than `MaxDrop` between two samples.
 ]=]
 function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
 	local options = self._options
@@ -191,11 +191,14 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 	params.FilterDescendantsInstances = ignore
 	params.IgnoreWater = true
 
-	local lift = Vector3.yAxis * (options.Height / 2)
-	-- From half a body above the point, down through a body's height and the allowed drop.
-	local reach = Vector3.yAxis * -(options.Height + options.MaxDrop)
+	local lift = Vector3.yAxis * (options.AgentHeight / 2)
+	-- An endpoint may be a root, so from half a body above it the ray goes a body's height plus
+	-- the allowed drop: the floor may be MaxDrop below the endpoint's own feet.
+	local endpointReach = Vector3.yAxis * -(options.AgentHeight + options.MaxDrop)
+	-- A sample sits on the projected floor line, so its ray goes only the allowed drop below it.
+	local sampleReach = Vector3.yAxis * -(options.AgentHeight / 2 + options.MaxDrop)
 
-	local function floorUnder(point: Vector3): Vector3?
+	local function floorUnder(point: Vector3, reach: Vector3): Vector3?
 		local hit = workspace:Raycast(point + lift, reach, params)
 		return if hit then hit.Position else nil
 	end
@@ -204,11 +207,11 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 	local floorTo = to
 
 	if options.FloorCheck then
-		local underFrom = floorUnder(from)
+		local underFrom = floorUnder(from, endpointReach)
 		if underFrom == nil then
 			return nil, `no floor at {from}`
 		end
-		local underTo = floorUnder(to)
+		local underTo = floorUnder(to, endpointReach)
 		if underTo == nil then
 			return nil, `no floor at {to}`
 		end
@@ -220,19 +223,31 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 	local offset = (floorTo + lift) - start
 
 	if offset.Magnitude > ZERO_LENGTH then
-		local hit = workspace:Spherecast(start, options.Radius, offset, params)
+		local hit = workspace:Spherecast(start, options.AgentRadius, offset, params)
 		if hit then
 			return nil, `blocked by {hit.Instance:GetFullName()}`
 		end
 	end
 
 	if options.FloorCheck then
-		local samples = Straight.Sample(floorFrom, floorTo, options.FloorSpacing)
-		-- The last sample is `to`, whose floor was found above.
-		for index = 1, #samples - 1 do
-			if floorUnder(samples[index]) == nil then
-				return nil, `no floor at {samples[index]}`
+		local spacing = if options.AgentRadius > 0
+			then math.min(options.FloorSpacing, options.AgentRadius)
+			else options.FloorSpacing
+		local samples = Straight.Sample(floorFrom, floorTo, spacing)
+		local previous = floorFrom
+
+		-- The last sample is `to`, whose floor was found above; it still takes the drop check.
+		for index, sample in samples do
+			local floor = if index == #samples then floorTo else floorUnder(sample, sampleReach)
+			if floor == nil then
+				return nil, `no floor at {sample}`
 			end
+
+			local drop = previous.Y - floor.Y
+			if drop > options.MaxDrop then
+				return nil, `floor drops {drop} at {sample}`
+			end
+			previous = floor
 		end
 	end
 

@@ -78,7 +78,7 @@ local ROSTER: {
 			Module = Enemies.Watcher,
 			Color = Color3.fromRGB(40, 40, 45),
 			Humanoid = false,
-			Keys = { "IsWatched", "SeenTarget", "NearestDistance" },
+			Keys = { "IsWatched", "SeenTarget", "SeenDistance" },
 		},
 	}
 

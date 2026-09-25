@@ -10,7 +10,7 @@
 	`FromWaypoints` are pure so they are specced under Lune; the service call is play-tested.
 ]]
 
-local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -81,8 +81,9 @@ export type Navmesh = typeof(setmetatable({} :: self, Navmesh))
 	@class Navmesh
 
 	A [Types.Pathfinder] over Roblox's `PathfindingService`. One `Path` instance per navmesh, created
-	in `new` with the agent parameters and reused for every `FindPath`, so make one per agent (or
-	per agent shape) rather than one per plan.
+	in `new` with the agent parameters and reused for every `FindPath`, so make one per agent rather
+	than one per plan. Never share one between agents: `ComputeAsync` yields, so a second agent's
+	plan would overwrite the waypoints the first is about to read.
 
 	`Name` is `"Navmesh"`, which [Ladder] uses in its reasons.
 ]=]
@@ -91,18 +92,12 @@ export type Navmesh = typeof(setmetatable({} :: self, Navmesh))
 	@within Navmesh
 	@param options NavmeshOptions?
 	@return Navmesh
+	@error "unknown option" -- A key that is not in `NavmeshOptions`.
 
 	Creates the `Path` instance through `PathfindingService:CreatePath`.
 ]=]
 function Navmesh.new(options: Options?): Types.Pathfinder
-	local resolved = table.clone(DEFAULT_OPTIONS)
-	local given: { [string]: any } = options or {}
-	for key, value in given do
-		if (DEFAULT_OPTIONS :: any)[key] == nil then
-			FormatMessage.Error(`Navmesh.new: unknown option "{key}"`, 2)
-		end
-		(resolved :: any)[key] = value
-	end
+	local resolved = Options.Resolve("Navmesh.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	local PathfindingService = game:GetService("PathfindingService")
 	local path = PathfindingService:CreatePath({

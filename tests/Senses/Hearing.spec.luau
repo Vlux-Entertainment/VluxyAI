@@ -1,8 +1,9 @@
 --!strict
 
 --[[
-	Hearing: which buffered noise wins a tick, how loudness stretches the range, and how long the
-	heard keys last. The package Signal carries the noises and a manual clock drives the memory.
+	Hearing: which buffered noise wins a tick, how loudness stretches the range, how long the
+	heard keys last, and how one instance keeps a buffer per agent. The package Signal carries
+	the noises and a manual clock drives the memory.
 ]]
 
 local Fakes = require("../Support/Fakes")
@@ -29,6 +30,9 @@ local function setup(options: { hearing: any?, warnings: { string }? }?)
 	local hearing = Hearing.new(noises, resolved.hearing)
 	local agent = SenseFakes.Agent(Vector3.new(0, 0, 0))
 
+	-- An agent hears only noises fired after its first tick, so register it before the case fires.
+	hearing:Tick(agent, 0)
+
 	return {
 		hearing = hearing,
 		noises = noises,
@@ -36,6 +40,13 @@ local function setup(options: { hearing: any?, warnings: { string }? }?)
 		blackboard = agent.Blackboard,
 		clock = clock,
 	}
+end
+
+--[[
+	The private per-agent buffer, for the cases about registration and the cap.
+]]
+local function bufferOf(hearing: any, agent: any): { any }?
+	return hearing._buffers[agent]
 end
 
 return {
@@ -203,6 +214,53 @@ return {
 		expect.includes(warnings[1], "[VluxyAI]")
 	end,
 
+	["two agents on one instance both hear the same noise"] = function(expect)
+		local s = setup()
+		local other = SenseFakes.Agent(Vector3.new(5, 0, 0))
+		s.hearing:Tick(other, 0)
+
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardPosition, Vector3.new(10, 0, 0), "the first agent hears it")
+
+		s.hearing:Tick(other, 0.1)
+		expect.equal(other.Blackboard.HeardPosition, Vector3.new(10, 0, 0), "the second still hears it")
+		expect.equal(other.Blackboard.HeardAt, 100)
+	end,
+
+	["an agent that has never ticked does not accumulate noises"] = function(expect)
+		local s = setup()
+		local idle = SenseFakes.Agent(Vector3.new(0, 0, 0))
+
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.noises:Fire(Vector3.new(-10, 0, 0))
+		expect.equal(bufferOf(s.hearing, idle), nil, "no buffer before the first tick")
+		expect.equal(#(bufferOf(s.hearing, s.agent) :: any), 2, "the registered agent buffers them")
+
+		s.hearing:Tick(idle, 0.1)
+		expect.equal(idle.Blackboard.HeardPosition, nil, "noises fired before its first tick are not heard")
+		expect.equal(#(bufferOf(s.hearing, idle) :: any), 0, "registered now")
+
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(idle, 0.1)
+		expect.equal(idle.Blackboard.HeardPosition, Vector3.new(10, 0, 0), "and hears from then on")
+	end,
+
+	["a buffer holds at most 64 noises, dropping the oldest"] = function(expect)
+		local s = setup()
+
+		for index = 1, 6 do
+			s.noises:Fire(Vector3.new(index, 0, 0))
+		end
+		for _ = 1, 64 do
+			s.noises:Fire(Vector3.new(1000, 0, 0))
+		end
+		expect.equal(#(bufferOf(s.hearing, s.agent) :: any), 64, "capped")
+
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardPosition, nil, "the six audible noises were the oldest and were dropped")
+	end,
+
 	["a negative Range is refused"] = function(expect)
 		local Hearing = Harness.Load("lib/Senses/Hearing.luau", { globals = SenseFakes.Globals() })
 		local Signal = Fakes.Signal()
@@ -210,5 +268,15 @@ return {
 			Hearing.new(Signal.new(), { Range = -1 })
 		end)
 		expect.includes(message, "Range")
+	end,
+
+	["an unknown option is refused, naming the module"] = function(expect)
+		local Hearing = Harness.Load("lib/Senses/Hearing.luau", { globals = SenseFakes.Globals() })
+		local Signal = Fakes.Signal()
+		local message = expect.errors(function()
+			Hearing.new(Signal.new(), { Rnage = 10 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI] Hearing.new")
+		expect.includes(message, "Rnage")
 	end,
 }

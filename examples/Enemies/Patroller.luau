@@ -5,8 +5,9 @@
 	(a player jumping, or the orange noise pad). Shows the Hearing sense with a noise signal the
 	game owns, and the blackboard holding a memory the states act on.
 
-	Blackboard (from Hearing): HeardPosition, HeardAt, HeardLoudness.
-	Data: Nodes, Index (next node), LookUntil, InvestigatedAt (the HeardAt already answered).
+	Blackboard (from Hearing): HeardPosition, HeardAt.
+	Data: Nodes, Index (next node), InvestigatedAt (the HeardAt already answered).
+	Timers: Look.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -50,7 +51,7 @@ local Brain: VluxyAI.Brain = {
 				agent:MoveTo(agent.Blackboard.HeardPosition)
 			end,
 			Transitions = {
-				-- A newer noise restarts the investigation at the new spot.
+				-- A newer noise re-enters this state at the new spot.
 				{ To = "Investigate", When = newNoise },
 				{
 					To = "Look",
@@ -70,14 +71,14 @@ local Brain: VluxyAI.Brain = {
 		Look = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent.Data.LookUntil = os.clock() + LOOK_DURATION
+				agent:StartTimer("Look", LOOK_DURATION)
 			end,
 			Transitions = {
 				{ To = "Investigate", When = newNoise },
 				{
 					To = "Patrol",
 					When = function(agent: VluxyAI.Agent)
-						return os.clock() >= agent.Data.LookUntil
+						return agent:TimerDone("Look")
 					end,
 				},
 			},
@@ -89,11 +90,10 @@ local function Patroller(model: Model, context: Context.Context): VluxyAI.Agent
 	return VluxyAI.new(model)
 		:SetName("Patroller")
 		:UseBrain(Brain)
-		:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }))
+		:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new())
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = 9 }))
 		:AddSense(VluxyAI.Senses.Hearing.new(context.Noises, { Range = 40, Memory = 6 }))
 		:SetData({ Nodes = context.Map.PatrolNodes, Index = 1 })
-		:SetNavigation({ ArriveDistance = 2 })
 		:Build()
 end
 

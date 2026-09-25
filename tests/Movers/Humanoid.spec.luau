@@ -12,16 +12,22 @@ local Harness = require("../Support/Harness")
 local roblox = require("@lune/roblox")
 local Vector3 = roblox.Vector3
 
-local function load(heartbeat: any?)
+local function load(heartbeat: any?, warnings: { string }?)
 	return Harness.Load("lib/Movers/Humanoid.luau", {
 		services = { RunService = { Heartbeat = heartbeat or Harness.ManualHeartbeat() } },
+		warn = function(message)
+			if warnings then
+				table.insert(warnings, tostring(message))
+			end
+		end,
 	})
 end
 
 --[[
-	A stand-in Model with a PrimaryPart and a Humanoid child. Records every MoveTo.
+	A stand-in Model with a PrimaryPart and a Humanoid child. Records every MoveTo. With
+	`ownerError`, SetNetworkOwner raises it, as Roblox does for a part outside Workspace.
 ]]
-local function fakeRig(position: any?, withHumanoid: boolean?, withRoot: boolean?)
+local function fakeRig(position: any?, withHumanoid: boolean?, withRoot: boolean?, ownerError: string?)
 	local Signal = Fakes.Signal()
 
 	local root = {
@@ -30,6 +36,9 @@ local function fakeRig(position: any?, withHumanoid: boolean?, withRoot: boolean
 		NetworkOwners = {} :: { any },
 	}
 	function root.SetNetworkOwner(self, owner)
+		if ownerError then
+			error(ownerError, 0)
+		end
 		table.insert(self.NetworkOwners, if owner == nil then "server" else owner)
 	end
 
@@ -124,6 +133,27 @@ return {
 		expect.equal(HumanoidMover.ChooseStart({}, Vector3.new(0, 0, 0), 1), 1)
 	end,
 
+	["ChooseStart never skips a labelled, Jump or Custom step, even one under the rig"] = function(expect)
+		local HumanoidMover = load()
+		local here = Vector3.new(0, 0, 0)
+
+		local labelled = { step(0, 0, 0, "Walk", "door"), step(4, 0, 0), step(8, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(labelled, here, 1), 1, "a door label at the agent's feet is walked to")
+
+		local custom = { step(0, 0, 0, "Custom"), step(4, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(custom, here, 1), 1)
+
+		local jump = { step(0, 0, 0, "Jump"), step(4, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(jump, here, 1), 1)
+
+		local mixed = { step(0, 0, 0), step(0.5, 0, 0, "Walk", "door"), step(0.9, 0, 0), step(8, 0, 0) }
+		expect.equal(
+			HumanoidMover.ChooseStart(mixed, here, 1),
+			2,
+			"plain steps before the label are skipped, not after"
+		)
+	end,
+
 	------------------------------------------------------------------------------------------------------------------
 	-- new and the options
 	------------------------------------------------------------------------------------------------------------------
@@ -147,6 +177,36 @@ return {
 		s.mover:SetSpeed(9)
 		expect.equal(s.humanoid.WalkSpeed, 9)
 		expect.equal(s.mover:GetSpeed(), 9)
+	end,
+
+	["new rejects a typo'd option and names the module"] = function(expect)
+		local HumanoidMover = load()
+		local model = fakeRig()
+		local message = expect.errors(function()
+			HumanoidMover.new(model :: any, { Speeed = 20 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI]")
+		expect.includes(message, 'Humanoid.new: unknown option "Speeed"')
+		expect.includes(message, "Speed, StuckDistance")
+	end,
+
+	["new warns, with the model name and the error, when the root cannot be handed to the server"] = function(expect)
+		local warnings = {}
+		local HumanoidMover = load(nil, warnings)
+
+		local model = fakeRig(nil, true, true, "Network ownership API can only be called on a part in Workspace")
+		local mover = HumanoidMover.new(model :: any)
+		expect.truthy(mover, "not fatal")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "[VluxyAI]")
+		expect.includes(warnings[1], "Workspace.Rig")
+		expect.includes(warnings[1], "Network ownership API can only be called on a part in Workspace")
+		expect.includes(warnings[1], "descendant of Workspace and unanchored before Humanoid.new")
+
+		warnings = {}
+		HumanoidMover = load(nil, warnings)
+		HumanoidMover.new(fakeRig(nil, true, true, "boom") :: any, { ServerOwned = false })
+		expect.equal(#warnings, 0, "nothing to warn about when ServerOwned is off")
 	end,
 
 	["new needs a PrimaryPart and a Humanoid and names the model"] = function(expect)
@@ -181,13 +241,13 @@ return {
 
 	["Follow walks each step on MoveToFinished and fires Arrived(true) after the last"] = function(expect)
 		local s = setup()
-		local path = { step(0, 0, 0, "Walk", "here"), step(4, 0, 0, "Walk", "a"), step(8, 0, 0, "Walk", "b") }
+		local path = { step(0, 0, 0), step(4, 0, 0, "Walk", "a"), step(8, 0, 0, "Walk", "b") }
 
 		s.mover:Follow(path)
 		expect.truthy(s.mover:IsMoving())
 		expect.sequence(s.events, {}, "nothing is reported from inside Follow")
 		expect.equal(#s.humanoid.MoveTos, 1)
-		expect.equal(s.humanoid.MoveTos[1], Vector3.new(4, 0, 0), "the step at the rig's position is skipped")
+		expect.equal(s.humanoid.MoveTos[1], Vector3.new(4, 0, 0), "the plain step at the rig's position is skipped")
 
 		s.root.Position = Vector3.new(4, 0, 0)
 		s.humanoid.MoveToFinished:Fire(true)
@@ -205,6 +265,16 @@ return {
 		expect.sequence(s.events, { "step 2 a", "step 3 b", "arrived true" }, "a late MoveToFinished is ignored")
 	end,
 
+	["a labelled step under the rig is walked to and reported, not skipped"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0, "Walk", "door"), step(4, 0, 0) })
+		expect.equal(s.humanoid.MoveTos[1], Vector3.new(0, 0, 0), "MoveTo the door label at the rig's feet")
+
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, { "step 1 door" })
+		expect.equal(s.humanoid.MoveTos[2], Vector3.new(4, 0, 0))
+	end,
+
 	["a Jump step sets Jump when starting toward it; Custom walks like Walk"] = function(expect)
 		local s = setup()
 		s.mover:Follow({ step(4, 0, 0, "Custom", "door"), step(8, 0, 0, "Jump", "gap") })
@@ -217,14 +287,48 @@ return {
 		expect.equal(s.humanoid.MoveTos[2], Vector3.new(8, 0, 0))
 	end,
 
-	["MoveToFinished(false) gives up with Arrived(false)"] = function(expect)
-		local s = setup()
-		s.mover:Follow({ step(4, 0, 0), step(8, 0, 0) })
+	["false while still progressing re-issues MoveTo for the same step"] = function(expect)
+		-- Roblox fires MoveToFinished(false) eight seconds after any MoveTo, reached or not, so a
+		-- long step on a healthy walk gets its MoveTo again rather than a give-up.
+		local s = setup({ StuckTimeout = 1, StuckDistance = 0.5 })
+		s.mover:Follow({ step(40, 0, 0, "Walk", "far"), step(80, 0, 0) })
+		expect.equal(#s.humanoid.MoveTos, 1)
+
+		s.root.Position = Vector3.new(16, 0, 0)
+		s.heartbeat:Fire(0.5)
 		s.humanoid.MoveToFinished:Fire(false)
-		expect.sequence(s.events, { "arrived false" })
+		expect.sequence(s.events, {}, "no give-up")
+		expect.truthy(s.mover:IsMoving())
+		expect.equal(#s.humanoid.MoveTos, 2)
+		expect.equal(s.humanoid.MoveTos[2], Vector3.new(40, 0, 0), "the same step again")
+
+		s.root.Position = Vector3.new(32, 0, 0)
+		s.humanoid.MoveToFinished:Fire(false)
+		expect.equal(s.humanoid.MoveTos[3], Vector3.new(40, 0, 0), "progress since the last heartbeat counts too")
+
+		s.root.Position = Vector3.new(40, 0, 0)
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, { "step 1 far" })
+		expect.equal(s.humanoid.MoveTos[4], Vector3.new(80, 0, 0), "and the walk carries on")
+	end,
+
+	["false does not restart the stuck clock, so the stuck check still gives up"] = function(expect)
+		local s = setup({ StuckTimeout = 1, StuckDistance = 0.5 })
+		s.mover:Follow({ step(40, 0, 0) })
+
+		s.heartbeat:Fire(0.6)
+		s.humanoid.MoveToFinished:Fire(false)
+		expect.sequence(s.events, {}, "0.6 seconds without progress is not yet stuck")
+		expect.equal(#s.humanoid.MoveTos, 2, "re-issued")
+
+		s.heartbeat:Fire(0.5)
+		expect.sequence(s.events, { "arrived false" }, "1.1 seconds without progress is")
 		expect.falsy(s.mover:IsMoving())
-		expect.equal(#s.humanoid.MoveTos, 2, "the walk is cancelled with a MoveTo to the root")
-		expect.equal(s.humanoid.MoveTos[2], s.root.Position)
+		expect.equal(s.humanoid.MoveTos[3], s.root.Position, "the walk is cancelled with a MoveTo to the root")
+
+		s.humanoid.MoveToFinished:Fire(false)
+		expect.sequence(s.events, { "arrived false" }, "a late false is ignored")
+		expect.equal(#s.humanoid.MoveTos, 3)
 	end,
 
 	["Follow fires Arrived(false) for the path it replaces before the new one starts"] = function(expect)

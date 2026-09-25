@@ -32,9 +32,16 @@ local function coordinates(points: { any }): { string }
 end
 
 --[[
-	A fake workspace whose Spherecast and Raycast answer from the spec, recording every call.
+	A fake workspace whose Spherecast and Raycast answer from the spec, recording every call. The
+	floor is a horizontal plane at `floorHeight(origin)` (default y = 0) wherever `floorAt(origin)`
+	holds, and a ray only hits it when the plane lies within the ray's own length, so a ray that is
+	too short misses like a real one.
 ]]
-local function fakeWorld(options: { sweepHit: any?, floorAt: ((point: any) -> boolean)? })
+local function fakeWorld(options: {
+	sweepHit: any?,
+	floorAt: ((point: any) -> boolean)?,
+	floorHeight: ((point: any) -> number)?,
+})
 	local world = {
 		Sweeps = {} :: { { Origin: any, Radius: number, Direction: any, Params: any } },
 		Rays = {} :: { { Origin: any, Direction: any, Params: any } },
@@ -48,11 +55,17 @@ local function fakeWorld(options: { sweepHit: any?, floorAt: ((point: any) -> bo
 	function world.Raycast(_self, origin, direction, params)
 		table.insert(world.Rays, { Origin = origin, Direction = direction, Params = params })
 		local floorAt = options.floorAt
-		if floorAt == nil or floorAt(origin) then
-			-- The floor is the plane y = 0 wherever it exists.
-			return { Instance = { Name = "Floor" }, Position = Vector3.new(origin.X, 0, origin.Z) }
+		if floorAt ~= nil and not floorAt(origin) then
+			return nil
 		end
-		return nil
+
+		local height = if options.floorHeight then options.floorHeight(origin) else 0
+		local bottom = origin.Y + direction.Y
+		if height > origin.Y or height < bottom then
+			return nil
+		end
+
+		return { Instance = { Name = "Floor" }, Position = Vector3.new(origin.X, height, origin.Z) }
 	end
 
 	return world
@@ -61,11 +74,16 @@ end
 local function setup(options: {
 	sweepHit: any?,
 	floorAt: ((point: any) -> boolean)?,
+	floorHeight: ((point: any) -> number)?,
 	straight: any?,
 	players: { any }?,
 }?)
 	local resolved = options or {}
-	local world = fakeWorld({ sweepHit = resolved.sweepHit, floorAt = resolved.floorAt })
+	local world = fakeWorld({
+		sweepHit = resolved.sweepHit,
+		floorAt = resolved.floorAt,
+		floorHeight = resolved.floorHeight,
+	})
 	local params = {}
 
 	local Straight = Harness.Load("lib/Pathfinders/Straight.luau", {
@@ -150,11 +168,16 @@ return {
 		local err = expect.errors(function()
 			Straight.new({ Radiu = 3 } :: any)
 		end)
-		expect.includes(err, "Radiu")
+		expect.includes(err, "[VluxyAI]")
+		expect.includes(
+			err,
+			'Straight.new: unknown option "Radiu"; expected one of AgentHeight, AgentRadius, FloorCheck, FloorSpacing, Ignore, MaxDrop'
+		)
 
-		Straight.new({ Radius = 2.5 })
+		Straight.new({ AgentRadius = 2.5 })
 		expect.equal(#warnings, 1)
-		expect.includes(warnings[1], "Radius")
+		expect.includes(warnings[1], "AgentRadius (2.5)")
+		expect.includes(warnings[1], "AgentHeight / 2 (2.5)")
 
 		Straight.new({
 			Ignore = function()
@@ -178,7 +201,7 @@ return {
 		expect.equal(path[2].Action, "Walk")
 
 		expect.equal(#s.world.Sweeps, 1)
-		expect.equal(s.world.Sweeps[1].Origin, Vector3.new(0, 2.5, 0), "lifted by Height / 2 above the floor")
+		expect.equal(s.world.Sweeps[1].Origin, Vector3.new(0, 2.5, 0), "lifted by AgentHeight / 2 above the floor")
 		expect.equal(s.world.Sweeps[1].Radius, 2)
 		expect.equal(s.world.Sweeps[1].Direction, Vector3.new(10, 0, 0))
 	end,
@@ -245,16 +268,90 @@ return {
 		expect.equal(#s.world.Rays, 2, "only the endpoint floor rays ran before the blocked sweep")
 	end,
 
-	["FindPath checks the floor every FloorSpacing studs down to MaxDrop"] = function(expect)
-		local s = setup({ straight = { FloorSpacing = 4, MaxDrop = 6, Height = 5 } })
+	["FindPath checks the floor every min(FloorSpacing, AgentRadius) studs down to MaxDrop"] = function(expect)
+		local s = setup({ straight = { FloorSpacing = 4, AgentRadius = 2, MaxDrop = 6, AgentHeight = 5 } })
 
 		s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
-		expect.equal(#s.world.Rays, 4)
+		expect.equal(#s.world.Rays, 6)
 		expect.equal(s.world.Rays[1].Origin, Vector3.new(0, 2.5, 0), "from first")
 		expect.equal(s.world.Rays[2].Origin, Vector3.new(10, 2.5, 0), "then to")
-		expect.equal(s.world.Rays[3].Origin, Vector3.new(4, 2.5, 0), "then the samples between")
-		expect.equal(s.world.Rays[4].Origin, Vector3.new(8, 2.5, 0))
-		expect.equal(s.world.Rays[1].Direction, Vector3.new(0, -11, 0), "Height + MaxDrop")
+		expect.equal(s.world.Rays[3].Origin, Vector3.new(2, 2.5, 0), "then the samples between, every AgentRadius")
+		expect.equal(s.world.Rays[4].Origin, Vector3.new(4, 2.5, 0))
+		expect.equal(s.world.Rays[5].Origin, Vector3.new(6, 2.5, 0))
+		expect.equal(s.world.Rays[6].Origin, Vector3.new(8, 2.5, 0))
+		expect.equal(
+			s.world.Rays[1].Direction,
+			Vector3.new(0, -11, 0),
+			"an endpoint may be a root: AgentHeight + MaxDrop"
+		)
+		expect.equal(s.world.Rays[2].Direction, Vector3.new(0, -11, 0))
+		expect.equal(
+			s.world.Rays[3].Direction,
+			Vector3.new(0, -8.5, 0),
+			"a sample is on the floor: AgentHeight / 2 + MaxDrop"
+		)
+		expect.equal(s.world.Rays[6].Direction, Vector3.new(0, -8.5, 0))
+
+		s = setup({ straight = { FloorSpacing = 1, AgentRadius = 2 } })
+		s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(4, 0, 0), s.agent)
+		expect.equal(#s.world.Rays, 5, "a FloorSpacing below AgentRadius is used as given: from, to, 1, 2, 3")
+		expect.equal(s.world.Rays[3].Origin, Vector3.new(1, 2.5, 0))
+	end,
+
+	["FindPath detects a 3-stud gap between samples with AgentRadius 2"] = function(expect)
+		local gap = function(origin)
+			return origin.X <= 5 or origin.X >= 8
+		end
+
+		local s = setup({ straight = { FloorSpacing = 4, AgentRadius = 2 }, floorAt = gap })
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(path, nil)
+		expect.equal(reason, `no floor at {Vector3.new(6, 0, 0)}`, "the sample at 6 falls in the gap")
+
+		s = setup({ straight = { FloorSpacing = 4, AgentRadius = 4, AgentHeight = 10 }, floorAt = gap })
+		path = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(#path, 2, "a body of radius 4 spans the gap, and samples at 4 and 8 both find floor")
+	end,
+
+	["FindPath calls a floor more than MaxDrop below a sample no floor"] = function(expect)
+		local hole = function(origin)
+			return if origin.X > 3 and origin.X < 7 then -7 else 0
+		end
+
+		local s = setup({ straight = { MaxDrop = 6 }, floorHeight = hole })
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(path, nil)
+		expect.equal(reason, `no floor at {Vector3.new(4, 0, 0)}`, "the ray from 2.5 reaches -6, not -7")
+		expect.equal(#s.world.Rays, 4, "from, to, 2, then 4 misses")
+
+		s = setup({ straight = { MaxDrop = 7 }, floorHeight = hole })
+		path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(reason, nil)
+		expect.equal(#path, 2, "a 7-stud drop is allowed with MaxDrop 7")
+	end,
+
+	["FindPath rejects a floor that drops more than MaxDrop below the previous sample's floor"] = function(expect)
+		-- A bump to y = 2 then a dip to y = -5: each is within MaxDrop of the sample line, but the
+		-- step down from the bump to the dip is 7.
+		local bumpThenDip = function(origin)
+			if origin.X > 3 and origin.X < 5 then
+				return 2
+			elseif origin.X > 5 and origin.X < 7 then
+				return -5
+			end
+			return 0
+		end
+
+		local s = setup({ straight = { MaxDrop = 6 }, floorHeight = bumpThenDip })
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(path, nil)
+		expect.equal(reason, `floor drops 7 at {Vector3.new(6, 0, 0)}`)
+		expect.equal(#s.world.Rays, 5, "from, to, 2, 4, then 6 is rejected")
+
+		s = setup({ straight = { MaxDrop = 7 }, floorHeight = bumpThenDip })
+		path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(reason, nil, "a rise is never a drop, and 7 is within MaxDrop 7")
+		expect.equal(#path, 2)
 	end,
 
 	["FindPath reports the first point without floor"] = function(expect)
@@ -277,7 +374,7 @@ return {
 		path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
 		expect.equal(path, nil)
 		expect.equal(reason, `no floor at {Vector3.new(8, 0, 0)}`, "a gap in the middle is found by the samples")
-		expect.equal(#s.world.Rays, 4, "from, to, 4, then 8 misses")
+		expect.equal(#s.world.Rays, 6, "from, to, 2, 4, 6, then 8 misses")
 	end,
 
 	["FindPath with FloorCheck off never raycasts"] = function(expect)

@@ -49,11 +49,12 @@ lib/
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
   Senses/            Sight, Proximity, Hearing, Watched: Tick(agent, dt) writes the blackboard
+  Senses/Perception  public helpers the senses are made of (alive roots, cones, line of sight, HumanoidOf)
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
   Animator.luau      NPC animation helper carried over from 0.1
   Debug/             PathVisual (waypoint balls), StateLabel (billboard); opt-in, make parts
-  Utility/           Signal (pure), FormatMessage, Tables, Trove (the one outside require)
+  Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Trove (the one outside require)
 ```
 
 Rules that keep it composable and testable:
@@ -85,9 +86,22 @@ Rules that keep it composable and testable:
   Validation errors name the field path (`Definition.Brain.States.Hunt.Transitions[2].To`).
 - Cleanup is `Destroy`, never `Cleanup`, so Trove picks it up.
 - Classes: `local X = {}; X.__index = X`, a `type self = {}` for fields, `export type X = typeof(setmetatable({} :: self, X))`, private fields `_prefixed`.
-- Options tables: a frozen `DEFAULT_OPTIONS` at the top, `new(options?)` clones and overlays.
+- Options tables: a frozen `DEFAULT_OPTIONS` at the top, resolved with `Utility/Options.Resolve`,
+  which errors on unknown keys. Callback options with no default go in its `allowed` list.
+- Positions: a `Step.Position` is a floor position; `Mover:GetPosition()` is the root or pivot.
+  Movers add their own height (`CFrameMover` measures it on the first path).
+- Distances on the blackboard are `math.huge` when there is nothing to measure; memory keys
+  (`SeenAt`, `HeardAt`) are cleared to `nil` when forgotten.
+- Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.
 - Version bumps happen in `wally.toml` and are mentioned in the commit message.
+
+- Constructors of pathfinders, movers and senses return the contract type (`Types.Pathfinder`,
+  `Types.Mover`, `Types.Sense`) with a cast, because a metatable class is not structurally
+  assignable to its interface under the current solver. `Agent.new` and `Builder:Build` return
+  `Types.Agent` the same way.
+- Inline `When`/`Update` lambdas in a brain annotated as `VluxyAI.Brain` need a typed parameter
+  (`function(agent: VluxyAI.Agent)`), or the old solver generalises them and rejects the table.
 
 ## Gotchas
 

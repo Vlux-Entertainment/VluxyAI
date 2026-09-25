@@ -2,13 +2,16 @@
 
 --[[
 	Watcher: the weeping angel. It never patrols. Once it has spotted you it only moves while
-	nobody is looking at it, freezes the instant anyone is, and strikes when it gets close. If it
-	loses you for long enough it goes dormant again. Shows the Watched sense (the sight check
-	run from the players' side) and the CFrame mover halting instantly.
+	nobody is looking at it, freezes the instant anyone is, and strikes when it gets close while
+	unwatched. If it loses you for long enough it goes dormant again. Shows the Watched sense
+	(the sight check run from the players' side) and the CFrame mover halting instantly.
 
-	Blackboard (from Sight, Watched, Proximity): SeenTarget, SeenPosition, IsWatched,
-	NearestTarget, NearestDistance.
-	Data: AttackUntil.
+	"Looking" is judged from each player's head facing, which on a default rig is the direction
+	they walk. A game that wants the real camera direction replicates it and passes `Eye` to the
+	Watched sense.
+
+	Blackboard (from Sight and Watched): SeenTarget, SeenDistance, SeenPosition, IsWatched.
+	Timers: Attack.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,8 +35,9 @@ local function watched(agent: VluxyAI.Agent): boolean
 	return agent.Blackboard.IsWatched == true
 end
 
+-- Sight has a 360 degree field here, so this is "close with a clear line", walls included.
 local function inReach(agent: VluxyAI.Agent): boolean
-	return agent.Blackboard.NearestDistance <= ATTACK_RANGE
+	return agent.Blackboard.SeenDistance <= ATTACK_RANGE
 end
 
 local Brain: VluxyAI.Brain = {
@@ -48,13 +52,13 @@ local Brain: VluxyAI.Brain = {
 			},
 		},
 
+		-- Frozen: someone is looking. Nothing happens here but waiting.
 		Aware = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
 			end,
 			Transitions = {
 				{ To = "Dormant", When = forgot },
-				{ To = "Attack", When = inReach },
 				{
 					To = "Advance",
 					When = function(agent: VluxyAI.Agent)
@@ -79,11 +83,9 @@ local Brain: VluxyAI.Brain = {
 		Attack = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent.Data.AttackUntil = os.clock() + ATTACK_COOLDOWN
+				agent:StartTimer("Attack", ATTACK_COOLDOWN)
 
-				local target = agent.Blackboard.NearestTarget :: BasePart?
-				local character = target and target:FindFirstAncestorOfClass("Model")
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Blackboard.SeenTarget)
 				if humanoid then
 					humanoid:TakeDamage(ATTACK_DAMAGE)
 				end
@@ -92,7 +94,7 @@ local Brain: VluxyAI.Brain = {
 				{
 					To = "Aware",
 					When = function(agent: VluxyAI.Agent)
-						return os.clock() >= agent.Data.AttackUntil
+						return agent:TimerDone("Attack")
 					end,
 				},
 			},
@@ -105,13 +107,12 @@ local function Watcher(model: Model, _context: Context.Context): VluxyAI.Agent
 		:SetName("Watcher")
 		:UseBrain(Brain)
 		:UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
-			VluxyAI.Pathfinders.Straight.new({ Radius = 2, Height = 5 }),
-			VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }),
+			VluxyAI.Pathfinders.Straight.new(),
+			VluxyAI.Pathfinders.Navmesh.new(),
 		}))
-		:UseMover(VluxyAI.Movers.CFrame.new(model, { Speed = 16, HeightOffset = 2.5, TurnSpeed = 20 }))
+		:UseMover(VluxyAI.Movers.CFrame.new(model, { Speed = 16, TurnSpeed = 20 }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 60, FieldOfView = 360, Memory = 8 }))
 		:AddSense(VluxyAI.Senses.Watched.new({ Range = 80, FieldOfView = 100 }))
-		:AddSense(VluxyAI.Senses.Proximity.new({ Range = 20 }))
 		:SetTick(0.05)
 		:SetNavigation({ RepathInterval = 0.2, ArriveDistance = 1.5 })
 		:Build()

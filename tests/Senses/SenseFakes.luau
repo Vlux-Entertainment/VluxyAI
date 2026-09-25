@@ -41,11 +41,13 @@ function SenseFakes.Part(position: any, direction: any?)
 end
 
 --[[
-	A stand-in character: a Model table with a root (and optionally a head) that find their way
-	back to it through FindFirstAncestorOfClass.
+	A stand-in character: a Model table with a Humanoid, a root (and optionally a head) that find
+	their way back to it through FindFirstAncestorOfClass, and FindFirstChildOfClass for the
+	Humanoid.
 ]]
 function SenseFakes.Character(name: string, rootPosition: any, rootDirection: any?, headDirection: any?)
 	local model = { Name = name, ClassName = "Model" }
+	local humanoid = { ClassName = "Humanoid", Health = 100 }
 	local root = SenseFakes.Part(rootPosition, rootDirection)
 	local head = if headDirection then SenseFakes.Part(rootPosition + Vector3.new(0, 1.5, 0), headDirection) else nil
 
@@ -70,11 +72,18 @@ function SenseFakes.Character(name: string, rootPosition: any, rootDirection: an
 		return nil
 	end
 
+	function model.FindFirstChildOfClass(_self, className: string)
+		if className == "Humanoid" then
+			return humanoid
+		end
+		return nil
+	end
+
 	function model.IsDescendantOf(_self, _ancestor)
 		return false
 	end
 
-	return { Model = model, Root = root, Head = head }
+	return { Model = model, Root = root, Head = head, Humanoid = humanoid }
 end
 
 --[[

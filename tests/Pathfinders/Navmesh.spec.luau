@@ -222,7 +222,10 @@ return {
 			Navmesh.new({ AgentRadiu = 3 } :: any)
 		end)
 		expect.includes(err, "[VluxyAI]")
-		expect.includes(err, "AgentRadiu")
+		expect.includes(
+			err,
+			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, Costs, Simplify, WaypointSpacing'
+		)
 	end,
 
 	["FindPath computes, converts and simplifies"] = function(expect)

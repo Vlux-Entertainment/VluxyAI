@@ -171,7 +171,14 @@ return {
 
 		s.mover:Follow({ step(100, 0, 0) })
 		s.heartbeat:Fire(1)
-		expectVector(expect, s.pivot.Pivot.Position, 8, 0, 0, "8 studs per second, no height offset")
+		expectVector(
+			expect,
+			s.pivot.Pivot.Position,
+			8,
+			0,
+			0,
+			"8 studs per second; a pivot on the floor measures no offset"
+		)
 
 		s.mover:SetSpeed(2)
 		expect.equal(s.mover:GetSpeed(), 2)
@@ -249,19 +256,66 @@ return {
 		expect.equal(s.pivot.Moves, 0)
 	end,
 
-	["HeightOffset is added to every step"] = function(expect)
-		local s = setup({ HeightOffset = 2.5, Speed = 100 })
+	["an explicit HeightOffset is added to every step as given"] = function(expect)
+		local s = setup({ HeightOffset = 1, Speed = 100 }, Vector3.new(0, 2.5, 0))
 
 		s.mover:Follow({ step(5, 0, 0), step(10, 1, 0) })
 		s.heartbeat:Fire(1)
-		expectVector(expect, s.pivot.Pivot.Position, 5, 2.5, 0, "first step")
+		expectVector(expect, s.pivot.Pivot.Position, 5, 1, 0, "first step: 1, not the measured 2.5")
 		s.heartbeat:Fire(1)
-		expectVector(expect, s.pivot.Pivot.Position, 10, 3.5, 0, "second step")
+		expectVector(expect, s.pivot.Pivot.Position, 10, 2, 0, "second step")
 		expect.sequence(s.events, { "step 1", "step 2", "arrived true" })
 	end,
 
-	["ArriveDistance counts a step as reached horizontally before the pivot lands on it"] = function(expect)
-		local s = setup({ ArriveDistance = 1, Speed = 1 })
+	["without HeightOffset the first Follow measures the pivot's height above the first step and keeps it"] = function(
+		expect
+	)
+		local s = setup({ Speed = 100 }, Vector3.new(0, 2.5, 0))
+
+		s.mover:Follow({ step(0, 0, 0), step(5, 0, 0), step(10, 1, 0) })
+		s.heartbeat:Fire(1)
+		expectVector(expect, s.pivot.Pivot.Position, 0, 2.5, 0, "the body does not sink to the floor step under it")
+		s.heartbeat:Fire(1)
+		expectVector(expect, s.pivot.Pivot.Position, 5, 2.5, 0, "2.5 above the second step")
+		s.heartbeat:Fire(1)
+		expectVector(expect, s.pivot.Pivot.Position, 10, 3.5, 0, "2.5 above the last step")
+		expect.sequence(s.events, { "step 1", "step 2", "step 3", "arrived true" })
+
+		s.pivot.Pivot = CFrame.new(10, 9, 0)
+		s.mover:Follow({ step(20, 0, 0) })
+		s.heartbeat:Fire(1)
+		expectVector(expect, s.pivot.Pivot.Position, 20, 2.5, 0, "measured once, not again on a later Follow")
+	end,
+
+	["a measured HeightOffset is never below zero"] = function(expect)
+		local s = setup({ Speed = 100 }, Vector3.new(0, -3, 0))
+
+		s.mover:Follow({ step(5, 0, 0) })
+		s.heartbeat:Fire(1)
+		expectVector(
+			expect,
+			s.pivot.Pivot.Position,
+			5,
+			0,
+			0,
+			"a pivot below the floor is lifted onto it, not kept under it"
+		)
+	end,
+
+	["an empty first path does not measure the HeightOffset"] = function(expect)
+		local s = setup({ Speed = 100 }, Vector3.new(0, 2.5, 0))
+
+		s.mover:Follow({})
+		s.heartbeat:Fire(0.1)
+		expect.sequence(s.events, { "arrived false" })
+
+		s.mover:Follow({ step(5, 0, 0) })
+		s.heartbeat:Fire(1)
+		expectVector(expect, s.pivot.Pivot.Position, 5, 2.5, 0, "measured on the first path with a step")
+	end,
+
+	["StepDistance counts a step as reached horizontally before the pivot lands on it"] = function(expect)
+		local s = setup({ StepDistance = 1, Speed = 1 })
 
 		s.mover:Follow({ step(2, 0, 0) })
 		s.heartbeat:Fire(1)
@@ -330,5 +384,22 @@ return {
 		end)
 		expect.includes(message, "[VluxyAI]")
 		expect.includes(message, "GetPivot")
+	end,
+
+	["new rejects a typo'd option and names the module"] = function(expect)
+		local CFrameMover = load()
+		local message = expect.errors(function()
+			CFrameMover.new(fakePivot(Vector3.new(0, 0, 0)) :: any, { Speeed = 20 } :: any)
+		end)
+		expect.includes(message, "[VluxyAI]")
+		expect.includes(
+			message,
+			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Speed, StepDistance, TurnSpeed'
+		)
+
+		local message2 = expect.errors(function()
+			CFrameMover.new(fakePivot(Vector3.new(0, 0, 0)) :: any, { ArriveDistance = 1 } :: any)
+		end)
+		expect.includes(message2, "ArriveDistance", "the old per-step name is the navigator's, not the mover's")
 	end,
 }

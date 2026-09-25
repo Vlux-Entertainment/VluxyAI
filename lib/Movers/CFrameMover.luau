@@ -11,9 +11,14 @@
 	current and when to fire. A step ends the frame's movement: the leftover fraction of a frame
 	is dropped rather than carried into the next step, which keeps Advance simple and costs a
 	fraction of a stud per step.
+
+	Steps are floor positions and a pivot is a body centre, so without a `HeightOffset` the mover
+	measures the gap on its first Follow (pivot height above the first step) and keeps it, rather
+	than sinking the body to floor level.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Trove = require(script.Parent.Parent.Utility.Trove)
@@ -24,19 +29,22 @@ local Types = require(script.Parent.Parent.Types)
 local DEFAULT_OPTIONS = table.freeze({
 	Speed = 8,
 	TurnSpeed = 10,
-	HeightOffset = 0,
-	ArriveDistance = 0.25,
+	HeightOffset = nil :: number?,
+	StepDistance = 0.25,
 })
+
+-- Keys with no default value, so the resolver still accepts them.
+local OPTIONAL_KEYS = { "HeightOffset" }
 
 -- Below this distance a move is treated as zero-length: the pivot snaps to the target and keeps
 -- its facing, because a direction cannot be read from a vector this short.
 local EPSILON = 1e-5
 
-type Options = {
+type ResolvedOptions = {
 	Speed: number,
 	TurnSpeed: number,
-	HeightOffset: number,
-	ArriveDistance: number,
+	HeightOffset: number?,
+	StepDistance: number,
 }
 
 type self = {
@@ -44,8 +52,9 @@ type self = {
 	Arrived: Types.Signal<boolean>,
 
 	_target: PVInstance,
-	_options: Options,
+	_options: ResolvedOptions,
 	_speed: number,
+	_heightOffset: number?,
 
 	_path: Types.Path?,
 	_index: number,
@@ -66,14 +75,14 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 
 	.Speed number? -- Studs per second. Default `8`.
 	.TurnSpeed number? -- Radians per second of yaw. Default `10`.
-	.HeightOffset number? -- Added to every step's Y, so a cylinder rides above floor waypoints. Default `0`.
-	.ArriveDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
+	.HeightOffset number? -- Added to every step's Y, so a body rides above floor steps. A number is used as given; leave it out and the first `Follow` measures the pivot's height above the first step (never below `0`) and keeps that for the life of the mover. Default: measured.
+	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
 ]=]
 export type CFrameMoverOptions = {
 	Speed: number?,
 	TurnSpeed: number?,
 	HeightOffset: number?,
-	ArriveDistance: number?,
+	StepDistance: number?,
 }
 
 --[=[
@@ -179,16 +188,15 @@ end
 	@param options CFrameMoverOptions?
 	@return CFrameMover
 	@error string -- `target` has no `GetPivot`.
+	@error "unknown option" -- A key that is not in `CFrameMoverOptions`.
 ]=]
 function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Types.Mover
 	if type((target :: any).GetPivot) ~= "function" or type((target :: any).PivotTo) ~= "function" then
 		FormatMessage.Error(`CFrameMover needs something with GetPivot and PivotTo, got {tostring(target)}`, 2)
 	end
 
-	local resolved = table.clone(DEFAULT_OPTIONS)
-	for key, value in (options or {}) :: { [string]: any } do
-		resolved[key] = value
-	end
+	local resolved =
+		Options.Resolve("CFrameMover.new", DEFAULT_OPTIONS, options :: any, OPTIONAL_KEYS) :: ResolvedOptions
 
 	local trove = Trove.new()
 
@@ -199,6 +207,7 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_target = target,
 		_options = resolved,
 		_speed = resolved.Speed,
+		_heightOffset = resolved.HeightOffset,
 
 		_path = nil,
 		_index = 0,
@@ -246,12 +255,12 @@ function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
 		return
 	end
 
-	local goal = step.Position + Vector3.new(0, self._options.HeightOffset, 0)
+	local goal = step.Position + Vector3.new(0, self._heightOffset or 0, 0)
 	local pivot, reached =
 		CFrameMover.Advance(self._target:GetPivot(), goal, self._speed, self._options.TurnSpeed, deltaTime)
 	self._target:PivotTo(pivot)
 
-	if not reached and Tables.FlatDistance(pivot.Position, goal) > self._options.ArriveDistance then
+	if not reached and Tables.FlatDistance(pivot.Position, goal) > self._options.StepDistance then
 		return
 	end
 
@@ -277,6 +286,9 @@ end
 	Starts along `path`, replacing any current one. The replaced path gets `Arrived(false)` before
 	the new one starts; the new one is only ever reported from a later Heartbeat. An empty path is
 	reported as `Arrived(false)` on the next Heartbeat.
+
+	Without a `HeightOffset` option, the first non-empty path measures it: the pivot's height above
+	`path[1]`, never below `0`, kept from then on.
 ]=]
 function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	if self._destroyed then
@@ -284,6 +296,10 @@ function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	end
 
 	self:_finish(false)
+
+	if self._heightOffset == nil and #path > 0 then
+		self._heightOffset = math.max(0, self._target:GetPivot().Position.Y - path[1].Position.Y)
+	end
 
 	self._path = path
 	self._index = 1

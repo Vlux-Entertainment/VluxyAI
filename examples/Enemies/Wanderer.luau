@@ -1,11 +1,11 @@
 --!strict
 
 --[[
-	Wanderer: the smallest useful AI. Picks a random point, walks there, waits, repeats. No
-	senses at all, so it shows the runner, the navmesh pathfinder and the humanoid mover with
-	nothing else in the way.
+	Wanderer: the smallest useful AI. Picks a random point, walks there, waits, repeats. Built
+	from the Humanoid preset, so the whole stack is one line, and it reads none of the senses the
+	preset adds: it only shows the runner, the navmesh pathfinder and the humanoid mover.
 
-	Blackboard: none. Data: WaitUntil (when Idle ends), Since (when the walk began).
+	Blackboard: none read. Data: Map, Random (from the playground), Since (when the walk began).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -22,41 +22,42 @@ local Brain: VluxyAI.Brain = {
 		Idle = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
-				agent.Data.WaitUntil = os.clock() + agent.Data.Random:NextNumber(1, 3)
+				agent:StartTimer("Rest", agent.Data.Random:NextNumber(1, 3))
 			end,
-			Update = function(agent: VluxyAI.Agent)
-				if os.clock() >= agent.Data.WaitUntil then
-					return "Wander"
-				end
-				return nil
-			end,
+			Transitions = {
+				{
+					To = "Wander",
+					When = function(agent: VluxyAI.Agent)
+						return agent:TimerDone("Rest")
+					end,
+				},
+			},
 		},
 
 		Wander = {
 			Enter = function(agent: VluxyAI.Agent)
-				agent.Data.Since = os.clock()
+				agent:StartTimer("Walk", WALK_TIMEOUT)
 				agent:MoveTo(Map.RandomPoint(agent.Data.Map, agent.Data.Random))
 			end,
-			Update = function(agent: VluxyAI.Agent)
-				local status = agent:GetPathStatus()
-				if status == "Arrived" or status == "Failed" then
-					return "Idle"
-				end
-				if os.clock() - agent.Data.Since > WALK_TIMEOUT then
-					return "Idle"
-				end
-				return nil
-			end,
+			Transitions = {
+				{
+					To = "Idle",
+					When = function(agent: VluxyAI.Agent)
+						-- A random point may be inside a wall; Failed just means pick another.
+						local status = agent:GetPathStatus()
+						return status == "Arrived" or status == "Failed" or agent:TimerDone("Walk")
+					end,
+				},
+			},
 		},
 	},
 }
 
 local function Wanderer(model: Model, context: Context.Context): VluxyAI.Agent
-	return VluxyAI.new(model)
+	return VluxyAI.Presets
+		.Humanoid(model, { Mover = { Speed = 10 } })
 		:SetName("Wanderer")
 		:UseBrain(Brain)
-		:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }))
-		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = 10 }))
 		:SetData({ Map = context.Map, Random = context.Random })
 		:Build()
 end

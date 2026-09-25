@@ -8,7 +8,8 @@
 
 	- `SeenTargets` { BasePart } -- Visible this tick, nearest first. Empty when none.
 	- `SeenTarget` BasePart? -- The nearest visible target.
-	- `SeenDistance` number? -- Studs from the eye to `SeenTarget`. `nil` when none.
+	- `SeenDistance` number -- Studs from the eye to `SeenTarget`, `math.huge` when there is none,
+	  so a consideration can read it without a nil check.
 	- `SeenPosition` Vector3? -- Where `SeenTarget` is, kept for `Memory` seconds after losing
 	  sight so a state can go and look, then `nil`.
 	- `SeenAt` number? -- `os.clock()` of the last sighting. `nil` once forgotten.
@@ -21,6 +22,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
 local Types = require(script.Parent.Parent.Types)
 
@@ -41,8 +43,8 @@ local DEFAULT_OPTIONS = table.freeze({
 	.FieldOfView number? -- The full angle of the view cone, in degrees. Default `120`.
 	.EyeOffset Vector3? -- Added to the entity's pivot to get the eye. Default `Vector3.zero`.
 	.Memory number? -- Seconds `SeenPosition` and `SeenAt` outlive the last sighting. Default `3`.
-	.Targets ((agent: Agent) -> { BasePart })? -- What to look for. Default every alive player's root.
-	.Ignore ((agent: Agent) -> { Instance })? -- What the sight ray passes through. Default the agent's entity.
+	.Targets ((agent: Agent) -> { BasePart })? -- What to look for. Default [Perception.AliveRoots], every alive player's root.
+	.Ignore ((agent: Agent) -> { Instance })? -- What the sight ray passes through. Default [Perception.IgnoreList], the agent's entity.
 ]=]
 export type SightOptions = {
 	Range: number?,
@@ -53,7 +55,7 @@ export type SightOptions = {
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
 }
 
-type Options = {
+type ResolvedOptions = {
 	Range: number,
 	FieldOfView: number,
 	EyeOffset: Vector3,
@@ -63,7 +65,7 @@ type Options = {
 }
 
 type self = {
-	_options: Options,
+	_options: ResolvedOptions,
 }
 
 local Sight = {}
@@ -82,21 +84,21 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 
 	Writes `SeenTargets`, `SeenTarget`, `SeenDistance`, `SeenPosition` and `SeenAt`. The last two
 	are memory: they outlive the sighting by `Memory` seconds so a state can head to where the
-	target was.
+	target was. Distances are `math.huge` when there is nothing to measure.
 ]=]
 
 --[=[
 	@within Sight
 	@param options SightOptions?
 	@return Sight
+	@error "unknown option" -- A key not in [SightOptions].
+	@error "Range must be zero or more"
 ]=]
 function Sight.new(options: SightOptions?): Types.Sense
-	local resolved = table.clone(DEFAULT_OPTIONS) :: any
-	for key, value in (options or {}) :: any do
-		resolved[key] = value
-	end
+	local resolved =
+		Options.Resolve("Sight.new", DEFAULT_OPTIONS, options :: any, { "Targets", "Ignore" }) :: ResolvedOptions
 	resolved.Targets = resolved.Targets or Perception.AliveRoots
-	resolved.Ignore = resolved.Ignore or Perception.Descendants
+	resolved.Ignore = resolved.Ignore or Perception.IgnoreList
 
 	if resolved.Range < 0 then
 		FormatMessage.Error("Sight: Range must be zero or more", 3)
@@ -150,7 +152,7 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 		return
 	end
 
-	blackboard.SeenDistance = nil
+	blackboard.SeenDistance = math.huge
 
 	local seenAt = blackboard.SeenAt
 	if type(seenAt) == "number" and now - seenAt > options.Memory then

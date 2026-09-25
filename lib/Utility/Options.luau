@@ -30,8 +30,10 @@ function Options.Resolve<T>(owner: string, defaults: T, given: { [string]: any }
 				and ((defaults :: any)[key] ~= nil or (allowed ~= nil and table.find(allowed, key) ~= nil))
 			if not known then
 				local names = Tables.SortedKeys(defaults :: any)
-				for _, extra in allowed or {} do
-					table.insert(names, extra)
+				if allowed then
+					for _, extra in allowed do
+						table.insert(names, extra)
+					end
 				end
 				table.sort(names)
 				FormatMessage.Error(

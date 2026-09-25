@@ -38,9 +38,12 @@ local Stalker = {
 ```
 
 Every tick the runner checks the current state's transitions in order and takes the first whose
-`When` is true. If none fires, `Update` runs; it may return the name of the next state, or nothing
-to stay. `SeenTarget` and `SeenPosition` are written by the [Sight](/api/Sight) sense; the brain
-never raycasts.
+`When` is true. If none fires, `Update` runs; it may return the name of the next state, or `nil`
+to stay. (Under `--!strict` with the brain annotated as `VluxyAI.Brain`, write `return nil`
+explicitly: the checker wants every path of `Update` to return a `string?`.)
+
+`SeenTarget` and `SeenPosition` are written by the [Sight](/api/Sight) sense; the brain never
+raycasts.
 
 ## 2. Stack the parts
 
@@ -86,7 +89,11 @@ the pathfinder. The rig is yours; the agent never destroys it.
 ## Where to put things
 
 - `agent.Blackboard` is what the AI knows. Senses write it; states read it.
-- `agent.Data` is yours: timers, the current patrol index, the chosen target. Set initial values
-  with [Builder:SetData](/api/Builder#SetData).
+- `agent.Data` is yours: the current patrol index, the chosen target. Set initial values with
+  [Builder:SetData](/api/Builder#SetData).
+- Waiting is a timer: `agent:StartTimer("Attack", 1)` in `Enter`, `agent:TimerDone("Attack")` in
+  a transition.
+- Acting on a target goes through [Perception](/api/Perception):
+  `VluxyAI.Perception.HumanoidOf(agent.Blackboard.SeenTarget)`.
 - Anything that needs the world (a raycast, a distance to a player) belongs in a sense, not a
   state. If none of the built-in senses fits, [write one](Extension).

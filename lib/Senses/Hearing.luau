@@ -10,17 +10,23 @@
 
 	- `HeardPosition` Vector3? -- Where the last heard noise was.
 	- `HeardAt` number? -- `os.clock()` of that tick.
-	- `HeardLoudness` number? -- Its loudness.
+	- `HeardLoudness` number? -- Its loudness. `nil` when nothing is remembered: it is not a
+	  distance, so there is no `math.huge` sentinel.
 
 	All three are memory: they stay for `Memory` seconds after the last heard noise, then go
 	`nil` together. They live on the blackboard, not in the sense, so a state may clear them
 	early.
 
-	The buffer is the only thing the sense keeps between ticks, and it is emptied every tick,
-	heard or not. The signal is connected in `new` and disconnected in `Destroy`.
+	One instance may serve many agents. The buffer is kept per agent, in a weak-keyed table, so
+	one agent's tick emptying its buffer does not rob the others: a noise is appended to the
+	buffer of every agent that has ticked at least once (an agent registers on its first Tick),
+	each buffer is emptied by that agent's tick, and each is capped at `BUFFER_LIMIT` entries
+	with the oldest dropped first, so an agent that stops ticking does not grow it without bound.
+	The signal is connected in `new` and disconnected in `Destroy`.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
 local Types = require(script.Parent.Parent.Types)
 
@@ -30,6 +36,11 @@ local DEFAULT_OPTIONS = table.freeze({
 	Range = 30,
 	Memory = 5,
 })
+
+--[[
+	Noises kept per agent between ticks. Past this the oldest is dropped.
+]]
+local BUFFER_LIMIT = 64
 
 --[=[
 	@interface HearingOptions
@@ -43,7 +54,7 @@ export type HearingOptions = {
 	Memory: number?,
 }
 
-type Options = {
+type ResolvedOptions = {
 	Range: number,
 	Memory: number,
 }
@@ -54,8 +65,8 @@ type Noise = {
 }
 
 type self = {
-	_options: Options,
-	_buffer: { Noise },
+	_options: ResolvedOptions,
+	_buffers: { [Types.Agent]: { Noise } },
 	_connection: Types.Connection?,
 }
 
@@ -73,7 +84,11 @@ export type Hearing = typeof(setmetatable({} :: self, Hearing))
 	to every agent that should hear, and fire it with `(position, loudness?)` whenever something
 	makes a sound. Each tick the sense keeps the loudest noise within `Range * loudness` studs of
 	the agent (the nearest on a tie) and writes `HeardPosition`, `HeardAt` and `HeardLoudness`,
-	which stay for `Memory` seconds and then clear.
+	which stay for `Memory` seconds and then clear. One instance may serve many agents: noises
+	are buffered per agent, and each agent's tick empties only its own buffer.
+
+	Distances are `math.huge` when there is nothing to measure; Hearing writes none, and
+	`HeardLoudness` is `nil` when nothing is remembered because a loudness is not a distance.
 ]=]
 
 --[=[
@@ -81,12 +96,11 @@ export type Hearing = typeof(setmetatable({} :: self, Hearing))
 	@param noises Signal<(Vector3, number?)> -- Fired with a position and an optional loudness (default `1`).
 	@param options HearingOptions?
 	@return Hearing
+	@error "unknown option" -- A key not in [HearingOptions].
+	@error "Range must be zero or more"
 ]=]
 function Hearing.new(noises: Types.Signal<(Vector3, number?)>, options: HearingOptions?): Types.Sense
-	local resolved = table.clone(DEFAULT_OPTIONS) :: any
-	for key, value in (options or {}) :: any do
-		resolved[key] = value
-	end
+	local resolved = Options.Resolve("Hearing.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	if resolved.Range < 0 then
 		FormatMessage.Error("Hearing: Range must be zero or more", 3)
@@ -94,7 +108,7 @@ function Hearing.new(noises: Types.Signal<(Vector3, number?)>, options: HearingO
 
 	local self: self = {
 		_options = resolved,
-		_buffer = {},
+		_buffers = setmetatable({}, { __mode = "k" }) :: any,
 		_connection = nil,
 	}
 
@@ -110,8 +124,8 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[[
-	Buffers a noise until the next tick. A bad position is dropped with a warning rather than
-	breaking the tick later.
+	Buffers a noise for every registered agent until its next tick. A bad position is dropped
+	with a warning rather than breaking the tick later.
 ]]
 function Hearing._onNoise(self: Hearing, position: Vector3, loudness: number?)
 	if typeof(position) ~= "Vector3" then
@@ -125,7 +139,13 @@ function Hearing._onNoise(self: Hearing, position: Vector3, loudness: number?)
 		return
 	end
 
-	table.insert(self._buffer, { Position = position, Loudness = resolvedLoudness })
+	local noise: Noise = { Position = position, Loudness = resolvedLoudness }
+	for _, buffer in self._buffers do
+		table.insert(buffer, noise)
+		if #buffer > BUFFER_LIMIT then
+			table.remove(buffer, 1)
+		end
+	end
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -135,20 +155,27 @@ end
 	@param agent Agent
 	@param deltaTime number
 
-	Judges every noise buffered since the last tick, writes the keys listed above to
-	`agent.Blackboard` and empties the buffer.
+	Judges every noise buffered for this agent since its last tick, writes the keys listed above
+	to `agent.Blackboard` and empties the buffer. The first tick registers the agent, so it hears
+	noises fired from then on.
 ]=]
 function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
 	local blackboard = agent.Blackboard
 
+	local buffer = self._buffers[agent]
+	if buffer == nil then
+		buffer = {}
+		self._buffers[agent] = buffer
+	end
+
 	local origin = Perception.PositionOf(agent)
 	local now = os.clock()
 
 	local heard: Noise? = nil
 	local heardDistance = math.huge
-	for _, noise in self._buffer do
+	for _, noise in buffer do
 		local distance = (noise.Position - origin).Magnitude
 		if distance > options.Range * noise.Loudness then
 			continue
@@ -161,7 +188,7 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 			heardDistance = distance
 		end
 	end
-	table.clear(self._buffer)
+	table.clear(buffer)
 
 	if heard ~= nil then
 		blackboard.HeardPosition = heard.Position
@@ -181,8 +208,8 @@ end
 --[=[
 	@within Hearing
 
-	Disconnects from the noise signal and drops anything buffered. The signal itself is yours; it
-	is not destroyed.
+	Disconnects from the noise signal and drops every agent's buffer. The signal itself is yours;
+	it is not destroyed.
 ]=]
 function Hearing.Destroy(self: Hearing)
 	local connection = self._connection
@@ -191,7 +218,7 @@ function Hearing.Destroy(self: Hearing)
 		self._connection = nil
 	end
 
-	table.clear(self._buffer)
+	table.clear(self._buffers)
 end
 
 return Hearing

@@ -26,6 +26,7 @@ local Navmesh = require(script.Pathfinders.Navmesh)
 local Straight = require(script.Pathfinders.Straight)
 
 local Hearing = require(script.Senses.Hearing)
+local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
 local Watched = require(script.Senses.Watched)
@@ -161,7 +162,7 @@ VluxyAI.Pathfinders = {
 
 --[=[
 	@within VluxyAI
-	@prop Movers { Humanoid: Humanoid, CFrame: CFrameMover }
+	@prop Movers { Humanoid: HumanoidMover, CFrame: CFrameMover }
 
 	The built-in [Types.Mover]s.
 ]=]
@@ -185,7 +186,16 @@ VluxyAI.Senses = {
 
 --[=[
 	@within VluxyAI
-	@prop Animator Animator
+	@prop Perception Perception
+
+	The helpers the built-in senses are made of: alive player roots, cones, line of sight, and
+	`HumanoidOf` for a state that acts on a target. The place to start for a custom sense.
+]=]
+VluxyAI.Perception = Perception
+
+--[=[
+	@within VluxyAI
+	@prop Animator NPCAnimator
 
 	The NPC animation helper.
 ]=]
