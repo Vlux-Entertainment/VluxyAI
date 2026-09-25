@@ -53,10 +53,12 @@ type self = {
 	_index: number,
 	_bestDistance: number,
 	_stuckTime: number,
+	_facing: Vector3?,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
 	_moveCleaner: Cleaner.Cleaner,
+	_faceCleaner: Cleaner.Cleaner,
 }
 
 local HumanoidMover = {}
@@ -185,10 +187,12 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		_index = 0,
 		_bestDistance = math.huge,
 		_stuckTime = 0,
+		_facing = nil,
 		_destroyed = false,
 
 		_cleaner = cleaner,
 		_moveCleaner = cleaner:Extend(),
+		_faceCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, HumanoidMover) :: any
@@ -363,6 +367,56 @@ end
 ]=]
 function HumanoidMover.Stop(self: HumanoidMover)
 	self:_finish(false)
+end
+
+--[=[
+	@within HumanoidMover
+	@param position Vector3? -- Where to face; `nil` to stop.
+
+	Turns the root toward `position` every Heartbeat while no path is in progress, so a rig can
+	stare at a player without walking. `MoveTo` steers while walking, so a path takes over and
+	the facing resumes when it ends. Sets the root's `CFrame`, which is what a server-owned rig
+	standing still expects.
+]=]
+function HumanoidMover.Face(self: HumanoidMover, position: Vector3?)
+	self._facing = position
+	self._faceCleaner:Clean()
+	if position == nil or self._destroyed then
+		return
+	end
+
+	local RunService = game:GetService("RunService")
+	self._faceCleaner:Connect(RunService.Heartbeat, function()
+		if self._path ~= nil then
+			return
+		end
+
+		local root = self._root
+		local from = root.Position
+		local offset = Vector3.new(position.X - from.X, 0, position.Z - from.Z)
+		if offset.Magnitude < 1e-3 then
+			return
+		end
+
+		local yaw = math.atan2(-offset.X, -offset.Z)
+		root.CFrame = CFrame.new(from) * CFrame.Angles(0, yaw, 0)
+	end)
+end
+
+--[=[
+	@within HumanoidMover
+	@param position Vector3 -- Where the root goes.
+
+	Drops the current path (`Arrived(false)` if one was in progress) and pivots the model so its
+	root sits at `position`, keeping its facing.
+]=]
+function HumanoidMover.Teleport(self: HumanoidMover, position: Vector3)
+	self:_finish(false)
+
+	local model = self._model :: any
+	local pivot = model:GetPivot()
+	local shift = position - self._root.Position
+	model:PivotTo(pivot + shift)
 end
 
 --[=[

@@ -293,4 +293,44 @@ return {
 		end)
 		expect.includes(message, 'Stalker.Brain.Initial = "Gone" names no state')
 	end,
+
+	["Interrupts are checked like transitions, plus their Except list"] = function(expect)
+		local Validate = load()
+		local brain = goodBrain()
+		brain.Interrupts = {
+			{
+				To = "Chase",
+				When = function()
+					return false
+				end,
+				Except = { "Chase" },
+			},
+		}
+		Validate.Brain(brain)
+
+		local function brainFails(mutate: (brain: any) -> (), wanted: string)
+			local candidate = goodBrain()
+			mutate(candidate)
+			local message = expect.errors(function()
+				Validate.Brain(candidate)
+			end)
+			expect.includes(message, wanted)
+		end
+
+		brainFails(function(b)
+			b.Interrupts = { { To = "Nowhere", When = function() end } }
+		end, 'Brain.Interrupts[1].To = "Nowhere" names no state')
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase" } }
+		end, "Brain.Interrupts[1].When must be a function")
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase", When = function() end, Except = { "Gone" } } }
+		end, 'Brain.Interrupts[1].Except[1] = "Gone" names no state')
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase", When = function() end, Unless = {} } }
+		end, "Brain.Interrupts[1].Unless is not a field VluxyAI knows")
+		brainFails(function(b)
+			b.Interrupts = { first = { To = "Chase", When = function() end } }
+		end, "Brain.Interrupts[first] must be in a list")
+	end,
 }

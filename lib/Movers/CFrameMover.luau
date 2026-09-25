@@ -65,10 +65,12 @@ type self = {
 	_index: number,
 	_bestDistance: number,
 	_stuckTime: number,
+	_facing: Vector3?,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
 	_moveCleaner: Cleaner.Cleaner,
+	_faceCleaner: Cleaner.Cleaner,
 }
 
 local CFrameMover = {}
@@ -245,10 +247,12 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_index = 0,
 		_bestDistance = math.huge,
 		_stuckTime = 0,
+		_facing = nil,
 		_destroyed = false,
 
 		_cleaner = cleaner,
 		_moveCleaner = cleaner:Extend(),
+		_faceCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, CFrameMover) :: any
@@ -366,6 +370,48 @@ end
 ]=]
 function CFrameMover.Stop(self: CFrameMover)
 	self:_finish(false)
+end
+
+--[=[
+	@within CFrameMover
+	@param position Vector3? -- Where to face; `nil` to stop.
+
+	Turns the yaw toward `position` at `TurnSpeed` every Heartbeat while no path is in progress,
+	through `Advance` with a speed of zero. A path takes over while it runs; the facing resumes
+	when it ends.
+]=]
+function CFrameMover.Face(self: CFrameMover, position: Vector3?)
+	self._facing = position
+	self._faceCleaner:Clean()
+	if position == nil or self._destroyed then
+		return
+	end
+
+	local RunService = game:GetService("RunService")
+	self._faceCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
+		if self._path ~= nil then
+			return
+		end
+
+		local pivot = self._target:GetPivot()
+		local goal = Vector3.new(position.X, pivot.Position.Y, position.Z)
+		local turned = CFrameMover.Advance(pivot, goal, 0, self._options.TurnSpeed, deltaTime)
+		self._target:PivotTo(turned)
+	end)
+end
+
+--[=[
+	@within CFrameMover
+	@param position Vector3 -- Where the pivot goes.
+
+	Drops the current path (`Arrived(false)` if one was in progress) and moves the pivot to
+	`position`, keeping its facing.
+]=]
+function CFrameMover.Teleport(self: CFrameMover, position: Vector3)
+	self:_finish(false)
+
+	local pivot = self._target:GetPivot()
+	self._target:PivotTo(pivot - pivot.Position + position)
 end
 
 --[=[

@@ -13,8 +13,10 @@ local Navigator = require(script.Navigator)
 local Types = require(script.Types)
 
 local Runner = require(script.Brain.Runner)
+local States = require(script.Brain.States)
 local Utility = require(script.Brain.Utility)
 local Validate = require(script.Brain.Validate)
+local When = require(script.Brain.When)
 
 local Attack = require(script.Combat.Attack)
 local Kill = require(script.Combat.Kill)
@@ -44,6 +46,7 @@ local Broadcaster = require(script.Sync.Broadcaster)
 local Replica = require(script.Sync.Replica)
 
 local Cleaner = require(script.Utility.Cleaner)
+local FormatMessage = require(script.Utility.FormatMessage)
 local Signal = require(script.Utility.Signal)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -54,6 +57,7 @@ export type Blackboard = Types.Blackboard
 export type Brain = Types.Brain
 export type State = Types.State
 export type Transition = Types.Transition
+export type Interrupt = Types.Interrupt
 
 export type Pathfinder = Types.Pathfinder
 export type Mover = Types.Mover
@@ -163,6 +167,24 @@ VluxyAI.ValidateBrain = Validate.Brain
 	Utility scoring: [Utility.Best], [Utility.Weighted], [Utility.Curves].
 ]=]
 VluxyAI.Utility = Utility
+
+--[=[
+	@within VluxyAI
+	@prop When When
+
+	Ready-made `When` predicates for transitions and interrupts: [When.Has], [When.New],
+	[When.Below], [When.PathDone], [When.Timer] and the rest.
+]=]
+VluxyAI.When = When
+
+--[=[
+	@within VluxyAI
+	@prop States States
+
+	Ready-made states: [States.Patrol], [States.Investigate], [States.Search], [States.Wander]
+	and [States.Wait].
+]=]
+VluxyAI.States = States
 
 --[=[
 	@within VluxyAI
@@ -300,35 +322,57 @@ VluxyAI.Internals = {
 	@interface HumanoidPresetOptions
 	@within VluxyAI
 
-	.Navmesh table? -- Options for [Navmesh.new].
-	.Mover table? -- Options for [HumanoidMover.new].
-	.Sight table? -- Options for [Sight.new].
-	.Proximity table? -- Options for [Proximity.new].
+	.Navmesh NavmeshOptions? -- Options for [Navmesh.new].
+	.Straight StraightOptions? -- Options for [Straight.new], the first rung of the ladder.
+	.Mover HumanoidOptions? -- Options for [HumanoidMover.new].
+	.Sight SightOptions? -- Options for [Sight.new].
+	.Proximity ProximityOptions? -- Options for [Proximity.new].
+	.Navigation NavigationOptions? -- Navigator tuning. Default `{ RepathInterval = 0.25 }`.
 ]=]
 export type HumanoidPresetOptions = {
-	Navmesh: any?,
-	Mover: any?,
-	Sight: any?,
-	Proximity: any?,
+	Navmesh: Navmesh.Options?,
+	Straight: Straight.Options?,
+	Mover: HumanoidMover.HumanoidOptions?,
+	Sight: Sight.SightOptions?,
+	Proximity: Proximity.ProximityOptions?,
+	Navigation: Types.NavigationOptions?,
 }
+
+local PRESET_KEYS = { "Navmesh", "Straight", "Mover", "Sight", "Proximity", "Navigation" }
 
 --[=[
 	@within VluxyAI
 	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder }
 
 	Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a
-	[Navmesh] pathfinder, a [HumanoidMover] mover, and [Sight] and [Proximity] senses; add a brain
-	and build. It is the 0.1 "standard" agent, but opt-in and overridable.
+	[Ladder] of [Straight] then [Navmesh] (a target in plain sight costs no navmesh query), a
+	[HumanoidMover] mover, [Sight] and [Proximity] senses, and a quarter-second repath; add a
+	brain and build. It is what the examples build by hand, opt-in and overridable.
 ]=]
 VluxyAI.Presets = {
 	Humanoid = function(model: Model, options: HumanoidPresetOptions?): Builder.Builder
 		local resolved: HumanoidPresetOptions = options or {}
+		for key in resolved :: any do
+			if table.find(PRESET_KEYS, key) == nil then
+				FormatMessage.Error(
+					`Presets.Humanoid: unknown option "{tostring(key)}"; expected one of {table.concat(
+						PRESET_KEYS,
+						", "
+					)}`,
+					2
+				)
+			end
+		end
 
 		return Builder.new(model)
-			:UsePathfinder(Navmesh.new(resolved.Navmesh))
+			:UsePathfinder(Ladder.new({
+				Straight.new(resolved.Straight),
+				Navmesh.new(resolved.Navmesh),
+			}))
 			:UseMover(HumanoidMover.new(model, resolved.Mover))
 			:AddSense(Sight.new(resolved.Sight))
 			:AddSense(Proximity.new(resolved.Proximity))
+			:SetNavigation(resolved.Navigation or { RepathInterval = 0.25 })
 	end,
 }
 

@@ -434,4 +434,32 @@ return {
 		end)
 		expect.includes(message2, "ArriveDistance", "the old per-step name is the navigator's, not the mover's")
 	end,
+
+	["Face turns the pivot toward a position at TurnSpeed while idle"] = function(expect)
+		local s = setup({ TurnSpeed = math.pi })
+		s.mover:Face(Vector3.new(10, 0, 0))
+		s.heartbeat:Fire(0.25)
+		expectVector(expect, s.pivot.Pivot.Position, 0, 0, 0, "did not move")
+		expect.near(s.pivot.Pivot.LookVector.X, math.sin(math.pi / 4), 1e-4, "a quarter turn so far")
+		s.heartbeat:Fire(1)
+		expect.near(s.pivot.Pivot.LookVector.X, 1, 1e-4, "facing +X")
+
+		s.mover:Face(nil)
+		local moves = s.pivot.Moves
+		s.heartbeat:Fire(1)
+		expect.equal(s.pivot.Moves, moves, "cleared")
+	end,
+
+	["Teleport drops the path and moves the pivot, keeping its facing"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0), step(0, 0, -10) })
+		s.heartbeat:Fire(0.5)
+		local look = s.pivot.Pivot.LookVector
+
+		s.mover:Teleport(Vector3.new(20, 5, 20))
+		expect.sequence(s.events, { "step 1", "arrived false" })
+		expectVector(expect, s.pivot.Pivot.Position, 20, 5, 20, "position")
+		expectVector(expect, s.pivot.Pivot.LookVector, look.X, look.Y, look.Z, "facing kept")
+		expect.falsy(s.mover:IsMoving())
+	end,
 }

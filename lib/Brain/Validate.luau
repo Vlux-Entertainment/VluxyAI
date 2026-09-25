@@ -171,12 +171,51 @@ function Validate.Brain(brain: any, path: string?)
 	local root = path or "Brain"
 
 	expectTable(brain, root)
-	expectKnownFields(brain, { Initial = true, States = true }, root)
+	expectKnownFields(brain, { Initial = true, States = true, Interrupts = true }, root)
 	expectString(brain.Initial, `{root}.Initial`)
 	expectTable(brain.States, `{root}.States`)
 
 	if next(brain.States) == nil then
 		fail(`{root}.States`, "has no states")
+	end
+
+	if brain.Interrupts ~= nil then
+		local interruptsPath = `{root}.Interrupts`
+		expectTable(brain.Interrupts, interruptsPath)
+
+		local count = 0
+		for index, interrupt in brain.Interrupts do
+			count += 1
+			local interruptPath = `{interruptsPath}[{tostring(index)}]`
+
+			if type(index) ~= "number" then
+				fail(interruptPath, "must be in a list, not keyed")
+			end
+
+			expectTable(interrupt, interruptPath)
+			expectKnownFields(interrupt, { To = true, When = true, Except = true }, interruptPath)
+			expectString(interrupt.To, `{interruptPath}.To`)
+			expectFunction(interrupt.When, `{interruptPath}.When`)
+
+			if brain.States[interrupt.To] == nil then
+				fail(`{interruptPath}.To`, `= "{interrupt.To}" names no state`)
+			end
+
+			if interrupt.Except ~= nil then
+				local exceptPath = `{interruptPath}.Except`
+				expectTable(interrupt.Except, exceptPath)
+				for exceptIndex, name in interrupt.Except do
+					expectString(name, `{exceptPath}[{tostring(exceptIndex)}]`)
+					if brain.States[name] == nil then
+						fail(`{exceptPath}[{tostring(exceptIndex)}]`, `= "{name}" names no state`)
+					end
+				end
+			end
+		end
+
+		if count ~= #brain.Interrupts then
+			fail(interruptsPath, "must be a list with no holes")
+		end
 	end
 
 	for name, state in brain.States do

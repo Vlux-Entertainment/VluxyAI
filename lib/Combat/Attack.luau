@@ -7,6 +7,7 @@
 	Everything else about a brain is content; this is here because kills are.
 ]]
 
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Kill = require(script.Parent.Kill)
 local Locomotion = require(script.Parent.Parent.Animator.Locomotion)
 local Perception = require(script.Parent.Parent.Senses.Perception)
@@ -87,6 +88,11 @@ function Attack.Strike(agent: Types.Agent, target: BasePart?, damage: number, op
 	local humanoid = if target then Perception.HumanoidOf(target) else nil
 	local character = if target then Perception.CharacterOf(target) else nil
 	if humanoid == nil or character == nil then
+		-- Silence here hides a misspelled TargetKey behind an enemy that stands still.
+		local what = if target == nil
+			then "no target"
+			else `a target ({tostring((target :: any).Name)}) with no Humanoid or character`
+		FormatMessage.Warn(`{agent.Name}: Strike hit nothing: {what}. Check the TargetKey of the attack state`)
 		return nil
 	end
 

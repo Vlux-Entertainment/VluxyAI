@@ -45,6 +45,10 @@ type self = {
 	_destroyed: boolean,
 	_eventsClosed: boolean,
 	_timers: { [string]: number },
+	_acknowledged: { [string]: any },
+	_stateEnteredAt: number?,
+	_paused: boolean,
+	_pausedAt: number,
 	_cleaner: Cleaner.Cleaner,
 }
 
@@ -98,6 +102,10 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_destroyed = false,
 		_eventsClosed = false,
 		_timers = {},
+		_acknowledged = {},
+		_stateEnteredAt = nil,
+		_paused = false,
+		_pausedAt = 0,
 		_cleaner = Cleaner.new(),
 	}
 
@@ -105,6 +113,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	local asContract = (agent :: any) :: Types.Agent
 
 	self._runner = Runner.new(definition.Brain, asContract, function(new: string, old: string?)
+		self._stateEnteredAt = os.clock()
 		self.StateChanged:Fire(new, old)
 	end)
 
@@ -149,6 +158,14 @@ function Agent.SetState(self: Agent, name: string)
 	self._runner:Transition(name)
 end
 
+--[[
+	The agent's clock: the wall clock, frozen at the moment of Pause while paused, so timers and
+	TimeInState hold still.
+]]
+function Agent._now(self: Agent): number
+	return if self._paused then self._pausedAt else os.clock()
+end
+
 --[=[
 	@within Agent
 	@param name string -- Any name; `"Attack"`, `"Look"`.
@@ -168,7 +185,7 @@ end
 ]=]
 function Agent.TimerDone(self: Agent, name: string): boolean
 	local endsAt = self._timers[name]
-	return endsAt == nil or os.clock() >= endsAt
+	return endsAt == nil or self:_now() >= endsAt
 end
 
 --[=[
@@ -182,7 +199,138 @@ function Agent.TimerLeft(self: Agent, name: string): number
 		return 0
 	end
 
-	return math.max(0, endsAt - os.clock())
+	return math.max(0, endsAt - self:_now())
+end
+
+--[=[
+	@within Agent
+	@return number -- Seconds since the current state was entered, not counting time paused. `0` before `Start`.
+]=]
+function Agent.TimeInState(self: Agent): number
+	local enteredAt = self._stateEnteredAt
+	if enteredAt == nil then
+		return 0
+	end
+	return self:_now() - enteredAt
+end
+
+--[=[
+	@within Agent
+
+	Freezes the agent: ticks stop, so senses, navigator and brain stand still; the mover halts;
+	timers and `TimeInState` hold. For a cutscene, a jumpscare, or a director backing an enemy
+	off. The navigator keeps its target and re-plans on the first tick after [Agent:Resume]. Does
+	nothing when not running or already paused.
+]=]
+function Agent.Pause(self: Agent)
+	if not self._running or self._paused then
+		return
+	end
+
+	self._paused = true
+	self._pausedAt = os.clock()
+
+	-- Stopping the mover directly, not through the navigator, keeps the target: the navigator
+	-- sees a mover that gave up and re-plans on its cadence once ticks resume.
+	local mover = self.Mover
+	if mover and mover:IsMoving() then
+		mover:Stop()
+	end
+end
+
+--[=[
+	@within Agent
+
+	Undoes [Agent:Pause]. Every running timer and `TimeInState` are pushed forward by the time
+	spent paused, so a timer with two seconds left still has two seconds left.
+]=]
+function Agent.Resume(self: Agent)
+	if not self._paused then
+		return
+	end
+
+	local pausedFor = os.clock() - self._pausedAt
+	self._paused = false
+
+	for name, endsAt in self._timers do
+		self._timers[name] = endsAt + pausedFor
+	end
+	if self._stateEnteredAt ~= nil then
+		self._stateEnteredAt += pausedFor
+	end
+end
+
+--[=[
+	@within Agent
+	@return boolean
+]=]
+function Agent.IsPaused(self: Agent): boolean
+	return self._paused
+end
+
+--[=[
+	@within Agent
+	@param position Vector3? -- Where to face; `nil` to stop facing anything.
+
+	Turns the body toward `position` while it stands still, so an enemy can stare at a player
+	without walking. Calls the mover's optional `Face`; a mover without one ignores this.
+]=]
+function Agent.LookAt(self: Agent, position: Vector3?)
+	local mover = self.Mover
+	local face = if mover then (mover :: any).Face else nil
+	if type(face) == "function" then
+		face(mover, position)
+	end
+end
+
+--[=[
+	@within Agent
+	@param position Vector3 -- Where the body goes: the root or pivot position, not a floor position.
+
+	Puts the agent somewhere else at once and forgets the current target, so the next `MoveTo`
+	plans from the new place. Uses the mover's optional `Teleport`, else pivots the entity. For a
+	stalker that vanishes and reappears out of sight; pair it with [Perception.SeenByAnyone].
+]=]
+function Agent.Teleport(self: Agent, position: Vector3)
+	if self._navigator then
+		self._navigator:Stop()
+	end
+
+	local mover = self.Mover
+	local teleport = if mover then (mover :: any).Teleport else nil
+	if type(teleport) == "function" then
+		teleport(mover, position)
+		return
+	end
+
+	local entity = self.Entity :: any
+	local pivot = entity:GetPivot()
+	entity:PivotTo(pivot - pivot.Position + position)
+end
+
+--[=[
+	@within Agent
+	@param key string -- A blackboard key, usually a memory such as `HeardAt` or `HeardSoundAt`.
+	@return boolean -- `true` while `Blackboard[key]` is non-nil and differs from the value last acknowledged.
+
+	"Is there something here I have not dealt with yet?" A transition that investigates every
+	new noise reads `agent:IsNew("HeardAt")` and calls [Agent:Acknowledge] when it acts, so the
+	same noise is not investigated twice. [When.New] does both in one predicate.
+]=]
+function Agent.IsNew(self: Agent, key: string): boolean
+	local value = self.Blackboard[key]
+	return value ~= nil and value ~= self._acknowledged[key]
+end
+
+--[=[
+	@within Agent
+	@param key string
+
+	Records the current `Blackboard[key]` as dealt with. [Agent:IsNew] is `false` for it until
+	the value changes.
+]=]
+function Agent.Acknowledge(self: Agent, key: string)
+	self._acknowledged[key] = self.Blackboard[key]
 end
 
 --[=[
@@ -269,7 +417,7 @@ end
 	Heartbeat loop calls this; a test or a custom scheduler calls it directly.
 ]=]
 function Agent.Step(self: Agent, deltaTime: number)
-	if not self._running then
+	if not self._running or self._paused then
 		return
 	end
 
@@ -303,6 +451,10 @@ end
 	most, so a long frame never runs the brain several times to catch up.
 ]]
 function Agent._onHeartbeat(self: Agent, deltaTime: number)
+	if self._paused then
+		return
+	end
+
 	self._accumulator += deltaTime
 	if self._accumulator < self._tick then
 		return

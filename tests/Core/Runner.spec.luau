@@ -419,4 +419,89 @@ return {
 		runner:Stop()
 		expect.equal(ticks, 1)
 	end,
+
+	["interrupts are checked before the state's own transitions, from every state"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local brain = Fakes.Brain("Idle", { "Idle", "Chase", "Hunt" }, log)
+		local alarm = false
+		brain.Interrupts = {
+			{
+				To = "Hunt",
+				When = function()
+					return alarm
+				end,
+			},
+		}
+		brain.States.Idle.Transitions = {
+			{
+				To = "Chase",
+				When = function()
+					return true
+				end,
+			},
+		}
+		local runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		alarm = true
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "Hunt", "the interrupt won over Idle's always-true transition")
+
+		alarm = false
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "Hunt", "Hunt has no transitions; Update ran")
+		expect.sequence(log, { "enter Idle", "exit Idle", "enter Hunt", "update Hunt" })
+	end,
+
+	["an interrupt is skipped in the states it excepts"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local brain = Fakes.Brain("Hunt", { "Hunt", "Attack" }, log)
+		brain.Interrupts = {
+			{
+				To = "Hunt",
+				When = function()
+					return true
+				end,
+				Except = { "Hunt", "Attack" },
+			},
+		}
+		brain.States.Hunt.Transitions = {
+			{
+				To = "Attack",
+				When = function()
+					return true
+				end,
+			},
+		}
+		local runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "Attack", "the interrupt did not re-enter Hunt")
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "Attack", "nor pull out of Attack")
+	end,
+
+	["an interrupt's When forcing a state change wins the tick"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local brain = Fakes.Brain("Idle", { "Idle", "A", "B" }, log)
+		local runner
+		brain.Interrupts = {
+			{
+				To = "A",
+				When = function()
+					runner:Transition("B")
+					return true
+				end,
+			},
+		}
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "B")
+	end,
 }

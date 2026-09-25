@@ -484,4 +484,123 @@ return {
 		agent:Destroy()
 		expect.truthy(true)
 	end,
+
+	["Pause stops ticks and the mover; Resume shifts timers and TimeInState by the time paused"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local heartbeat = Harness.ManualHeartbeat()
+		local Agent = Harness.Load("lib/Agent.luau", {
+			globals = { os = clock.os },
+			services = { RunService = { Heartbeat = heartbeat } },
+		})
+		local log = {}
+		local mover = Fakes.Mover()
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, log),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+
+		expect.equal(agent:TimeInState(), 0, "before Start")
+		agent:Start()
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		agent:StartTimer("Attack", 2)
+		clock:Advance(1)
+		expect.near(agent:TimeInState(), 1)
+
+		agent:Pause()
+		expect.truthy(agent:IsPaused())
+		expect.falsy(mover.Moving, "the mover was halted")
+		expect.equal(agent:GetPathStatus(), "Moving", "the navigator keeps its target")
+		heartbeat:Fire(0.5)
+		heartbeat:Fire(0.5)
+		expect.sequence(log, { "enter Idle" }, "no ticks while paused")
+
+		clock:Advance(5)
+		expect.near(agent:TimeInState(), 1, 1e-6, "held while paused")
+		expect.near(agent:TimerLeft("Attack"), 1, 1e-6, "timers hold too")
+
+		agent:Resume()
+		expect.falsy(agent:IsPaused())
+		expect.near(agent:TimeInState(), 1)
+		expect.near(agent:TimerLeft("Attack"), 1)
+		clock:Advance(1)
+		expect.truthy(agent:TimerDone("Attack"))
+		heartbeat:Fire(0.5)
+		expect.sequence(log, { "enter Idle", "update Idle" }, "ticking again")
+		expect.equal(#mover.Followed, 2, "the navigator re-planned to its target")
+
+		agent:Pause()
+		agent:Pause()
+		agent:Resume()
+		agent:Resume()
+		expect.falsy(agent:IsPaused(), "idempotent")
+		agent:Destroy()
+	end,
+
+	["IsNew and Acknowledge track a blackboard value"] = function(expect)
+		local Agent = load()
+		local agent = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+
+		expect.falsy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = 5
+		expect.truthy(agent:IsNew("HeardAt"))
+		agent:Acknowledge("HeardAt")
+		expect.falsy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = 6
+		expect.truthy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = nil
+		expect.falsy(agent:IsNew("HeardAt"), "nothing there is not new")
+	end,
+
+	["Teleport drops the target and uses the mover's Teleport, else the entity's pivot"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		local teleported = {}
+		mover.Teleport = function(_self, position)
+			table.insert(teleported, position)
+		end
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:Start(true)
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		agent:Teleport(Vector3.new(50, 0, 0))
+		expect.sequence(teleported, { Vector3.new(50, 0, 0) })
+		expect.equal(agent:GetPathStatus(), "Idle", "the target was dropped")
+		expect.equal(agent.Navigator:GetTarget(), nil)
+
+		local entity = Fakes.Entity()
+		local pivots = {}
+		entity.PivotTo = function(_self, cframe)
+			table.insert(pivots, cframe.Position)
+		end
+		local bare = Agent.new({ Entity = entity, Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:Teleport(Vector3.new(1, 2, 3))
+		expect.sequence(pivots, { Vector3.new(1, 2, 3) })
+	end,
+
+	["LookAt calls the mover's Face and is harmless without one"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		local faced = {}
+		mover.Face = function(_self, position)
+			table.insert(faced, if position == nil then "nil" else position)
+		end
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:LookAt(Vector3.new(3, 0, 3))
+		agent:LookAt(nil)
+		expect.sequence(faced, { Vector3.new(3, 0, 3), "nil" })
+
+		local bare = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:LookAt(Vector3.new(1, 0, 0))
+	end,
 }

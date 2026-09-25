@@ -157,6 +157,8 @@ export type Pathfinder = {
 	.StepReached Signal<(number, Step)> -- Fired with the index and step each time one is reached.
 	.Arrived Signal<boolean> -- Fired once per `Follow`: `true` at the end of the path, `false` if stopped, replaced or stuck.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
+	.Face ((self: any, position: Vector3?) -> ())? -- Optional. Turn toward `position` while standing still; `nil` stops. [Agent:LookAt] calls it.
+	.Teleport ((self: any, position: Vector3) -> ())? -- Optional. Put the body at `position` at once, dropping any path. [Agent:Teleport] calls it.
 
 	Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:
 
@@ -181,6 +183,8 @@ export type Mover = {
 	StepReached: Signal<(number, Step)>,
 	Arrived: Signal<boolean>,
 	Destroy: ((self: any) -> ())?,
+	Face: ((self: any, position: Vector3?) -> ())?,
+	Teleport: ((self: any, position: Vector3) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -238,6 +242,25 @@ export type Transition = {
 }
 
 --[=[
+	@interface Interrupt
+	@within Types
+
+	.To string -- The state to enter. Must exist in the brain; `Build()` checks.
+	.When (agent: Agent) -> boolean -- Checked every tick, in order, before the current state's own transitions.
+	.Except { string }? -- States in which this interrupt is not checked, such as the one it leads to or an attack that must finish.
+
+	A [Types.Transition] that applies from every state: "hunt whoever I see", "freeze when lit",
+	"stop when the director says so". Written once on the brain instead of in every state.
+	Interrupts are checked in order before the current state's transitions; the first true one
+	wins the tick.
+]=]
+export type Interrupt = {
+	To: string,
+	When: (agent: Agent) -> boolean,
+	Except: { string }?,
+}
+
+--[=[
 	@interface State
 	@within Types
 
@@ -264,12 +287,14 @@ export type State = {
 
 	.Initial string -- The state entered on `Start()`.
 	.States { [string]: State } -- Every state, keyed by name.
+	.Interrupts { Interrupt }? -- Transitions that apply from every state, checked before the current state's own.
 
 	A flat finite state machine as a table. The whole AI, readable top to bottom.
 ]=]
 export type Brain = {
 	Initial: string,
 	States: { [string]: State },
+	Interrupts: { Interrupt }?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -442,6 +467,14 @@ export type AgentDefinition = {
 	.StartTimer (self: Agent, name: string, seconds: number) -> () -- Starts a named timer.
 	.TimerDone (self: Agent, name: string) -> boolean -- `true` once the timer ran out, or if it was never started.
 	.TimerLeft (self: Agent, name: string) -> number -- Seconds left on the timer, `0` when done.
+	.TimeInState (self: Agent) -> number -- Seconds since the current state was entered, paused time excluded. `0` before `Start`.
+	.Pause (self: Agent) -> () -- Freeze: no ticks, no movement, timers on hold. For cutscenes, jumpscares and a director backing an enemy off.
+	.Resume (self: Agent) -> () -- Undo `Pause`. The navigator re-plans to its target on the next tick.
+	.IsPaused (self: Agent) -> boolean
+	.LookAt (self: Agent, position: Vector3?) -> () -- Turn toward `position` while standing still, `nil` to stop. Needs a mover with `Face`; otherwise does nothing.
+	.Teleport (self: Agent, position: Vector3) -> () -- Put the body at `position` at once, dropping the current path. Uses the mover's `Teleport`, else the entity's `PivotTo`.
+	.IsNew (self: Agent, key: string) -> boolean -- `true` while `Blackboard[key]` is non-nil and differs from the value last passed to `Acknowledge`.
+	.Acknowledge (self: Agent, key: string) -> () -- Marks the current `Blackboard[key]` as dealt with, so `IsNew` is `false` until it changes.
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
@@ -476,6 +509,14 @@ export type Agent = {
 	StartTimer: (self: Agent, name: string, seconds: number) -> (),
 	TimerDone: (self: Agent, name: string) -> boolean,
 	TimerLeft: (self: Agent, name: string) -> number,
+	TimeInState: (self: Agent) -> number,
+	Pause: (self: Agent) -> (),
+	Resume: (self: Agent) -> (),
+	IsPaused: (self: Agent) -> boolean,
+	LookAt: (self: Agent, position: Vector3?) -> (),
+	Teleport: (self: Agent, position: Vector3) -> (),
+	IsNew: (self: Agent, key: string) -> boolean,
+	Acknowledge: (self: Agent, key: string) -> (),
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,
