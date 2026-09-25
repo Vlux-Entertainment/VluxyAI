@@ -52,7 +52,7 @@ local agent = VluxyAI.Presets.Humanoid(rig) -- any Model with a PrimaryPart and 
 
 ```toml
 [dependencies]
-VluxyAI = "greenviper126/vluxyai@0.2.0"
+VluxyAI = "greenviper126/vluxyai@0.2.1"
 ```
 
 Then `wally install`. The package has no dependencies and is `shared` realm: requiring it on a
