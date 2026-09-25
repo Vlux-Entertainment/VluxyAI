@@ -184,7 +184,7 @@ end
 
 	Validates and builds the agent. The agent is not running; chain [Agent:Start].
 ]=]
-function Builder.Build(self: Builder): Agent.Agent
+function Builder.Build(self: Builder): Types.Agent
 	if self._built then
 		FormatMessage.Error("this Builder already built an agent; call VluxyAI.new again for another", 2)
 	end

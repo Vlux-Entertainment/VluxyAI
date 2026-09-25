@@ -49,6 +49,7 @@ type self = {
 	_stopping: boolean,
 	_following: boolean,
 	_destroyed: boolean,
+	_warnedTarget: Vector3?,
 
 	_connections: { Types.Connection },
 }
@@ -87,8 +88,10 @@ function Navigator.new(
 	options: Types.NavigationOptions?
 ): Navigator
 	local resolved = table.clone(DEFAULT_OPTIONS)
-	for key, value in options or {} do
-		resolved[key] = value
+	if options then
+		for key, value in options do
+			(resolved :: any)[key] = value
+		end
 	end
 
 	local self: self = {
@@ -111,6 +114,7 @@ function Navigator.new(
 		_stopping = false,
 		_following = false,
 		_destroyed = false,
+		_warnedTarget = nil,
 
 		_connections = {},
 	}
@@ -230,7 +234,9 @@ function Navigator._plan(self: Navigator)
 		if path == nil or #path == 0 then
 			self._status = "Failed"
 			self:_setPath(nil)
-			if reason then
+			-- Once per target: retries on the cadence would otherwise repeat this every interval.
+			if reason and self._warnedTarget ~= target then
+				self._warnedTarget = target
 				FormatMessage.Warn(`{self._agent.Name}: no path to {target} ({reason})`)
 			end
 			self.Arrived:Fire(false)

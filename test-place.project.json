@@ -1,0 +1,51 @@
+{
+	"name": "VluxyAI Playground",
+	"tree": {
+		"$className": "DataModel",
+
+		"Workspace": {
+			"$className": "Workspace",
+			"$ignoreUnknownInstances": true,
+			"$properties": {
+				"StreamingEnabled": false
+			}
+		},
+
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Packages": {
+				"$className": "Folder",
+				"VluxyAI": {
+					"$path": "lib"
+				},
+				"Trove": {
+					"$path": "Packages/Trove.lua"
+				},
+				"_Index": {
+					"$path": "Packages/_Index"
+				}
+			}
+		},
+
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"Examples": {
+				"$path": "examples"
+			}
+		},
+
+		"Players": {
+			"$className": "Players",
+			"$properties": {
+				"CharacterAutoLoads": true
+			}
+		},
+
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"$properties": {
+				"CameraMaxZoomDistance": 120
+			}
+		}
+	}
+}

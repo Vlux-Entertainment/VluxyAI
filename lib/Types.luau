@@ -85,7 +85,7 @@ export type StepAction = "Walk" | "Jump" | "Custom"
 	@interface Step
 	@within Types
 
-	.Position Vector3 -- Where to go. For a humanoid this is a floor position.
+	.Position Vector3 -- Where to go, as a floor position. Movers add their own height.
 	.Action StepAction -- What to do on the way there.
 	.Label string? -- The `PathfindingModifier` label, or whatever your pathfinder attaches.
 
@@ -116,14 +116,17 @@ export type Path = { Step }
 
 	.FindPath (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?) -- Returns a path, or `nil` and a reason. May yield.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
+	.Name string? -- Used in messages, such as a [Ladder]'s joined reasons.
 
 	Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
-	a target. `VluxyAI.Pathfinders` ships `Navmesh`, `Straight` and `Ladder`; your own is any table
-	with `FindPath`.
+	a target. `from` and `to` may be at any height: `from` is the mover's root and `to` is often a
+	player's root or a floor node; the path it returns holds floor positions. `VluxyAI.Pathfinders`
+	ships `Navmesh`, `Straight` and `Ladder`; your own is any table with `FindPath`.
 ]=]
 export type Pathfinder = {
 	FindPath: (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?),
 	Destroy: ((self: any) -> ())?,
+	Name: string?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -136,7 +139,7 @@ export type Pathfinder = {
 
 	.Follow (self: any, path: Path) -> () -- Starts moving along `path`, replacing any current path.
 	.Stop (self: any) -> () -- Halts. Fires `Arrived(false)` if a path was in progress.
-	.GetPosition (self: any) -> Vector3 -- Where the agent is right now.
+	.GetPosition (self: any) -> Vector3 -- Where the agent's root or pivot is right now: the body, not the floor.
 	.GetSpeed (self: any) -> number -- Studs per second.
 	.SetSpeed (self: any, speed: number) -> () -- Studs per second.
 	.IsMoving (self: any) -> boolean -- `true` while a path is in progress.
@@ -400,6 +403,8 @@ export type AgentDefinition = {
 	.Stop (self: Agent) -> () -- Shorthand for `Navigator:Stop`. No-op without a navigator.
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
+	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
+	.SetSpeed (self: Agent, speed: number) -> () -- Shorthand for `Mover:SetSpeed`. No-op without a mover.
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
@@ -425,6 +430,8 @@ export type Agent = {
 	Stop: (self: Agent) -> (),
 	GetPosition: (self: Agent) -> Vector3,
 	HasArrived: (self: Agent) -> boolean,
+	GetPathStatus: (self: Agent) -> PathStatus,
+	SetSpeed: (self: Agent, speed: number) -> (),
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,

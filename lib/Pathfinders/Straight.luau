@@ -1,0 +1,256 @@
+--!strict
+
+--[[
+	The "can I go straight there" leg. Sweeps a sphere the size of the agent's body from `from` to
+	`to`; if nothing is in the way (and, with `FloorCheck`, there is floor under every few studs of
+	the segment) the path is the two endpoints and no planning happened.
+
+	The one decision worth knowing: `from` and `to` may be at any height (a mover reports its root,
+	a target is often a player's root, a node is on the floor), so with `FloorCheck` on both are
+	projected onto the floor by the same downward rays that check the segment, and the path holds
+	those floor positions, which is what a [Types.Step] promises. The sweep then runs between the
+	two body centres, `Height / 2` above the floor points. With `FloorCheck` off the positions are
+	used as given. `Sample` is pure and specced; the casts run under a fake workspace in the spec
+	and are play-tested for real.
+]]
+
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Types = require(script.Parent.Parent.Types)
+
+------------------------------------------------------------------------------------------------------------------------
+
+-- A segment shorter than this is not swept; the floor is still checked at `to`.
+local ZERO_LENGTH = 1e-4
+
+local DEFAULT_OPTIONS = table.freeze({
+	Radius = 2,
+	Height = 5,
+	FloorCheck = true,
+	FloorSpacing = 4,
+	MaxDrop = 6,
+	Ignore = nil :: ((agent: Types.Agent) -> { Instance })?,
+})
+
+--[=[
+	@interface StraightOptions
+	@within Straight
+
+	.Radius number? -- Radius of the swept sphere, the agent's half width. Must be below `Height / 2` or the sweep scrapes the floor. Default `2`.
+	.Height number? -- The agent's height; the sweep runs `Height / 2` above the floor. Default `5`.
+	.FloorCheck boolean? -- Require floor under the segment and project the endpoints onto it. Default `true`.
+	.FloorSpacing number? -- Studs between floor samples along the segment. Default `4`.
+	.MaxDrop number? -- Studs below a position's body centre the floor may still be. Default `6`.
+	.Ignore ((agent: Agent) -> { Instance })? -- Instances the casts pass through. Default: [Straight.DefaultIgnore], the agent's entity and every player's character.
+]=]
+export type Options = {
+	Radius: number?,
+	Height: number?,
+	FloorCheck: boolean?,
+	FloorSpacing: number?,
+	MaxDrop: number?,
+	Ignore: ((agent: Types.Agent) -> { Instance })?,
+}
+
+type ResolvedOptions = {
+	Radius: number,
+	Height: number,
+	FloorCheck: boolean,
+	FloorSpacing: number,
+	MaxDrop: number,
+	Ignore: ((agent: Types.Agent) -> { Instance })?,
+}
+
+type self = {
+	Name: string,
+
+	_options: ResolvedOptions,
+}
+
+local Straight = {}
+Straight.__index = Straight
+
+export type Straight = typeof(setmetatable({} :: self, Straight))
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@class Straight
+
+	A [Types.Pathfinder] that only succeeds when the agent can walk straight to the target: a
+	`Spherecast` the width of the body from `from` to `to`, and optionally a floor ray every few
+	studs along the way. Meant as the first rung of a [Ladder], so a target in plain sight costs no
+	navmesh query.
+
+	`Name` is `"Straight"`, which [Ladder] uses in its reasons.
+]=]
+
+--[=[
+	@within Straight
+	@param options StraightOptions?
+	@return Straight
+	@error "unknown option" -- A key that is not in `StraightOptions`.
+]=]
+function Straight.new(options: Options?): Types.Pathfinder
+	local resolved = table.clone(DEFAULT_OPTIONS)
+	local given: { [string]: any } = options or {}
+	for key, value in given do
+		if (DEFAULT_OPTIONS :: any)[key] == nil and key ~= "Ignore" then
+			FormatMessage.Error(`Straight.new: unknown option "{key}"`, 2)
+		end
+		(resolved :: any)[key] = value
+	end
+
+	if resolved.Radius >= resolved.Height / 2 then
+		FormatMessage.Warn(
+			`Straight.new: Radius ({resolved.Radius}) is not below Height / 2 ({resolved.Height / 2}), so the sweep touches the floor`
+		)
+	end
+
+	local self: self = {
+		Name = "Straight",
+
+		_options = resolved,
+	}
+
+	return setmetatable(self, Straight) :: any
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Straight
+	@param from Vector3
+	@param to Vector3
+	@param spacing number -- Must be positive.
+	@return { Vector3 } -- Points every `spacing` studs after `from`, ending with `to` itself.
+	@error "spacing must be positive"
+
+	The floor sample points along a segment. `from` is never included; `to` always is, exactly
+	once, so a zero-length segment gives `{ to }`. Pure.
+]=]
+function Straight.Sample(from: Vector3, to: Vector3, spacing: number): { Vector3 }
+	if spacing <= 0 then
+		FormatMessage.Error(`Straight.Sample: spacing must be positive, got {spacing}`, 2)
+	end
+
+	local offset = to - from
+	local distance = offset.Magnitude
+	local points = {}
+
+	if distance > ZERO_LENGTH then
+		local direction = offset / distance
+		local travelled = spacing
+		while travelled < distance - ZERO_LENGTH do
+			table.insert(points, from + direction * travelled)
+			travelled += spacing
+		end
+	end
+
+	table.insert(points, to)
+
+	return points
+end
+
+--[=[
+	@within Straight
+	@param agent Agent
+	@return { Instance } -- The agent's entity and every player's character.
+
+	The default `Ignore`. Call it from your own `Ignore` to extend the list rather than replace it.
+]=]
+function Straight.DefaultIgnore(agent: Types.Agent): { Instance }
+	local Players = game:GetService("Players")
+
+	local ignore: { Instance } = { agent.Entity }
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		if character then
+			table.insert(ignore, character)
+		end
+	end
+
+	return ignore
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Straight
+	@param from Vector3 -- Any height; the floor under it is used.
+	@param to Vector3 -- Any height; the floor under it is used.
+	@param agent Agent -- Handed to `Ignore`.
+	@return Path? -- Two Walk steps, the floor positions under `from` and `to`, when the way is clear.
+	@return string? -- `blocked by <full name>` when the sweep hits, `no floor at <point>` when a floor ray misses.
+]=]
+function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
+	local options = self._options
+
+	local ignore = if options.Ignore then options.Ignore(agent) else Straight.DefaultIgnore(agent)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	params.IgnoreWater = true
+
+	local lift = Vector3.yAxis * (options.Height / 2)
+	-- From half a body above the point, down through a body's height and the allowed drop.
+	local reach = Vector3.yAxis * -(options.Height + options.MaxDrop)
+
+	local function floorUnder(point: Vector3): Vector3?
+		local hit = workspace:Raycast(point + lift, reach, params)
+		return if hit then hit.Position else nil
+	end
+
+	local floorFrom = from
+	local floorTo = to
+
+	if options.FloorCheck then
+		local underFrom = floorUnder(from)
+		if underFrom == nil then
+			return nil, `no floor at {from}`
+		end
+		local underTo = floorUnder(to)
+		if underTo == nil then
+			return nil, `no floor at {to}`
+		end
+		floorFrom = underFrom
+		floorTo = underTo
+	end
+
+	local start = floorFrom + lift
+	local offset = (floorTo + lift) - start
+
+	if offset.Magnitude > ZERO_LENGTH then
+		local hit = workspace:Spherecast(start, options.Radius, offset, params)
+		if hit then
+			return nil, `blocked by {hit.Instance:GetFullName()}`
+		end
+	end
+
+	if options.FloorCheck then
+		local samples = Straight.Sample(floorFrom, floorTo, options.FloorSpacing)
+		-- The last sample is `to`, whose floor was found above.
+		for index = 1, #samples - 1 do
+			if floorUnder(samples[index]) == nil then
+				return nil, `no floor at {samples[index]}`
+			end
+		end
+	end
+
+	local path: Types.Path = {
+		{ Position = floorFrom, Action = "Walk" },
+		{ Position = floorTo, Action = "Walk" },
+	}
+
+	return path, nil
+end
+
+--[=[
+	@within Straight
+
+	Nothing to release; present so the pathfinder contract is complete.
+]=]
+function Straight.Destroy(self: Straight)
+	local _ = self
+end
+
+return Straight

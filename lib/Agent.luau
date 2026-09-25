@@ -66,7 +66,7 @@ export type Agent = typeof(setmetatable({} :: self, Agent))
 	Builds an agent from a definition. Blackboard and Data initial values are deep-copied, so one
 	definition can make many agents. The agent is not running until [Agent:Start].
 ]=]
-function Agent.new(definition: Types.AgentDefinition): Agent
+function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	Validate.Definition(definition)
 
 	local entity = definition.Entity
@@ -106,7 +106,9 @@ function Agent.new(definition: Types.AgentDefinition): Agent
 		self.Navigator = navigator :: any
 	end
 
-	return agent
+	-- The contract type is what callers get: a metatable class is not structurally assignable to
+	-- its interface under the current solver, so the cast happens once, here.
+	return (agent :: any) :: Types.Agent
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -180,6 +182,30 @@ end
 ]=]
 function Agent.HasArrived(self: Agent): boolean
 	return self._navigator ~= nil and self._navigator:GetStatus() == "Arrived"
+end
+
+--[=[
+	@within Agent
+	@return PathStatus -- The navigator's status, or `Idle` without a navigator.
+]=]
+function Agent.GetPathStatus(self: Agent): Types.PathStatus
+	if self._navigator then
+		return self._navigator:GetStatus()
+	end
+
+	return "Idle"
+end
+
+--[=[
+	@within Agent
+	@param speed number -- Studs per second.
+
+	Shorthand for `agent.Mover:SetSpeed(speed)`. Does nothing without a mover.
+]=]
+function Agent.SetSpeed(self: Agent, speed: number)
+	if self.Mover then
+		self.Mover:SetSpeed(speed)
+	end
 end
 
 --[=[
@@ -282,17 +308,26 @@ function Agent.Destroy(self: Agent)
 	end
 
 	for _, sense in self.Senses do
-		if sense.Destroy then
-			sense:Destroy()
+		local destroy = sense.Destroy
+		if destroy then
+			destroy(sense)
 		end
 	end
 
-	if self.Mover and self.Mover.Destroy then
-		self.Mover:Destroy()
+	local mover = self.Mover
+	if mover then
+		local destroy = mover.Destroy
+		if destroy then
+			destroy(mover)
+		end
 	end
 
-	if self.Pathfinder and self.Pathfinder.Destroy then
-		self.Pathfinder:Destroy()
+	local pathfinder = self.Pathfinder
+	if pathfinder then
+		local destroy = pathfinder.Destroy
+		if destroy then
+			destroy(pathfinder)
+		end
 	end
 
 	self.StateChanged:Destroy()

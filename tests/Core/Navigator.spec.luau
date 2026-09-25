@@ -110,6 +110,30 @@ return {
 		expect.equal(s.navigator:GetPath(), nil)
 	end,
 
+	["a failure warns once per target, not once per retry"] = function(expect)
+		local warnings = {}
+		local s = setup({
+			plan = function()
+				return nil, "blocked"
+			end,
+			warnings = warnings,
+			navigation = { RepathInterval = 0.5 },
+		})
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.clock:Advance(1)
+		s.navigator:MoveTo(target)
+		s.clock:Advance(1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 3)
+		expect.equal(#warnings, 1)
+
+		s.clock:Advance(1)
+		s.navigator:MoveTo(Vector3.new(50, 0, 0))
+		expect.equal(#warnings, 2, "a different target warns again")
+	end,
+
 	["an empty path counts as a failure"] = function(expect)
 		local s = setup({
 			plan = function()
