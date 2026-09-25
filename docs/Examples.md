@@ -4,7 +4,8 @@ sidebar_position: 4
 
 # Examples
 
-The repository ships a playground: an ASCII-grid map and six example AIs on standard R15 rigs,
+The repository ships a playground: a seeded maze (recursive backtracking, then a pass that
+removes some walls so it has loops) and six example AIs on standard R15 rigs,
 each showing one feature. Clone the repo, run `wally install`, serve `test-place.project.json`
 with Rojo and press Play. Each rig is built at runtime, animated through the package's
 [Animator](/api/NPCAnimator) by a small locomotion helper that blends idle and walk from the

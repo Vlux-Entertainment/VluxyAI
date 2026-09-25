@@ -91,6 +91,7 @@ local ROSTER: {
 ------------------------------------------------------------------------------------------------------------------------
 
 local map = Map.Build(Workspace)
+print(`Playground: maze seed {map.Seed}`)
 
 local noises: VluxyAI.Signal<(Vector3, number?)> = VluxyAI.Signal.new()
 
