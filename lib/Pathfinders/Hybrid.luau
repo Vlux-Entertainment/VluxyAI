@@ -147,29 +147,38 @@ function Hybrid.FindPath(self: HybridClass, from: Vector3, to: Vector3, agent: T
 	local lastNode = route[#route - 1].Position
 	local path: Types.Path = {}
 
+	-- Legs start where the previous one ended; the shared point is one step, not two.
+	local function append(step: Types.Step)
+		local previous = path[#path]
+		if previous and (previous.Position - step.Position).Magnitude < 1e-3 then
+			return
+		end
+		table.insert(path, step)
+	end
+
 	local head = self:_leg(from, firstNode, agent)
 	if head then
 		for _, step in head do
-			table.insert(path, step)
+			append(step)
 		end
 	else
-		table.insert(path, route[1])
+		append(route[1])
 	end
 
 	for index = 2, #route - 2 do
-		table.insert(path, route[index])
+		append(route[index])
 	end
 
 	local tail = self:_leg(lastNode, to, agent)
 	if tail then
 		for _, step in tail do
-			table.insert(path, step)
+			append(step)
 		end
 	else
 		if #route >= 3 then
-			table.insert(path, route[#route - 1])
+			append(route[#route - 1])
 		end
-		table.insert(path, route[#route])
+		append(route[#route])
 	end
 
 	return path, nil
@@ -178,7 +187,8 @@ end
 --[=[
 	@within Hybrid
 
-	Destroys both pathfinders.
+	Destroys both pathfinders. Make one `Local` per agent; a [Graph] may be shared since its
+	`Destroy` releases nothing.
 ]=]
 function Hybrid.Destroy(self: HybridClass)
 	for _, pathfinder in { self._graph, self._local } do

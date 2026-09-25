@@ -95,7 +95,16 @@ function Locomotion.Attach(agent: Types.Agent, options: LocomotionOptions?): Ani
 
 	local existing = agent.Data[DATA_KEY]
 	if existing then
+		if options ~= nil then
+			FormatMessage.Warn(`{agent.Name}: Locomotion is already attached; the new options are ignored`)
+		end
 		return existing
+	end
+	if not agent:IsRunning() and agent:GetState() == nil and (agent :: any)._destroyed then
+		FormatMessage.Error(`{agent.Name}: Locomotion.Attach on a destroyed agent`, 2)
+	end
+	if agent.Entity.PrimaryPart == nil then
+		FormatMessage.Error(`{agent.Name}: Locomotion.Attach needs a PrimaryPart on the rig`, 2)
 	end
 
 	local animator = Animator.new(agent.Entity, animations):Load()
@@ -136,7 +145,9 @@ end
 	@param name string -- A one-shot loaded by `Attach`.
 	@return boolean -- `false` when nothing is attached or the name is unknown.
 
-	Plays a one-shot if locomotion is attached, so a state works with or without it.
+	Plays a one-shot if locomotion is attached, so a state works with or without it. An unknown
+	name is warned about once per agent and returns `false`; a weighted name is an error, as it
+	is on the animator.
 ]=]
 function Locomotion.Play(agent: Types.Agent, name: string): boolean
 	local animator = agent.Data[DATA_KEY] :: Animator.NPCAnimator?
@@ -144,10 +155,18 @@ function Locomotion.Play(agent: Types.Agent, name: string): boolean
 		return false
 	end
 
-	local ok = pcall(function()
-		animator:Play(name)
-	end)
-	return ok
+	if animator:GetAnimations()[name] == nil then
+		local warned = agent.Data[DATA_KEY .. "Warned"] or {}
+		if not warned[name] then
+			warned[name] = true
+			agent.Data[DATA_KEY .. "Warned"] = warned
+			FormatMessage.Warn(`{agent.Name}: Locomotion has no animation named "{name}"`)
+		end
+		return false
+	end
+
+	animator:Play(name)
+	return true
 end
 
 --[=[

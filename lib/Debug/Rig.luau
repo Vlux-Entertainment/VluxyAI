@@ -7,8 +7,9 @@
 	the Humanoid mover; without, the root is anchored and the CFrame mover pivots the whole rig,
 	Motor6Ds and all, with the Humanoid kept only so the Animator can play animations on it.
 
-	The Animate and Health scripts Roblox puts in a character are removed: they are LocalScripts
-	meant for a player's own character and do nothing useful on a server NPC.
+	The Animate and Health scripts Roblox puts in a character are removed: Animate is a
+	LocalScript for a player's own character and does nothing on a server NPC, and Health would
+	regenerate the NPC, which is the game's decision to make.
 ]]
 
 local Options = require(script.Parent.Parent.Utility.Options)

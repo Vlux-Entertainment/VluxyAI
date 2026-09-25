@@ -75,7 +75,9 @@ both announced as a `"Kill"` event with `{ Kind, Victim, Duration }`:
 - **Black box**: `VluxyAI.Combat.Kill.BlackBox(agent, character)` announces at once and kills
   after a short delay. The client cuts to black on the event and the death happens behind it.
 
-Both return a handle with `Finished` and `Cancel`. On the client:
+Both return a handle with `Finished` and `Cancel`. A kill that was announced and then cancelled
+(the attack state was left early, the killer was destroyed, someone else got the victim first)
+emits `"KillCancelled"` so the client can take its screen down. On the client:
 
 ```lua
 replica:On("Kill", function(event)

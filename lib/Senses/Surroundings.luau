@@ -25,7 +25,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	Rays = 8,
 	-- How far each ray reaches, in studs.
 	Distance = 12,
-	-- Height above the agent's position the rays are cast from, so they clear low steps.
+	-- Added to the agent's position (its root) for the cast origin.
 	Height = 0,
 })
 
@@ -35,8 +35,8 @@ local DEFAULT_OPTIONS = table.freeze({
 
 	.Rays number? -- Rays around the agent, evenly spaced. Default `8`.
 	.Distance number? -- Reach of each ray in studs. Default `12`.
-	.Height number? -- Cast height above the agent's position. Default `0`.
-	.Ignore ((agent: Agent) -> { Instance })? -- Instances the rays pass through. Default: the agent's entity.
+	.Height number? -- Added to the agent's root position for the cast origin. Default `0`.
+	.Ignore ((agent: Agent) -> { Instance })? -- Instances the rays pass through, on top of the agent's own entity, which always is.
 ]=]
 export type SurroundingsOptions = {
 	Rays: number?,
@@ -72,7 +72,7 @@ type SurroundingsClass = typeof(setmetatable({} :: self, Surroundings))
 --[=[
 	@within Surroundings
 	@param count number
-	@return { Vector3 } -- `count` unit directions around Y, starting along -Z and going clockwise.
+	@return { Vector3 } -- `count` unit directions around Y: forward (-Z), then left, back, right.
 
 	Pure.
 ]=]
@@ -160,7 +160,12 @@ function Surroundings.Tick(self: SurroundingsClass, agent: Types.Agent, deltaTim
 	local _ = deltaTime
 	local options = self._options
 
-	local ignore = if options.Ignore then options.Ignore(agent) else Perception.IgnoreList(agent)
+	local ignore = Perception.IgnoreList(agent)
+	if options.Ignore then
+		for _, instance in options.Ignore(agent) do
+			table.insert(ignore, instance)
+		end
+	end
 	local params = Perception.RaycastParams(ignore)
 
 	local pivot = agent.Entity:GetPivot()

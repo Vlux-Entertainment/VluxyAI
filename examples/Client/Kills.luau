@@ -18,6 +18,9 @@ local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local Kills = {}
 
+-- What is on screen for the local player's own death, so a cancelled kill can take it down.
+local pending: { Lift: () -> () }? = nil
+
 local function screen(name: string, color: Color3, transparency: number): (ScreenGui, Frame)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = name
@@ -55,6 +58,7 @@ function Kills.Present(replica: VluxyAI.Replica, event: VluxyAI.KillEvent)
 				gui:Destroy()
 			end
 		end
+		pending = { Lift = lift }
 		Players.LocalPlayer.CharacterAdded:Once(lift)
 		task.delay(event.Duration + 10, lift)
 		return
@@ -84,10 +88,28 @@ function Kills.Present(replica: VluxyAI.Replica, event: VluxyAI.KillEvent)
 		local character = Players.LocalPlayer.Character
 		camera.CameraSubject = (character and character:FindFirstChildOfClass("Humanoid")) or previousSubject
 	end
+	pending = {
+		Lift = function()
+			gui:Destroy()
+			restore()
+		end,
+	}
 	Players.LocalPlayer.CharacterAdded:Once(function()
 		task.defer(restore)
 	end)
 	task.delay(event.Duration + 10, restore)
+end
+
+--[[
+	A kill that was announced ended without a death: take down whatever Present put up.
+]]
+function Kills.Cancel(event: { Victim: Model })
+	if not isMe(event.Victim) or pending == nil then
+		return
+	end
+	local current = pending
+	pending = nil
+	current.Lift()
 end
 
 return Kills

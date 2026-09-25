@@ -74,6 +74,31 @@ return {
 		expect.equal(agent.Blackboard.OpenDistance, 10, "and it is clear to full reach")
 	end,
 
+	["the ring turns with the agent and the body is always ignored"] = function(expect)
+		local params = {}
+		local Surroundings = load(function(ray)
+			table.insert(params, ray.Params)
+			if ray.Direction.Unit.X > 0.9 then
+				return { Distance = 2, Instance = { Name = "Wall" }, Position = ray.From }
+			end
+			return nil
+		end)
+		local sense = Surroundings.new({
+			Rays = 4,
+			Distance = 10,
+			Ignore = function()
+				return { { Name = "Glass" } }
+			end,
+		})
+		local agent = SenseFakes.Agent(Vector3.new(0, 0, 0), Vector3.new(1, 0, 0))
+
+		sense:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.ObstacleDistance, 2)
+		expect.near(agent.Blackboard.ObstacleDirection.X, 1, 1e-6, "the wall is straight ahead of an agent facing +X")
+		expect.equal(params[1].FilterDescendantsInstances[1], agent.Entity, "the body first")
+		expect.equal(params[1].FilterDescendantsInstances[2].Name, "Glass", "then the extras")
+	end,
+
 	["an unknown option is refused"] = function(expect)
 		local Surroundings = load()
 		local message = expect.errors(function()

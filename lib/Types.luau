@@ -533,7 +533,8 @@ export type KillKind = "Live" | "BlackBox"
 	.Victim Model -- The character being killed.
 	.Duration number -- Seconds until the victim dies, for the client to match.
 
-	The payload of the `"Kill"` event an agent emits.
+	The payload of the `"Kill"` event an agent emits. A `"KillCancelled"` event with `{ Kind,
+	Victim }` follows if the kill ends without a death.
 ]=]
 export type KillEvent = {
 	Kind: KillKind,

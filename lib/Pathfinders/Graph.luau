@@ -28,6 +28,7 @@ local BUILD_DEFAULTS = table.freeze({
 	LinkRadius = 24,
 	AutoLink = true,
 	Ignore = {} :: { Instance },
+	CanLink = nil :: ((a: Vector3, b: Vector3) -> boolean)?,
 })
 
 --[=[
@@ -60,14 +61,16 @@ export type GraphOptions = {
 	@interface GraphBuildOptions
 	@within Graph
 
-	.LinkRadius number? -- Studs within which two nodes are linked automatically when a ray between them is clear. Default `24`.
+	.LinkRadius number? -- Studs within which two nodes are linked automatically when the link test passes. Default `24`.
 	.AutoLink boolean? -- Turn the automatic linking off to use only explicit links. Default `true`.
 	.Ignore { Instance }? -- Instances the linking rays pass through (the node parts themselves always are).
+	.CanLink ((a: Vector3, b: Vector3) -> boolean)? -- Replaces the ray test: return `true` when an agent can walk from `a` to `b`. Ask your navmesh here for anything but flat floors.
 ]=]
 export type GraphBuildOptions = {
 	LinkRadius: number?,
 	AutoLink: boolean?,
 	Ignore: { Instance }?,
+	CanLink: ((a: Vector3, b: Vector3) -> boolean)?,
 }
 
 type ResolvedOptions = {
@@ -253,19 +256,82 @@ end
 
 --[=[
 	@within Graph
+	@param nodes { GraphNode }
+	@param route { number } -- From [Graph.AStar].
+	@param from Vector3
+	@param to Vector3
+	@param accept ((from: Vector3, to: Vector3) -> boolean)? -- The LineOfSight test, if any.
+	@return { number } -- The route without the nodes the agent is already past, possibly empty.
+
+	The entry node is the nearest to `from`, which may be behind an agent already on its way, and
+	likewise the exit node behind the target. Drops leading nodes while `from` is nearer the next
+	node than the first node is (and `accept` allows going straight there), and trailing nodes
+	the same way from the target's side. Pure.
+]=]
+function Graph.Trim(
+	nodes: { GraphNode },
+	route: { number },
+	from: Vector3,
+	to: Vector3,
+	accept: ((from: Vector3, to: Vector3) -> boolean)?
+): { number }
+	local trimmed = table.clone(route)
+
+	while #trimmed >= 2 do
+		local first = nodes[trimmed[1]].Position
+		local second = nodes[trimmed[2]].Position
+		local skip = Tables.FlatDistance(from, second) < Tables.FlatDistance(first, second)
+			and (accept == nil or accept(from, second))
+		if not skip then
+			break
+		end
+		table.remove(trimmed, 1)
+	end
+
+	while #trimmed >= 2 do
+		local last = nodes[trimmed[#trimmed]].Position
+		local previous = nodes[trimmed[#trimmed - 1]].Position
+		local skip = Tables.FlatDistance(to, previous) < Tables.FlatDistance(last, previous)
+			and (accept == nil or accept(previous, to))
+		if not skip then
+			break
+		end
+		table.remove(trimmed)
+	end
+
+	-- One node left: keep it only if it is on the way.
+	if #trimmed == 1 then
+		local node = nodes[trimmed[1]].Position
+		local onTheWay = Tables.FlatDistance(from, node) + Tables.FlatDistance(node, to)
+				<= Tables.FlatDistance(from, to) + 1e-3
+			or (accept ~= nil and not accept(from, to))
+		if not onTheWay then
+			table.remove(trimmed)
+		end
+	end
+
+	return trimmed
+end
+
+--[=[
+	@within Graph
 	@param container Instance -- A folder of nodes.
 	@param options GraphBuildOptions?
 	@return Pathfinder
 	@error string -- No nodes under the container.
 
 	Reads a graph out of the place. Every `BasePart` or `Attachment` directly under `container`
-	is a node at its position (a part's position is lowered to its bottom face). An `ObjectValue`
-	named `Link` under a node whose value is another node is a one-way link; add the reverse
-	for two-way. With `AutoLink`, nodes within `LinkRadius` of each other with a clear ray between
-	them are linked both ways.
+	is a node at its position (a part's position is lowered to its bottom face, rotation taken
+	into account). An `ObjectValue` named `Link` under a node whose value is another node is a
+	one-way link; add the reverse for two-way; a value outside the container is warned about and
+	skipped. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
+	`CanLink` says so, or, without it, when a ray 1.5 studs up between them is clear. The ray test
+	is a line-of-sight test, not a walkability test: it links across a pit and refuses a staircase,
+	so on anything but flat floors give `CanLink` a real answer.
 ]=]
 function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): Types.Pathfinder
-	local resolved = Options.Resolve("Graph.FromInstances", BUILD_DEFAULTS, options :: any) :: typeof(BUILD_DEFAULTS)
+	local resolved =
+		Options.Resolve("Graph.FromInstances", BUILD_DEFAULTS, options :: any, { "CanLink" }) :: typeof(BUILD_DEFAULTS)
 
 	local instances: { Instance } = {}
 	local positions: { Vector3 } = {}
@@ -274,7 +340,13 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 	for _, child in container:GetChildren() do
 		local position: Vector3? = nil
 		if child:IsA("BasePart") then
-			position = child.Position - Vector3.new(0, child.Size.Y / 2, 0)
+			-- The bottom face in world space, whatever the part's rotation.
+			local cframe = child.CFrame
+			local size = child.Size
+			local halfHeight = math.abs(cframe.UpVector.Y) * size.Y / 2
+				+ math.abs(cframe.RightVector.Y) * size.X / 2
+				+ math.abs(cframe.LookVector.Y) * size.Z / 2
+			position = child.Position - Vector3.new(0, halfHeight, 0)
 		elseif child:IsA("Attachment") then
 			position = child.WorldPosition
 		end
@@ -306,6 +378,10 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 				local target = indexOf[value.Value :: Instance]
 				if target then
 					link(index, target)
+				else
+					FormatMessage.Warn(
+						`Graph.FromInstances: {value:GetFullName()} points at {(value.Value :: Instance):GetFullName()}, which is not a node under {container:GetFullName()}`
+					)
 				end
 			end
 		end
@@ -319,11 +395,18 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 		params.FilterDescendantsInstances = ignore
 
 		local lift = Vector3.new(0, 1.5, 0)
+		local canLink = resolved.CanLink
 		for a = 1, #nodes do
 			for b = a + 1, #nodes do
-				local from = nodes[a].Position + lift
-				local offset = (nodes[b].Position + lift) - from
-				if offset.Magnitude <= resolved.LinkRadius and workspace:Raycast(from, offset, params) == nil then
+				local from = nodes[a].Position
+				local to = nodes[b].Position
+				if (to - from).Magnitude > resolved.LinkRadius then
+					continue
+				end
+				local walkable = if canLink
+					then canLink(from, to)
+					else workspace:Raycast(from + lift, (to + lift) - (from + lift), params) == nil
+				if walkable then
 					link(a, b)
 					link(b, a)
 				end
@@ -355,7 +438,7 @@ end
 	@param from Vector3
 	@param to Vector3
 	@param agent Agent
-	@return Path? -- The route's node positions as Walk steps, then `to`.
+	@return Path? -- The route's node positions as Walk steps, trimmed of nodes already behind the agent or the target, then `to`.
 	@return string? -- `no node near <from|to>` or `no route`.
 ]=]
 function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
@@ -374,6 +457,7 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 	if route == nil then
 		return nil, "no route"
 	end
+	route = Graph.Trim(self._nodes, route, from, to, self._options.LineOfSight)
 
 	local path: Types.Path = {}
 	for _, index in route do

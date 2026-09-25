@@ -86,8 +86,12 @@ A\*, read out of a folder of parts with `Graph.FromInstances`, and a [Hybrid](/a
 uses your local pathfinder up close and the graph for long legs, refining both ends locally.
 
 ```lua
+-- once, for the level: reading the folder casts a ray per pair of nodes
+local graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph)
+
+-- per agent: the local pathfinder holds a navmesh Path of its own
 :UsePathfinder(VluxyAI.Pathfinders.Hybrid.new({
-	Graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph),
+	Graph = graph,
 	Local = VluxyAI.Pathfinders.Ladder.new({
 		VluxyAI.Pathfinders.Straight.new(),
 		VluxyAI.Pathfinders.Navmesh.new(),

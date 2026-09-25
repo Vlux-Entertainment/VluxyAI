@@ -136,6 +136,59 @@ return {
 		expect.equal(graph:PathLength(Vector3.new(0, 0, 0), Vector3.new(40, 0, 40)), nil)
 	end,
 
+	["Trim drops the nodes the agent is already past, and the target is past"] = function(expect)
+		local Graph = load()
+		local nodes = {
+			{ Position = Vector3.new(0, 0, 0), Links = { 2 } },
+			{ Position = Vector3.new(30, 0, 0), Links = { 1, 3 } },
+			{ Position = Vector3.new(60, 0, 0), Links = { 2 } },
+		}
+		local route = Graph.AStar(nodes, 1, 3) :: { number }
+		expect.sequence(
+			Graph.Trim(nodes, route, Vector3.new(12, 0, 0), Vector3.new(75, 0, 0)),
+			{ 2, 3 },
+			"entry behind"
+		)
+		expect.sequence(Graph.Trim(nodes, route, Vector3.new(-5, 0, 0), Vector3.new(45, 0, 0)), { 1, 2 }, "exit behind")
+		expect.sequence(
+			Graph.Trim(nodes, route, Vector3.new(-5, 0, 0), Vector3.new(65, 0, 0)),
+			{ 1, 2, 3 },
+			"nothing to trim"
+		)
+		expect.equal(
+			#Graph.Trim(nodes, { 1 }, Vector3.new(10, 0, 0), Vector3.new(14, 0, 0)),
+			0,
+			"a node behind both is a detour"
+		)
+		expect.sequence(
+			Graph.Trim(nodes, { 2 }, Vector3.new(20, 0, 0), Vector3.new(40, 0, 0)),
+			{ 2 },
+			"a node between them is kept"
+		)
+
+		local walled = Graph.Trim(nodes, route, Vector3.new(12, 0, 0), Vector3.new(75, 0, 0), function()
+			return false
+		end)
+		expect.sequence(walled, { 1, 2, 3 }, "no trimming without line of sight")
+	end,
+
+	["FindPath does not walk the agent back to a node behind it"] = function(expect)
+		local Graph = load()
+		local graph = Graph.new({
+			{ Position = Vector3.new(0, 0, 0), Links = { 2 } },
+			{ Position = Vector3.new(30, 0, 0), Links = { 1 } },
+		})
+		local path = graph:FindPath(Vector3.new(12, 0, 0), Vector3.new(60, 0, 0), Fakes.Agent())
+		expect.equal(#path, 2)
+		expect.near(path[1].Position.X, 30)
+		expect.near(path[2].Position.X, 60)
+
+		local short = graph:FindPath(Vector3.new(10, 0, 0), Vector3.new(14, 0, 0), Fakes.Agent())
+		expect.equal(#short, 1, "same node for both ends and it is behind: straight to the target")
+		expect.near(short[1].Position.X, 14)
+		expect.near(graph:PathLength(Vector3.new(12, 0, 0), Vector3.new(60, 0, 0)) :: number, 48)
+	end,
+
 	["new validates the nodes and copies them"] = function(expect)
 		local Graph = load()
 		local message = expect.errors(function()

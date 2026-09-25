@@ -111,6 +111,23 @@ return {
 		expect.sequence(labels(path), { "n1", "n2", "goal" })
 	end,
 
+	["a two-entry graph route does not repeat its node between the legs"] = function(expect)
+		local Hybrid = Harness.Load("lib/Pathfinders/Hybrid.luau")
+		local graph = fakePathfinder("Graph", function(_from, to)
+			return { walk(0, 0, "node"), { Position = to, Action = "Walk", Label = "goal" } }
+		end)
+		local localPathfinder = fakePathfinder("Local", function(from, to)
+			return { { Position = from, Action = "Walk" }, { Position = to, Action = "Walk" } }
+		end)
+		local hybrid = Hybrid.new({ Graph = graph, Local = localPathfinder, LocalRadius = 5 })
+		local path = hybrid:FindPath(Vector3.new(-20, 0, 0), Vector3.new(20, 0, 0), Fakes.Agent())
+		local xs = {}
+		for _, step in path do
+			table.insert(xs, step.Position.X)
+		end
+		expect.sequence(xs, { -20, 0, 20 })
+	end,
+
 	["RefineEnds off returns the graph path as is"] = function(expect)
 		local s = setup({ LocalRadius = 10, RefineEnds = false })
 		local path = s.hybrid:FindPath(Vector3.new(0, 0, 0), Vector3.new(120, 0, 0), Fakes.Agent())

@@ -165,7 +165,9 @@ for _, entry in ROSTER do
 		Color = entry.Color,
 		Transparency = entry.Transparency,
 	})
-	model:PivotTo(CFrame.new(spawn + Vector3.new(0, 3, 0)))
+	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local root = model.PrimaryPart :: BasePart
+	model:PivotTo(CFrame.new(spawn + Vector3.new(0, humanoid.HipHeight + root.Size.Y / 2, 0)))
 	model.Parent = map.Folder
 
 	local create = require(entry.Module) :: Context.Enemy

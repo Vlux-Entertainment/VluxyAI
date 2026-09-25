@@ -14,7 +14,8 @@
 	between where the client drew the enemy and where the server had it.
 
 	Nothing here touches remotes; the "Kill" event reaches clients through the game's
-	Broadcaster wiring.
+	Broadcaster wiring, and so does "KillCancelled" when a kill that was announced ends without a
+	death, so a client can lift whatever it put up.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
@@ -26,6 +27,7 @@ local Types = require(script.Parent.Parent.Types)
 ------------------------------------------------------------------------------------------------------------------------
 
 local EVENT = "Kill"
+local CANCEL_EVENT = "KillCancelled"
 
 -- Victims currently held by a live kill, so a second killer cannot take the same one.
 local held: { [Model]: boolean } = setmetatable({}, { __mode = "k" }) :: any
@@ -126,6 +128,9 @@ end
 
 	- [Kill.Live]: the victim is held next to the killer while both play an animation, then dies.
 	- [Kill.BlackBox]: announced at once, resolved after a delay; the client cuts to black.
+
+	A kill that was announced and then cancelled (or lost to another cause of death) emits
+	`"KillCancelled"` with `{ Kind, Victim }`, so the client can put its screen back.
 ]=]
 
 --[=[
@@ -155,12 +160,16 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	local trove = Trove.new()
 	local done = false
 
+	local announced = false
 	local function finish(killed: boolean)
 		if done then
 			return
 		end
 		done = true
 		trove:Destroy()
+		if announced and not killed then
+			agent:Emit(CANCEL_EVENT, { Kind = "Live", Victim = victim })
+		end
 		finished:Fire(killed)
 	end
 
@@ -200,6 +209,7 @@ function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?)
 	end)
 
 	agent:Emit(EVENT, { Kind = "Live", Victim = victim, Duration = resolved.Duration })
+	announced = true
 
 	-- Take the victim: an anchored root is the server's whoever owns it, and PlatformStand keeps
 	-- the humanoid from trying to walk. Both are put back if the victim leaves alive.
@@ -262,11 +272,15 @@ function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillO
 
 	local finished: Types.Signal<boolean> = Signal.new()
 	local done = false
+	local announced = false
 	local function finish(killed: boolean)
 		if done then
 			return
 		end
 		done = true
+		if announced and not killed then
+			agent:Emit(CANCEL_EVENT, { Kind = "BlackBox", Victim = victim })
+		end
 		finished:Fire(killed)
 	end
 
@@ -275,6 +289,7 @@ function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillO
 		task.defer(finish, false)
 	else
 		agent:Emit(EVENT, { Kind = "BlackBox", Victim = victim, Duration = resolved.Delay })
+		announced = true
 
 		task.delay(resolved.Delay, function()
 			if done then

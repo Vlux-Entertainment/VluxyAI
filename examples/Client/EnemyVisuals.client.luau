@@ -33,6 +33,9 @@ local function replicaFor(model: Model, name: string): VluxyAI.Replica
 	replica:On("Kill", function(payload)
 		Kills.Present(replica, payload)
 	end)
+	replica:On("KillCancelled", function(payload)
+		Kills.Cancel(payload)
+	end)
 	replicas[model] = replica
 
 	model.Destroying:Once(function()
