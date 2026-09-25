@@ -27,6 +27,11 @@ local Types = require(script.Parent.Parent.Types)
 	(`LineOfSight`), "which is nearest" (`SortByDistance`), and this module answers each of those
 	on its own.
 
+	Everything here is about *targets*: [Perception.HumanoidOf] takes a root a sense wrote to the
+	blackboard and finds that character's humanoid. The agent's own humanoid is
+	`agent.Entity:FindFirstChildOfClass("Humanoid")`, and the two look alike in code, so name
+	the variable.
+
 	`Targets` on every built-in sense defaults to [Perception.AliveRoots], and `Ignore` on
 	[Sight] defaults to [Perception.IgnoreList]. A brain that acts on a target root a sense wrote
 	to the blackboard reaches the rest of the character through [Perception.CharacterOf] and

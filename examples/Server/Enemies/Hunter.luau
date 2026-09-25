@@ -37,6 +37,8 @@ local STAMINA_REGEN = 0.2 -- per second otherwise
 local Stamina = {}
 Stamina.__index = Stamina
 
+-- A built-in sense would take these thresholds through Options.Resolve; this one reads the
+-- module's constants to stay a dozen lines. Do that only for a sense that lives with its brain.
 function Stamina.new(): VluxyAI.Sense
 	return setmetatable({ _last = nil :: Vector3? }, Stamina) :: any
 end

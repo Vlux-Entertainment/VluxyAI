@@ -207,6 +207,19 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 	local resolved =
 		Options.Resolve("CFrameMover.new", DEFAULT_OPTIONS, options :: any, OPTIONAL_KEYS) :: ResolvedOptions
 
+	-- Pivoting a simulated part every frame fights physics; the rig must be anchored.
+	if typeof(target) == "Instance" then
+		local root: BasePart? = if target:IsA("BasePart")
+			then target
+			elseif target:IsA("Model") then target.PrimaryPart
+			else nil
+		if root ~= nil and not root.Anchored then
+			FormatMessage.Warn(
+				`CFrameMover.new: {target:GetFullName()} is not anchored; anchor its root or use the Humanoid mover`
+			)
+		end
+	end
+
 	if resolved.Speed < 0 then
 		FormatMessage.Error(`CFrameMover.new: Speed must be 0 or more, got {resolved.Speed}`, 2)
 	end

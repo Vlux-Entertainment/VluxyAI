@@ -100,7 +100,7 @@ function Locomotion.Attach(agent: Types.Agent, options: LocomotionOptions?): Ani
 		end
 		return existing
 	end
-	if not agent:IsRunning() and agent:GetState() == nil and (agent :: any)._destroyed then
+	if agent:IsDestroyed() then
 		FormatMessage.Error(`{agent.Name}: Locomotion.Attach on a destroyed agent`, 2)
 	end
 	if agent.Entity.PrimaryPart == nil then

@@ -23,7 +23,7 @@ the replica in place of the agent. That is your custom client logic: a highlight
 a heartbeat sound while it advances, a camera shake on a scream.
 
 ```lua
--- server
+-- server. Id: the rig itself while every client already has it; a string key under streaming.
 local broadcaster = VluxyAI.Sync.Broadcaster.new(agent, { PositionRate = 0 })
 broadcaster.StateChanged:Connect(function(state)
 	syncRemote:FireAllClients({ Kind = "State", Id = model, State = state })
@@ -50,6 +50,13 @@ syncRemote.OnClientEvent:Connect(function(message)
 	end
 end)
 ```
+
+## Ids over the wire
+
+The playground sends the rig itself as the id, which is fine while the rig has replicated to
+every client (the test place has streaming off and spawns before anyone joins). With
+`StreamingEnabled`, an instance that has not streamed in arrives as `nil`; send a string key
+instead (a `SyncId` attribute, a name) and resolve the rig lazily on the client.
 
 ## Mirror or puppet
 
@@ -94,13 +101,6 @@ end)
 
 The playground's Stalker finishes you with a live kill and its Weeping Angel with a black-box one;
 `examples/Client/Kills.luau` is the presentation.
-
-## Ids over the wire
-
-The playground sends the rig itself as the id, which is fine while the rig has replicated to
-every client (the test place has streaming off and spawns before anyone joins). With
-`StreamingEnabled`, an instance that has not streamed in arrives as `nil`; send a string key
-instead (a `SyncId` attribute, a name) and resolve the rig lazily on the client.
 
 ## Anything else
 

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 5
 ---
 
 # Advice
@@ -53,6 +53,18 @@ but the playground waits a second before spawning so the first path is clean.
 
 [Straight](/api/Straight) checks for floor every few studs and projects its endpoints onto it.
 With `FloorCheck` off it is just a sweep, which is fine on a flat arena and wrong on a rooftop.
+
+## A kill is the finishing blow
+
+`Attack.State` with `Kill = "Live"` still does plain damage on every hit that does not finish
+the victim; the live kill only plays for the blow that would bring their health to zero. If you
+want every hit to be a kill, make `Damage` at least the victim's health.
+
+## `return nil` under strict
+
+Under `--!strict` with the brain annotated as `VluxyAI.Brain`, an `Update` must end with
+`return nil` when it stays put: the checker wants every path to return a `string?`. A state
+with only transitions needs no `Update` at all, which is the shorter way to say "stay".
 
 ## Debug views are cheap
 

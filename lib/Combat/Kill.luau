@@ -90,6 +90,17 @@ export type KillHandle = {
 local Kill = {}
 
 --[[
+	Kills are decided on the server. A client calling one would anchor a root it does not own and
+	emit an event nobody relays, so it is an error with a reason rather than quiet half-work.
+]]
+local function assertServer(what: string)
+	local RunService = game:GetService("RunService")
+	if not RunService:IsServer() then
+		FormatMessage.Error(`{what} runs on the server only; present the kill on the client from the "Kill" event`, 3)
+	end
+end
+
+--[[
 	Plays an animation on a rig's Animator if it has one, returning the track.
 ]]
 local function playAnimation(character: Model, id: number?): AnimationTrack?
@@ -149,6 +160,7 @@ end
 	killer is destroyed or the victim dies of something else during the hold.
 ]=]
 function Kill.Live(agent: Types.Agent, victim: Model, options: LiveKillOptions?): KillHandle
+	assertServer("Kill.Live")
 	local resolved = Options.Resolve(
 		"Kill.Live",
 		LIVE_DEFAULTS,
@@ -268,6 +280,7 @@ end
 	something else meanwhile, or if the agent was not running to begin with.
 ]=]
 function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillOptions?): KillHandle
+	assertServer("Kill.BlackBox")
 	local resolved = Options.Resolve("Kill.BlackBox", BLACK_BOX_DEFAULTS, options :: any) :: typeof(BLACK_BOX_DEFAULTS)
 
 	local finished: Types.Signal<boolean> = Signal.new()

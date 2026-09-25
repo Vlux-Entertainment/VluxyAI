@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Extension
@@ -30,12 +30,16 @@ end
 
 -- Writes: Afraid (boolean)
 function Fear.Tick(self, agent, deltaTime)
-	local humanoid = agent.Entity:FindFirstChildOfClass("Humanoid")
+	local humanoid = agent.Entity:FindFirstChildOfClass("Humanoid") -- the agent's own
 	agent.Blackboard.Afraid = humanoid ~= nil and humanoid.Health < self._threshold
 end
 
 return Fear
 ```
+
+`Destroy(self, agent)` is optional. It is called once per agent that is destroyed, with that
+agent, so a sense that holds something outside itself (a signal connection, as
+[Hearing](/api/Hearing) does) releases that agent's share and lets go entirely when none remain.
 
 ```lua
 :AddSense(Fear.new(30))
@@ -70,7 +74,8 @@ end
 return Teleporters
 ```
 
-Compose it with the built-ins through a [Ladder](/api/Ladder), which tries each in order:
+Compose it with the built-ins through a [Ladder](/api/Ladder), which tries each in order. Give
+every rung the same `AgentRadius` and `AgentHeight`; each measures the body on its own.
 
 ```lua
 :UsePathfinder(VluxyAI.Pathfinders.Ladder.new({

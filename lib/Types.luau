@@ -328,7 +328,7 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 	@interface NavigationOptions
 	@within Types
 
-	.RepathInterval number? -- Seconds between re-plans while the target keeps moving. Default `0.5`.
+	.RepathInterval number? -- Seconds between re-plans while the target keeps moving. Must be above 0; the three distances below may be 0. Default `0.5`.
 	.RepathDistance number? -- Studs the target must move before a re-plan happens. Default `2`.
 	.ArriveDistance number? -- Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default `2.5`.
 	.ArriveHeight number? -- Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.
@@ -422,7 +422,7 @@ export type AgentDefinition = {
 	.Events Signal<(string, any)> -- Everything the agent announces through [Agent:Emit]; a [Broadcaster] relays it to clients.
 	.GetState (self: Agent) -> string? -- The current state name, `nil` before `Start`.
 	.SetState (self: Agent, name: string) -> () -- Force a transition, re-entering if already there.
-	.MoveTo (self: Agent, target: Vector3) -> () -- Shorthand for `Navigator:MoveTo`. Errors without a navigator.
+	.MoveTo (self: Agent, target: Vector3) -> () -- Shorthand for `Navigator:MoveTo`. Errors without a navigator; warns and does nothing before `Start`.
 	.Stop (self: Agent) -> () -- Shorthand for `Navigator:Stop`. No-op without a navigator.
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
@@ -434,6 +434,7 @@ export type AgentDefinition = {
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
+	.IsDestroyed (self: Agent) -> boolean -- `true` once `Destroy` has run.
 	.Emit (self: Agent, name: string, payload: any?) -> () -- Announces something for clients: a scream, a kill, a door. Fires `Events`.
 	.Destroy (self: Agent) -> () -- Exits the current state, stops, destroys every part.
 
@@ -467,6 +468,7 @@ export type Agent = {
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,
+	IsDestroyed: (self: Agent) -> boolean,
 	Emit: (self: Agent, name: string, payload: any?) -> (),
 	Destroy: (self: Agent) -> (),
 }

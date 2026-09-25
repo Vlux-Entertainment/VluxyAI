@@ -200,6 +200,7 @@ return {
 		expect.equal(agent.Mover, mover)
 		expect.equal(agent.Pathfinder, pathfinder)
 
+		agent:Start(true)
 		agent:MoveTo(Vector3.new(10, 0, 0))
 		expect.equal(#pathfinder.Calls, 1)
 		expect.equal(#mover.Followed, 1)
@@ -228,6 +229,30 @@ return {
 			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
 		})
 		expect.equal(without:GetPosition(), Vector3.new(1, 2, 3))
+	end,
+
+	["MoveTo before Start warns and does nothing, and IsDestroyed reports Destroy"] = function(expect)
+		local warnings = {}
+		local Agent = load({ warnings = warnings })
+		local pathfinder = Fakes.Pathfinder()
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = pathfinder,
+			Mover = Fakes.Mover(Vector3.new(0, 0, 0)),
+		})
+
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(#pathfinder.Calls, 0)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "MoveTo before Start")
+		expect.falsy(agent:IsDestroyed())
+
+		agent:Start(true)
+		agent:Destroy()
+		expect.truthy(agent:IsDestroyed())
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		expect.includes(warnings[2], "destroyed agent")
 	end,
 
 	["MoveTo without a navigator errors and Stop is a no-op"] = function(expect)

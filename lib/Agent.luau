@@ -195,6 +195,11 @@ function Agent.MoveTo(self: Agent, target: Vector3)
 	if navigator == nil then
 		FormatMessage.Error(`{self.Name}: MoveTo needs a Pathfinder and a Mover on the definition`, 2)
 	end
+	if not self._running then
+		local why = if self._destroyed then "on a destroyed agent" else "before Start"
+		FormatMessage.Warn(`{self.Name}: MoveTo {why} does nothing`)
+		return
+	end
 
 	(navigator :: Navigator.Navigator):MoveTo(target)
 end
@@ -342,6 +347,17 @@ end
 ]=]
 function Agent.IsRunning(self: Agent): boolean
 	return self._running
+end
+
+--[=[
+	@within Agent
+	@return boolean -- `true` once `Destroy` has run.
+
+	For code that yields inside a state and needs to know whether the agent is still there when
+	it wakes up.
+]=]
+function Agent.IsDestroyed(self: Agent): boolean
+	return self._destroyed
 end
 
 --[=[

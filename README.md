@@ -35,7 +35,7 @@ local Stalker = {
 	},
 }
 
-local agent = VluxyAI.Presets.Humanoid(rig)
+local agent = VluxyAI.Presets.Humanoid(rig) -- any Model with a PrimaryPart and a Humanoid
 	:UseBrain(Stalker)
 	:Build()
 	:Start()

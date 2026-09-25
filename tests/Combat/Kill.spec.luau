@@ -46,7 +46,12 @@ end
 local function setup()
 	local heartbeat = Harness.ManualHeartbeat()
 	local Kill = Harness.Load("lib/Combat/Kill.luau", {
-		services = { RunService = { Heartbeat = heartbeat } },
+		services = { RunService = {
+			Heartbeat = heartbeat,
+			IsServer = function()
+				return true
+			end,
+		} },
 	})
 	local Signal = Fakes.Signal()
 	local events = {}
@@ -130,7 +135,12 @@ return {
 		local warnings = {}
 		local heartbeat = Harness.ManualHeartbeat()
 		local Kill = Harness.Load("lib/Combat/Kill.luau", {
-			services = { RunService = { Heartbeat = heartbeat } },
+			services = { RunService = {
+				Heartbeat = heartbeat,
+				IsServer = function()
+					return true
+				end,
+			} },
 			warn = function(message)
 				table.insert(warnings, tostring(message))
 			end,
@@ -153,7 +163,12 @@ return {
 		local warnings = {}
 		local heartbeat = Harness.ManualHeartbeat()
 		local Kill = Harness.Load("lib/Combat/Kill.luau", {
-			services = { RunService = { Heartbeat = heartbeat } },
+			services = { RunService = {
+				Heartbeat = heartbeat,
+				IsServer = function()
+					return true
+				end,
+			} },
 			warn = function(message)
 				table.insert(warnings, tostring(message))
 			end,
@@ -227,6 +242,29 @@ return {
 		s.heartbeat:Fire(0.5)
 		expect.sequence(outcomes, { false })
 		expect.equal(s.heartbeat:Count(), 0)
+	end,
+
+	["kills refuse to run on a client"] = function(expect)
+		local Kill = Harness.Load("lib/Combat/Kill.luau", {
+			services = {
+				RunService = {
+					Heartbeat = Harness.ManualHeartbeat(),
+					IsServer = function()
+						return false
+					end,
+				},
+			},
+		})
+		local s = setup()
+		local victim = fakeVictim()
+		local message = expect.errors(function()
+			Kill.Live(s.agent, victim)
+		end)
+		expect.includes(message, "Kill.Live runs on the server only")
+		message = expect.errors(function()
+			Kill.BlackBox(s.agent, victim)
+		end)
+		expect.includes(message, "Kill.BlackBox runs on the server only")
 	end,
 
 	["BlackBox announces at once and kills after the delay"] = function(expect)

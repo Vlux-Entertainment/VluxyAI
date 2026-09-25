@@ -231,6 +231,13 @@ return {
 		end, "Definition.Senses[1].Tick must be a function, got a nil")
 	end,
 
+	["the same sense twice is an error"] = function(expect)
+		failsWith(expect, function(definition)
+			local sense = Fakes.Sense("a", {})
+			definition.Senses = { sense, Fakes.Sense("b", {}), sense }
+		end, "Definition.Senses[3] is the same sense as Senses[1]; it would tick twice")
+	end,
+
 	["Senses must be a list"] = function(expect)
 		failsWith(expect, function(definition)
 			definition.Senses = { Sight = Fakes.Sense("a", {}) }

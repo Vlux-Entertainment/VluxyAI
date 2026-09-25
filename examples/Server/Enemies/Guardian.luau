@@ -25,6 +25,8 @@ local CHASE_SPEED = 14
 local ZONE_RADIUS = 20
 local LEASH_RADIUS = 34
 local ATTACK_RANGE = 4
+-- Hearing hears a noise within Range * loudness; the Stalker's Range is 40, so 3 reaches 120
+-- studs, most of the maze.
 local ALARM_LOUDNESS = 3
 
 local function flat(a: Vector3, b: Vector3): number

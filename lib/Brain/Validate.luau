@@ -284,11 +284,16 @@ function Validate.Definition(definition: any)
 
 	if definition.Senses ~= nil then
 		expectTable(definition.Senses, `{root}.Senses`)
+		local seen: { [any]: number } = {}
 		for index, sense in definition.Senses do
 			if type(index) ~= "number" then
 				fail(`{root}.Senses[{describe(index)}]`, "must be in a list, not keyed")
 			end
 			expectMethods(sense, { "Tick" }, `{root}.Senses[{index}]`)
+			if seen[sense] then
+				fail(`{root}.Senses[{index}]`, `is the same sense as Senses[{seen[sense]}]; it would tick twice`)
+			end
+			seen[sense] = index
 		end
 	end
 

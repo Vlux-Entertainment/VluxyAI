@@ -35,7 +35,10 @@ export type Ladder = typeof(setmetatable({} :: self, Ladder))
 	rung fails the reasons are joined, each prefixed with the rung's `Name` or its index:
 	`Straight: blocked by Workspace.Wall; Navmesh: NoPath`.
 
-	`Name` is `"Ladder"`, so ladders nest.
+	`Name` is `"Ladder"`, so ladders nest. Make one per agent when a rung is: a [Navmesh] holds a
+	`Path` of its own and its `Destroy` releases it, so a ladder shared by two agents dies with the
+	first. Keep the rungs' `AgentRadius` and `AgentHeight` in step with each other, since each rung
+	measures the body on its own.
 ]=]
 
 --[=[

@@ -12,7 +12,7 @@ An AI is four things stacked together:
 |---|---|---|
 | **Brain** | Decides what to do | A table of states with `Enter`, `Update`, `Exit` and transitions |
 | **Pathfinder** | Plans a route | Anything with `FindPath` |
-| **Mover** | Walks the route | Anything with `Follow` and `Stop` |
+| **Mover** | Walks the route | Anything with `Follow`, `Stop`, a position, a speed, and `Arrived` and `StepReached` signals (see [Extension](Extension)) |
 | **Senses** | Notice the world | Anything with `Tick` that writes to a blackboard |
 
 The [Builder](/api/Builder) stacks them into an [Agent](/api/Agent), which ticks the senses, then the

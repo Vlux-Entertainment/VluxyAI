@@ -182,6 +182,8 @@ for _, entry in ROSTER do
 	end)
 
 	-- Mirror mode: no position stream, the replicated rig is the truth. States and events only.
+	-- The rig is the Id because streaming is off here and rigs exist before anyone joins; under
+	-- StreamingEnabled send a string key and resolve the rig on the client.
 	local broadcaster = VluxyAI.Sync.Broadcaster.new(agent, { PositionRate = 0 })
 	broadcaster.StateChanged:Connect(function(state)
 		sync:FireAllClients({ Kind = "State", Id = model, Name = model.Name, State = state })
