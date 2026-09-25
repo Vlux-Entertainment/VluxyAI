@@ -202,4 +202,235 @@ return {
 		expect.equal(#list, 1)
 		expect.equal(list[1], agent.Entity)
 	end,
+
+	["IsHidden reads the AI_HIDDEN attribute on the root or its character"] = function(expect)
+		local Perception = load()
+		local character = SenseFakes.Character("Hider", ORIGIN)
+		local attributes = {}
+		character.Model.GetAttribute = function(_self, name)
+			return attributes[name]
+		end
+
+		expect.falsy(Perception.IsHidden(character.Root))
+		attributes.AI_HIDDEN = true
+		expect.truthy(Perception.IsHidden(character.Root))
+		attributes.AI_HIDDEN = nil
+
+		local part = {
+			Position = ORIGIN,
+			GetAttribute = function(_self, name)
+				return if name == "AI_HIDDEN" then true else nil
+			end,
+		}
+		expect.truthy(Perception.IsHidden(part))
+		expect.equal(Perception.HIDDEN_ATTRIBUTE, "AI_HIDDEN")
+	end,
+
+	["AliveRoots skips dead, characterless and hidden players unless asked for the hidden"] = function(expect)
+		local alive = SenseFakes.Character("Alive", ORIGIN)
+		local hidden = SenseFakes.Character("Hidden", ORIGIN)
+		hidden.Model.GetAttribute = function(_self, name)
+			return if name == "AI_HIDDEN" then true else nil
+		end
+		local dead = SenseFakes.Character("Dead", ORIGIN)
+		dead.Humanoid.Health = 0
+		local Perception = Harness.Load("lib/Senses/Perception.luau", {
+			services = {
+				Players = {
+					GetPlayers = function()
+						return {
+							{ Character = alive.Model },
+							{ Character = hidden.Model },
+							{ Character = dead.Model },
+							{ Character = nil },
+						}
+					end,
+				},
+			},
+		})
+
+		local roots = Perception.AliveRoots()
+		expect.equal(#roots, 1)
+		expect.equal(roots[1], alive.Root)
+
+		local all = Perception.AliveRoots(true)
+		expect.equal(#all, 2)
+		expect.equal(all[2], hidden.Root)
+	end,
+
+	["Transparent is a see-through rule on Transparency"] = function(expect)
+		local Perception = load()
+		local rule = Perception.Transparent()
+		expect.truthy(rule({ Transparency = 0.5 }))
+		expect.falsy(rule({ Transparency = 0.49 }))
+		expect.truthy(Perception.Transparent(0.9)({ Transparency = 0.95 }))
+		expect.falsy(Perception.Transparent(0.9)({ Transparency = 0.6 }))
+		expect.falsy(rule({}))
+	end,
+
+	["LineOfSight looks past see-through parts by casting again without them, up to a limit"] = function(expect)
+		local rays = {}
+		local panes = {}
+		for index = 1, 10 do
+			panes[index] = {
+				Name = `Pane{index}`,
+				Transparency = 1,
+				IsDescendantOf = function()
+					return false
+				end,
+			}
+		end
+		local Perception = Harness.Load("lib/Senses/Perception.luau", {
+			globals = SenseFakes.Globals({
+				rays = rays,
+				hit = function(ray)
+					for _, pane in panes do
+						if not table.find(ray.Params.FilterDescendantsInstances, pane) then
+							return { Instance = pane }
+						end
+					end
+					return nil
+				end,
+			}),
+		})
+		local rule = Perception.Transparent()
+
+		expect.falsy(Perception.LineOfSight(ORIGIN, Vector3.new(0, 0, -10), {}), "blocked without a rule")
+		expect.equal(#rays, 1)
+
+		table.clear(rays)
+		expect.falsy(
+			Perception.LineOfSight(ORIGIN, Vector3.new(0, 0, -10), {}, nil, rule),
+			"ten panes is past the limit"
+		)
+		expect.equal(#rays, 9, "eight see-through parts, then it gives up")
+
+		panes = { panes[1], panes[2] }
+		table.clear(rays)
+		expect.truthy(Perception.LineOfSight(ORIGIN, Vector3.new(0, 0, -10), {}, nil, rule), "two panes are fine")
+		expect.equal(#rays, 3)
+		expect.equal(#rays[1].Params.FilterDescendantsInstances, 0, "the caller's ignore list is not modified")
+	end,
+
+	["LightFalloff is linear from Brightness at the light to 0 at Range"] = function(expect)
+		local Perception = load()
+		expect.near(Perception.LightFalloff(0, 10, 2), 2)
+		expect.near(Perception.LightFalloff(5, 10, 2), 1)
+		expect.near(Perception.LightFalloff(10, 10, 2), 0)
+		expect.near(Perception.LightFalloff(50, 10, 2), 0)
+		expect.near(Perception.LightFalloff(1, 0, 2), 0, 1e-6, "no range")
+		expect.near(Perception.LightFalloff(1, 10, 0), 0, 1e-6, "no brightness")
+	end,
+
+	["LightContribution reads the light and its parent, and a spot light's cone"] = function(expect)
+		local Perception = load()
+		local part = SenseFakes.Part(ORIGIN, AHEAD)
+		local point = {
+			Enabled = true,
+			Brightness = 1,
+			Range = 20,
+			Parent = part,
+			IsA = function(_self, className)
+				return className == "PointLight"
+			end,
+		}
+		part.IsA = function(_self, className)
+			return className == "BasePart"
+		end
+
+		expect.near(Perception.LightContribution(point, Vector3.new(0, 0, -10)), 0.5)
+		point.Enabled = false
+		expect.near(Perception.LightContribution(point, Vector3.new(0, 0, -10)), 0, 1e-6, "disabled")
+		point.Enabled = true
+		point.Parent = nil
+		expect.near(Perception.LightContribution(point, Vector3.new(0, 0, -10)), 0, 1e-6, "not in the world")
+
+		local spot = {
+			Enabled = true,
+			Brightness = 1,
+			Range = 20,
+			Angle = 90,
+			Face = "Front",
+			Parent = part,
+			IsA = function(_self, className)
+				return className == "SpotLight"
+			end,
+		}
+		expect.near(Perception.LightContribution(spot, Vector3.new(0, 0, -10)), 0.5, 1e-6, "dead ahead of a Front face")
+		expect.near(Perception.LightContribution(spot, Vector3.new(0, 0, 10)), 0, 1e-6, "behind the cone")
+		spot.Face = "Back"
+		expect.near(Perception.LightContribution(spot, Vector3.new(0, 0, 10)), 0.5, 1e-6, "a Back face points +Z")
+	end,
+
+	["LightAt sums the tagged lights over ambient and clamps to 1"] = function(expect)
+		local part = SenseFakes.Part(ORIGIN, AHEAD)
+		part.IsA = function(_self, className)
+			return className == "BasePart"
+		end
+		local function lamp(brightness: number)
+			return {
+				Enabled = true,
+				Brightness = brightness,
+				Range = 20,
+				Parent = part,
+				IsA = function(_self, className)
+					return className == "PointLight"
+				end,
+			}
+		end
+		local tagged = { AI_LIGHT = { lamp(1), lamp(0.6) } }
+		local Perception = Harness.Load("lib/Senses/Perception.luau", {
+			services = {
+				CollectionService = {
+					GetTagged = function(_self, tag)
+						return tagged[tag] or {}
+					end,
+				},
+			},
+		})
+
+		expect.near(Perception.LightAt(Vector3.new(0, 0, -10)), 0.8, 1e-6, "0.5 + 0.3")
+		expect.near(Perception.LightAt(Vector3.new(0, 0, -10), 0.5), 1, 1e-6, "clamped")
+		expect.near(Perception.LightAt(Vector3.new(0, 0, -100)), 0, 1e-6, "out of range")
+		expect.near(Perception.LightAt(Vector3.new(0, 0, -100), 0.1), 0.1, 1e-6, "ambient alone")
+		expect.equal(Perception.LIGHT_TAG, "AI_LIGHT")
+	end,
+
+	["SeenByAnyone: inside an observer's cone with a clear line, else not"] = function(expect)
+		local watcher = SenseFakes.Character("Watcher", Vector3.new(0, 0, 10), AHEAD, AHEAD)
+		local rays = {}
+		local Perception = Harness.Load("lib/Senses/Perception.luau", { globals = SenseFakes.Globals({ rays = rays }) })
+		local observers = { watcher.Root }
+
+		expect.truthy(Perception.SeenByAnyone(Vector3.new(0, 0, -5), { Observers = observers }), "ahead of the watcher")
+		expect.falsy(Perception.SeenByAnyone(Vector3.new(0, 0, 30), { Observers = observers }), "behind")
+		expect.falsy(Perception.SeenByAnyone(Vector3.new(0, 0, -50), { Observers = observers, Range = 20 }), "too far")
+		expect.equal(rays[1].From, watcher.Head.Position, "the ray starts at the head")
+
+		local blocked = Harness.Load("lib/Senses/Perception.luau", {
+			globals = SenseFakes.Globals({
+				hit = function()
+					return { Instance = {
+						IsDescendantOf = function()
+							return false
+						end,
+					} }
+				end,
+			}),
+		})
+		expect.falsy(blocked.SeenByAnyone(Vector3.new(0, 0, -5), { Observers = observers }), "a wall hides it")
+
+		local eyes = {}
+		expect.falsy(
+			Perception.SeenByAnyone(Vector3.new(0, 0, -5), {
+				Observers = observers,
+				Eye = function(root)
+					table.insert(eyes, root)
+					return SenseFakes.Facing(Vector3.new(0, 0, 10), Vector3.new(1, 0, 0))
+				end,
+			}),
+			"a custom eye looking the other way"
+		)
+		expect.equal(eyes[1], watcher.Root)
+	end,
 }

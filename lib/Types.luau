@@ -212,7 +212,7 @@ export type Blackboard = { [string]: any }
 	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
 	the blackboard, so one instance may serve many agents and a state may clear a memory early by
 	setting the key to `nil`. Distances are `math.huge` when there is nothing to measure.
-	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Watched` and
+	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Awareness`, `Watched` and
 	`Surroundings`; your own is any table with `Tick`.
 ]=]
 export type Sense = {

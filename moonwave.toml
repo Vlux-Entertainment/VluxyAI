@@ -25,6 +25,7 @@ classOrder = [
     "Proximity",
     "Hearing",
     "Sounds",
+    "Awareness",
     "Watched",
     "Surroundings",
     "Perception",

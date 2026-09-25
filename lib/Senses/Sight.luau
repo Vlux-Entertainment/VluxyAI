@@ -13,6 +13,12 @@
 	- `SeenPosition` Vector3? -- Where `SeenTarget` is, kept for `Memory` seconds after losing
 	  sight so a state can go and look, then `nil`.
 	- `SeenAt` number? -- `os.clock()` of the last sighting. `nil` once forgotten.
+	- `SeenVisibility` number -- The `Visibility` factor of `SeenTarget` (`1` without the
+	  option), `0` when nothing is seen.
+
+	Two hooks make it a horror sense: `Visibility` scales the range per target (darkness, a
+	flashlight, crouching), and `SeeThrough` lets the ray pass glass. Players hidden with
+	`AI_HIDDEN` are already gone from the default `Targets`.
 
 	`SeenPosition` and `SeenAt` are the sense's memory and live on the blackboard, not in the
 	sense, so one sense instance serves any number of agents and a state may clear them early.
@@ -45,6 +51,8 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Memory number? -- Seconds `SeenPosition` and `SeenAt` outlive the last sighting. Default `3`.
 	.Targets ((agent: Agent) -> { BasePart })? -- What to look for. Default [Perception.AliveRoots], every alive player's root.
 	.Ignore ((agent: Agent) -> { Instance })? -- What the sight ray passes through. Default [Perception.IgnoreList], the agent's entity.
+	.Visibility ((agent: Agent, target: BasePart) -> number)? -- How visible a target is, `0` to `1` (or more): the range is multiplied by it, so `0` is invisible and `0.5` is seen at half the distance. Pass `function(_, root) return VluxyAI.Perception.LightAt(root.Position) end` for darkness. Default: everything `1`.
+	.SeeThrough ((part: BasePart) -> boolean)? -- Parts the sight ray looks past, such as [Perception.Transparent]. Default: everything blocks.
 ]=]
 export type SightOptions = {
 	Range: number?,
@@ -53,6 +61,8 @@ export type SightOptions = {
 	Memory: number?,
 	Targets: ((agent: Types.Agent) -> { BasePart })?,
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
+	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
+	SeeThrough: ((part: BasePart) -> boolean)?,
 }
 
 type ResolvedOptions = {
@@ -62,6 +72,8 @@ type ResolvedOptions = {
 	Memory: number,
 	Targets: (agent: Types.Agent) -> { BasePart },
 	Ignore: (agent: Types.Agent) -> { Instance },
+	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
+	SeeThrough: ((part: BasePart) -> boolean)?,
 }
 
 type self = {
@@ -82,9 +94,13 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 	inside the `FieldOfView` cone around the entity's look direction, and a ray from the eye to it
 	hits nothing but the target's own model.
 
-	Writes `SeenTargets`, `SeenTarget`, `SeenDistance`, `SeenPosition` and `SeenAt`. The last two
-	are memory: they outlive the sighting by `Memory` seconds so a state can head to where the
-	target was. Distances are `math.huge` when there is nothing to measure.
+	Writes `SeenTargets`, `SeenTarget`, `SeenDistance`, `SeenVisibility`, `SeenPosition` and
+	`SeenAt`. The last two are memory: they outlive the sighting by `Memory` seconds so a state
+	can head to where the target was. Distances are `math.huge` when there is nothing to measure.
+
+	For a horror game: `Visibility` scales the range per target, so darkness and a lit flashlight
+	are one function ([Perception.LightAt] is the ready-made one); `SeeThrough` lets the ray pass
+	glass ([Perception.Transparent]); and a player hidden with `AI_HIDDEN` is not a target at all.
 ]=]
 
 --[=[
@@ -95,8 +111,12 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 	@error "Range must be zero or more"
 ]=]
 function Sight.new(options: SightOptions?): Types.Sense
-	local resolved =
-		Options.Resolve("Sight.new", DEFAULT_OPTIONS, options :: any, { "Targets", "Ignore" }) :: ResolvedOptions
+	local resolved = Options.Resolve(
+		"Sight.new",
+		DEFAULT_OPTIONS,
+		options :: any,
+		{ "Targets", "Ignore", "Visibility", "SeeThrough" }
+	) :: ResolvedOptions
 	resolved.Targets = resolved.Targets or Perception.AliveRoots
 	resolved.Ignore = resolved.Ignore or Perception.IgnoreList
 
@@ -127,14 +147,31 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	local ignore = options.Ignore(agent)
 
 	local visible: { BasePart } = {}
+	local visibilities: { [BasePart]: number } = {}
 	for _, target in options.Targets(agent) do
-		local inCone = Perception.InCone(eye, target.Position, options.FieldOfView, options.Range)
+		local visibility = 1
+		if options.Visibility ~= nil then
+			visibility = options.Visibility(agent, target)
+			if type(visibility) ~= "number" or visibility <= 0 then
+				continue
+			end
+		end
+
+		local inCone = Perception.InCone(eye, target.Position, options.FieldOfView, options.Range * visibility)
 		if not inCone then
 			continue
 		end
 
-		if Perception.LineOfSight(eye.Position, target.Position, ignore, Perception.ModelOf(target)) then
+		local clear = Perception.LineOfSight(
+			eye.Position,
+			target.Position,
+			ignore,
+			Perception.ModelOf(target),
+			options.SeeThrough
+		)
+		if clear then
 			table.insert(visible, target)
+			visibilities[target] = visibility
 		end
 	end
 
@@ -147,12 +184,14 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 
 	if nearest ~= nil then
 		blackboard.SeenDistance = (nearest.Position - eye.Position).Magnitude
+		blackboard.SeenVisibility = visibilities[nearest]
 		blackboard.SeenPosition = nearest.Position
 		blackboard.SeenAt = now
 		return
 	end
 
 	blackboard.SeenDistance = math.huge
+	blackboard.SeenVisibility = 0
 
 	-- A state may forget early by clearing SeenAt; the position goes with it.
 	if blackboard.SeenAt == nil then

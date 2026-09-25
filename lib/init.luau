@@ -34,6 +34,7 @@ local Ladder = require(script.Pathfinders.Ladder)
 local Navmesh = require(script.Pathfinders.Navmesh)
 local Straight = require(script.Pathfinders.Straight)
 
+local Awareness = require(script.Senses.Awareness)
 local Hearing = require(script.Senses.Hearing)
 local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
@@ -231,16 +232,18 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Watched: Watched, Surroundings: Surroundings }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings }
 
 	The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the
-	tagged `Sound` instances the world is already playing.
+	tagged `Sound` instances the world is already playing; [Awareness] turns what the others
+	wrote into a detection meter.
 ]=]
 VluxyAI.Senses = {
 	Sight = Sight,
 	Proximity = Proximity,
 	Hearing = Hearing,
 	Sounds = Sounds,
+	Awareness = Awareness,
 	Watched = Watched,
 	Surroundings = Surroundings,
 }

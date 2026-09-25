@@ -45,12 +45,39 @@ local Perception = {}
 
 --[=[
 	@within Perception
+	@prop HIDDEN_ATTRIBUTE "AI_HIDDEN"
+
+	The attribute name that hides a character from every sense: set it to `true` on the
+	character (or on its root) while the player is in a locker, under a bed, or otherwise out of
+	the game's sight rules, and [Perception.AliveRoots] leaves them out until it is cleared.
+]=]
+Perception.HIDDEN_ATTRIBUTE = "AI_HIDDEN"
+
+--[=[
+	@within Perception
+	@param root BasePart -- A target root, or anything with `GetAttribute`.
+	@return boolean -- `true` when the root or its character carries `AI_HIDDEN = true`.
+]=]
+function Perception.IsHidden(root: BasePart): boolean
+	local function flagged(instance: any): boolean
+		return instance ~= nil
+			and type(instance.GetAttribute) == "function"
+			and instance:GetAttribute(Perception.HIDDEN_ATTRIBUTE) == true
+	end
+
+	return flagged(root) or flagged(Perception.ModelOf(root))
+end
+
+--[=[
+	@within Perception
+	@param includeHidden boolean? -- Also return characters marked with `AI_HIDDEN`. Default `false`.
 	@return { BasePart } -- The `HumanoidRootPart` of every player whose character is alive.
 
-	Every player character with a Humanoid whose Health is above zero, by its root. The default
-	`Targets` of every sense.
+	Every player character with a Humanoid whose Health is above zero, by its root, minus the
+	ones hidden with [Perception.HIDDEN_ATTRIBUTE]. The default `Targets` of every sense, so
+	hiding a player once hides them from Sight, Proximity and Watched together.
 ]=]
-function Perception.AliveRoots(): { BasePart }
+function Perception.AliveRoots(includeHidden: boolean?): { BasePart }
 	local Players = game:GetService("Players")
 
 	local roots: { BasePart } = {}
@@ -63,6 +90,10 @@ function Perception.AliveRoots(): { BasePart }
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		local root = character:FindFirstChild("HumanoidRootPart")
 		if humanoid == nil or root == nil or humanoid.Health <= 0 then
+			continue
+		end
+
+		if not includeHidden and Perception.IsHidden(root :: BasePart) then
 			continue
 		end
 
@@ -192,31 +223,242 @@ function Perception.RaycastParams(ignore: { Instance }): RaycastParams
 	return params
 end
 
+-- How many see-through parts one line of sight will look past before giving up.
+local SEE_THROUGH_LIMIT = 8
+
+-- A spot light's Face as a direction in its parent's space.
+local NORMALS = {
+	Front = Vector3.new(0, 0, -1),
+	Back = Vector3.new(0, 0, 1),
+	Right = Vector3.new(1, 0, 0),
+	Left = Vector3.new(-1, 0, 0),
+	Top = Vector3.new(0, 1, 0),
+	Bottom = Vector3.new(0, -1, 0),
+}
+
+--[=[
+	@within Perception
+	@param threshold number? -- `Transparency` at or above which a part is see-through. Default `0.5`.
+	@return (part: BasePart) -> boolean -- A `SeeThrough` predicate for [Perception.LineOfSight] and [Sight].
+
+	Glass and fences: parts this transparent do not block sight.
+]=]
+function Perception.Transparent(threshold: number?): (part: BasePart) -> boolean
+	local limit = threshold or 0.5
+	return function(part: BasePart): boolean
+		local transparency = (part :: any).Transparency
+		return type(transparency) == "number" and transparency >= limit
+	end
+end
+
 --[=[
 	@within Perception
 	@param from Vector3
 	@param to Vector3
 	@param ignore { Instance } -- What the ray passes through.
 	@param allow Instance? -- What the ray may hit and still count as clear, usually the target's own model.
+	@param seeThrough ((part: BasePart) -> boolean)? -- Parts this returns `true` for do not block; the ray is cast again past them, up to eight times.
 	@return boolean
 
 	Is the straight line from `from` to `to` clear? `true` when the ray hits nothing, or hits
 	`allow` or something under it, which is how a target's own body does not block sight of it.
+	Without `seeThrough`, anything else the ray hits blocks, glass included; pass
+	[Perception.Transparent] or your own rule to look past it.
 ]=]
-function Perception.LineOfSight(from: Vector3, to: Vector3, ignore: { Instance }, allow: Instance?): boolean
+function Perception.LineOfSight(
+	from: Vector3,
+	to: Vector3,
+	ignore: { Instance },
+	allow: Instance?,
+	seeThrough: ((part: BasePart) -> boolean)?
+): boolean
 	local direction = to - from
 	if direction.Magnitude == 0 then
 		return true
 	end
 
-	local result = workspace:Raycast(from, direction, Perception.RaycastParams(ignore))
-	if result == nil then
-		return true
+	local excluded = ignore
+	for _ = 1, SEE_THROUGH_LIMIT + 1 do
+		local result = workspace:Raycast(from, direction, Perception.RaycastParams(excluded))
+		if result == nil then
+			return true
+		end
+
+		local hit = result.Instance
+		if allow ~= nil and (hit == allow or hit:IsDescendantOf(allow)) then
+			return true
+		end
+
+		if seeThrough == nil or not seeThrough(hit) then
+			return false
+		end
+
+		-- Look past it: the same ray again with this part excluded too.
+		if excluded == ignore then
+			excluded = table.clone(ignore)
+		end
+		table.insert(excluded, hit)
 	end
 
-	if allow ~= nil then
-		local hit = result.Instance
-		return hit == allow or hit:IsDescendantOf(allow)
+	return false
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Perception
+	@prop LIGHT_TAG "AI_LIGHT"
+
+	The `CollectionService` tag a light must carry for [Perception.LightAt] to count it.
+]=]
+Perception.LIGHT_TAG = "AI_LIGHT"
+
+--[=[
+	@within Perception
+	@param distance number -- Studs from the light.
+	@param range number -- The light's `Range`.
+	@param brightness number -- The light's `Brightness`.
+	@return number -- `brightness` at the light, falling linearly to `0` at `range`. Pure.
+]=]
+function Perception.LightFalloff(distance: number, range: number, brightness: number): number
+	if range <= 0 or brightness <= 0 or distance >= range then
+		return 0
+	end
+	return brightness * (1 - math.max(0, distance) / range)
+end
+
+--[=[
+	@within Perception
+	@param light Light -- A `PointLight`, `SpotLight` or `SurfaceLight` on a part or an attachment.
+	@param position Vector3
+	@return number -- How much this light lights `position`: `0` when disabled, out of range, not on a part, or outside a spot light's cone.
+
+	Read duck-typed (`Enabled`, `Brightness`, `Range`, `Parent`, and for a spot light `Angle` and
+	`Face`), so a spec can pass a plain table.
+]=]
+function Perception.LightContribution(light: Light, position: Vector3): number
+	local candidate = light :: any
+	if candidate.Enabled ~= true then
+		return 0
+	end
+
+	local parent = candidate.Parent
+	if parent == nil or type(parent.IsA) ~= "function" then
+		return 0
+	end
+
+	local origin: Vector3
+	local cframe: CFrame
+	if parent:IsA("Attachment") then
+		origin = parent.WorldPosition
+		cframe = parent.WorldCFrame
+	elseif parent:IsA("BasePart") then
+		origin = parent.Position
+		cframe = parent.CFrame
+	else
+		return 0
+	end
+
+	local offset = position - origin
+	local distance = offset.Magnitude
+	local amount = Perception.LightFalloff(distance, candidate.Range or 0, candidate.Brightness or 0)
+	if amount <= 0 then
+		return 0
+	end
+
+	if type(candidate.IsA) == "function" and candidate:IsA("SpotLight") and distance > 0 then
+		local face = candidate.Face
+		local faceName = if typeof(face) == "EnumItem"
+			then face.Name
+			elseif type(face) == "string" then face
+			else "Front"
+		local normal = NORMALS[faceName] or NORMALS.Front
+		local axis = cframe:VectorToWorldSpace(normal)
+		local threshold = math.cos(math.rad(math.clamp(candidate.Angle or 90, 0, 360) / 2))
+		if axis:Dot(offset / distance) < threshold then
+			return 0
+		end
+	end
+
+	return amount
+end
+
+--[=[
+	@within Perception
+	@param position Vector3
+	@param ambient number? -- Light everywhere, added before the clamp. `0` is pitch black where no light reaches. Default `0`.
+	@return number -- The light level at `position` in `[0, 1]`: `ambient` plus every tagged light's [Perception.LightContribution], clamped.
+
+	How lit a spot is, from the lights tagged [Perception.LIGHT_TAG]. Tag the lights that matter
+	to the AI (a flashlight, the ceiling lamps, a fire) and pass this as a [Sight] `Visibility`,
+	and a player in the dark is invisible until a light finds them. Not physically accurate; a
+	gameplay number.
+]=]
+function Perception.LightAt(position: Vector3, ambient: number?): number
+	local CollectionService = game:GetService("CollectionService")
+
+	local total = ambient or 0
+	for _, light in CollectionService:GetTagged(Perception.LIGHT_TAG) do
+		total += Perception.LightContribution(light :: Light, position)
+		if total >= 1 then
+			return 1
+		end
+	end
+
+	return math.clamp(total, 0, 1)
+end
+
+--[=[
+	@interface SeenByOptions
+	@within Perception
+
+	.FieldOfView number? -- The full angle of each observer's view cone. Default `100`.
+	.Range number? -- Studs. Default `math.huge`.
+	.Eye ((root: BasePart) -> CFrame?)? -- Where an observer looks from. Default: the character's head, else its root ([Perception.EyeOf]). A game that replicates the camera returns it here.
+	.Ignore { Instance }? -- What the sight ray passes through. Default nothing.
+	.Observers { BasePart }? -- Who may be looking. Default [Perception.AliveRoots] including the hidden.
+]=]
+export type SeenByOptions = {
+	FieldOfView: number?,
+	Range: number?,
+	Eye: ((root: BasePart) -> CFrame?)?,
+	Ignore: { Instance }?,
+	Observers: { BasePart }?,
+}
+
+--[=[
+	@within Perception
+	@param position Vector3
+	@param options SeenByOptions?
+	@return boolean -- `true` when any observer has `position` inside their view cone with a clear line to it.
+
+	"Would anyone see it happen here?" The check to run before a stalker teleports, spawns or
+	vanishes, so it only ever does so off screen. The [Watched] sense is the same question asked
+	about the agent every tick; this is the one-off version about any point.
+]=]
+function Perception.SeenByAnyone(position: Vector3, options: SeenByOptions?): boolean
+	local resolved = options or {}
+	local fieldOfView = resolved.FieldOfView or 100
+	local range = resolved.Range or math.huge
+	local ignore = resolved.Ignore or {}
+	local observers = resolved.Observers or Perception.AliveRoots(true)
+
+	for _, root in observers do
+		local eye: CFrame? = if resolved.Eye then resolved.Eye(root) else nil
+		if eye == nil then
+			eye = Perception.EyeOf(root).CFrame
+		end
+
+		if not Perception.InCone(eye :: CFrame, position, fieldOfView, range) then
+			continue
+		end
+
+		local ignored = table.clone(ignore)
+		local character = Perception.ModelOf(root)
+		table.insert(ignored, (character or root) :: Instance)
+		if Perception.LineOfSight((eye :: CFrame).Position, position, ignored) then
+			return true
+		end
 	end
 
 	return false
