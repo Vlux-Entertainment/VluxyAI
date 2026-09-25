@@ -31,7 +31,11 @@ local DEFAULT_OPTIONS = table.freeze({
 	TurnSpeed = 10,
 	HeightOffset = nil :: number?,
 	StepDistance = 0.25,
+	StuckTimeout = 5,
 })
+
+-- Progress toward the current step smaller than this does not reset the stuck clock.
+local PROGRESS_EPSILON = 0.05
 
 -- Keys with no default value, so the resolver still accepts them.
 local OPTIONAL_KEYS = { "HeightOffset" }
@@ -45,6 +49,7 @@ type ResolvedOptions = {
 	TurnSpeed: number,
 	HeightOffset: number?,
 	StepDistance: number,
+	StuckTimeout: number,
 }
 
 type self = {
@@ -58,6 +63,8 @@ type self = {
 
 	_path: Types.Path?,
 	_index: number,
+	_bestDistance: number,
+	_stuckTime: number,
 	_destroyed: boolean,
 
 	_trove: Trove.Trove,
@@ -77,12 +84,14 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	.TurnSpeed number? -- Radians per second of yaw. Default `10`.
 	.HeightOffset number? -- Added to every step's Y, so a body rides above floor steps. A number is used as given; leave it out and the first `Follow` measures the pivot's height above the first step (never below `0`) and keeps that for the life of the mover. Default: measured.
 	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
+	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`.
 ]=]
 export type CFrameMoverOptions = {
 	Speed: number?,
 	TurnSpeed: number?,
 	HeightOffset: number?,
 	StepDistance: number?,
+	StuckTimeout: number?,
 }
 
 --[=[
@@ -198,6 +207,16 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 	local resolved =
 		Options.Resolve("CFrameMover.new", DEFAULT_OPTIONS, options :: any, OPTIONAL_KEYS) :: ResolvedOptions
 
+	if resolved.Speed < 0 then
+		FormatMessage.Error(`CFrameMover.new: Speed must be 0 or more, got {resolved.Speed}`, 2)
+	end
+	if resolved.TurnSpeed < 0 then
+		FormatMessage.Error(`CFrameMover.new: TurnSpeed must be 0 or more, got {resolved.TurnSpeed}`, 2)
+	end
+	if resolved.StuckTimeout <= 0 then
+		FormatMessage.Error(`CFrameMover.new: StuckTimeout must be above 0, got {resolved.StuckTimeout}`, 2)
+	end
+
 	local trove = Trove.new()
 
 	local self: self = {
@@ -211,6 +230,8 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 
 		_path = nil,
 		_index = 0,
+		_bestDistance = math.huge,
+		_stuckTime = 0,
 		_destroyed = false,
 
 		_trove = trove,
@@ -260,11 +281,24 @@ function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
 		CFrameMover.Advance(self._target:GetPivot(), goal, self._speed, self._options.TurnSpeed, deltaTime)
 	self._target:PivotTo(pivot)
 
-	if not reached and Tables.FlatDistance(pivot.Position, goal) > self._options.StepDistance then
+	local remaining = Tables.FlatDistance(pivot.Position, goal)
+	if not reached and remaining > self._options.StepDistance then
+		-- Not there yet: is it at least getting closer? Speed 0, or a step it cannot reach, is not.
+		if remaining < self._bestDistance - PROGRESS_EPSILON then
+			self._bestDistance = remaining
+			self._stuckTime = 0
+		else
+			self._stuckTime += deltaTime
+			if self._stuckTime >= self._options.StuckTimeout then
+				self:_finish(false)
+			end
+		end
 		return
 	end
 
 	self._index = index + 1
+	self._bestDistance = math.huge
+	self._stuckTime = 0
 	self.StepReached:Fire(index, step)
 
 	-- A StepReached handler may have stopped or replaced the path.
@@ -291,6 +325,8 @@ end
 	`path[1]`, never below `0`, kept from then on.
 ]=]
 function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
+	self._bestDistance = math.huge
+	self._stuckTime = 0
 	if self._destroyed then
 		return
 	end
@@ -340,6 +376,9 @@ end
 	@param studsPerSecond number
 ]=]
 function CFrameMover.SetSpeed(self: CFrameMover, studsPerSecond: number)
+	if studsPerSecond < 0 then
+		FormatMessage.Error(`CFrameMover: Speed must be 0 or more, got {studsPerSecond}`, 2)
+	end
 	self._speed = studsPerSecond
 end
 

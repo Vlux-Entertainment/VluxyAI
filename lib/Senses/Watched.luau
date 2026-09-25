@@ -107,7 +107,7 @@ end
 	agent's pivot is inside the observer's `FieldOfView` cone within `Range`, and (unless
 	`RequireLineOfSight` is off) a ray from the observer's eye to the pivot reaches the agent's
 	entity. Writes `WatchedBy`, `IsWatched`, `WatchedAt` and `UnwatchedFor`, which is what a
-	freeze-when-seen state reads. Distances are `math.huge` when there is nothing to measure.
+	freeze-when-seen state reads. `UnwatchedFor` is `math.huge` until the first time it is watched.
 
 	By default an observer's eye is its character's head, so "looking" means the head's facing,
 	which on a default rig is the walk direction rather than the camera. A game that wants the
@@ -118,7 +118,7 @@ end
 	@within Watched
 	@param options WatchedOptions?
 	@return Watched
-	@error "unknown option" -- A key not in [WatchedOptions].
+	@error "unknown option" -- A key not in `WatchedOptions`.
 	@error "Range must be zero or more"
 ]=]
 function Watched.new(options: WatchedOptions?): Types.Sense

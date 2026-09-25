@@ -11,12 +11,12 @@ values, and draws the path it is following.
 
 | Cylinder | Shows | Stack |
 |---|---|---|
-| **Wanderer** | The smallest useful AI: pick a point, walk, wait, repeat | Navmesh + Humanoid |
+| **Wanderer** | The smallest useful AI: pick a point, walk, wait, repeat | Humanoid preset (its senses unused) |
 | **Stalker** | Sight writing the blackboard, transitions choosing the mode, a Ladder trying a straight line before the navmesh | Ladder(Straight, Navmesh) + Humanoid + Sight |
 | **Patroller** | Hearing with a noise signal the game owns, and a blackboard memory the states act on | Navmesh + Humanoid + Hearing |
 | **Hunter** | Utility scoring choosing *which* player while transitions still choose the mode | Ladder + Humanoid + Sight + Proximity |
 | **Ghost** | No Humanoid at all: the CFrame mover on ordinary navmesh paths | Navmesh + CFrame + Sight |
-| **Watcher** | The Watched sense: only moves while nobody is looking, never patrols | Ladder + CFrame + Sight + Watched + Proximity |
+| **Watcher** | The Watched sense: only moves while nobody is looking, never patrols | Ladder + CFrame + Sight + Watched |
 
 The enemy modules live in `examples/Enemies/`. Each is a function from a rig and a shared context
 to a built agent, with the brain table at the top of the file. They are short on purpose: read them

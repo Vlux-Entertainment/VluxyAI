@@ -226,6 +226,23 @@ return {
 		expect.equal(s.blackboard.SeenAt, nil)
 	end,
 
+	["a state that clears SeenAt forgets SeenPosition too"] = function(expect)
+		local targets = { SenseFakes.Part(Vector3.new(0, 0, -10)) }
+		local s = setup({
+			sight = {
+				Targets = function()
+					return targets
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		table.clear(targets)
+		s.blackboard.SeenAt = nil
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenPosition, nil)
+	end,
+
 	["SeenPosition follows the target while it is visible"] = function(expect)
 		local target = SenseFakes.Part(Vector3.new(0, 0, -10))
 		local s = setup({ sight = { Targets = SenseFakes.Targets({ target }) } })

@@ -26,7 +26,7 @@ local ALMOST_ZERO = 0.001
 	.Priority Enum.AnimationPriority? -- Default `Enum.AnimationPriority.Movement` for weighted, `Action` for one-shots.
 	.Speed number? -- Playback speed. Default `1`.
 
-	One animation in the table given to [Animator.new].
+	One animation in the table given to [NPCAnimator.new].
 ]=]
 export type AnimationInfo = {
 	Id: number,
@@ -73,7 +73,7 @@ export type NPCAnimator = typeof(setmetatable({} :: self, NPCAnimator))
 	@within NPCAnimator
 	@param entity Model -- Needs an `Animator` somewhere inside (usually under the Humanoid or AnimationController).
 	@param animations { [string]: AnimationInfo }
-	@return Animator
+	@return NPCAnimator
 	@error string -- The model has no `Animator`.
 ]=]
 function NPCAnimator.new(entity: Model, animations: { [string]: AnimationInfo }): NPCAnimator
@@ -130,7 +130,7 @@ end
 
 --[=[
 	@within NPCAnimator
-	@return Animator
+	@return NPCAnimator
 
 	Loads every animation. Weighted tracks start playing at almost-zero weight so they blend in
 	without a pop. Calling it twice does nothing.
@@ -171,7 +171,7 @@ end
 	@param name string
 	@param weight number -- `0` to `1`. Clamped above zero so the track never drops out.
 	@param fade number? -- Seconds to blend. Default `0.1`.
-	@return Animator
+	@return NPCAnimator
 	@error string -- Unknown name, or the animation is not weighted.
 ]=]
 function NPCAnimator.SetWeight(self: NPCAnimator, name: string, weight: number, fade: number?): NPCAnimator
@@ -191,7 +191,7 @@ end
 	@param fade number?
 	@param weight number?
 	@param speed number?
-	@return Animator
+	@return NPCAnimator
 	@error string -- Unknown name, or the animation is weighted.
 
 	Plays a one-shot.
@@ -211,7 +211,7 @@ end
 	@within NPCAnimator
 	@param name string
 	@param fade number?
-	@return Animator
+	@return NPCAnimator
 	@error string -- Unknown name, or the animation is weighted.
 
 	Stops a one-shot.

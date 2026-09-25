@@ -228,6 +228,46 @@ return {
 		expect.equal(other.Blackboard.HeardAt, 100)
 	end,
 
+	["destroying one of two agents keeps the other hearing"] = function(expect)
+		local s = setup()
+		local other = SenseFakes.Agent(Vector3.new(5, 0, 0))
+		s.hearing:Tick(other, 0)
+
+		s.hearing:Destroy(s.agent)
+		expect.equal(bufferOf(s.hearing, s.agent), nil, "the destroyed agent's buffer is gone")
+
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(other, 0.1)
+		expect.equal(other.Blackboard.HeardPosition, Vector3.new(10, 0, 0), "the survivor still hears")
+
+		s.hearing:Destroy(other)
+		s.noises:Fire(Vector3.new(-10, 0, 0))
+		expect.equal(bufferOf(s.hearing, other), nil, "nothing left listening")
+	end,
+
+	["an agent destroyed before anyone ticked does not silence a later agent"] = function(expect)
+		local s = setup()
+		local early = SenseFakes.Agent(Vector3.new(0, 0, 0))
+		local late = SenseFakes.Agent(Vector3.new(0, 0, 0))
+
+		s.hearing:Destroy(s.agent)
+		s.hearing:Destroy(early)
+		s.hearing:Tick(late, 0)
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(late, 0.1)
+		expect.equal(late.Blackboard.HeardPosition, Vector3.new(10, 0, 0), "listening resumed for the late agent")
+	end,
+
+	["Destroy with no agent tears down for good"] = function(expect)
+		local s = setup()
+		s.hearing:Destroy()
+		local late = SenseFakes.Agent(Vector3.new(0, 0, 0))
+		s.hearing:Tick(late, 0)
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(late, 0.1)
+		expect.equal(late.Blackboard.HeardPosition, nil)
+	end,
+
 	["an agent that has never ticked does not accumulate noises"] = function(expect)
 		local s = setup()
 		local idle = SenseFakes.Agent(Vector3.new(0, 0, 0))

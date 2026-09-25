@@ -67,7 +67,9 @@ type Noise = {
 type self = {
 	_options: ResolvedOptions,
 	_buffers: { [Types.Agent]: { Noise } },
+	_noises: Types.Signal<(Vector3, number?)>,
 	_connection: Types.Connection?,
+	_destroyed: boolean,
 }
 
 local Hearing = {}
@@ -86,9 +88,6 @@ export type Hearing = typeof(setmetatable({} :: self, Hearing))
 	the agent (the nearest on a tie) and writes `HeardPosition`, `HeardAt` and `HeardLoudness`,
 	which stay for `Memory` seconds and then clear. One instance may serve many agents: noises
 	are buffered per agent, and each agent's tick empties only its own buffer.
-
-	Distances are `math.huge` when there is nothing to measure; Hearing writes none, and
-	`HeardLoudness` is `nil` when nothing is remembered because a loudness is not a distance.
 ]=]
 
 --[=[
@@ -96,7 +95,7 @@ export type Hearing = typeof(setmetatable({} :: self, Hearing))
 	@param noises Signal<(Vector3, number?)> -- Fired with a position and an optional loudness (default `1`).
 	@param options HearingOptions?
 	@return Hearing
-	@error "unknown option" -- A key not in [HearingOptions].
+	@error "unknown option" -- A key not in `HearingOptions`.
 	@error "Range must be zero or more"
 ]=]
 function Hearing.new(noises: Types.Signal<(Vector3, number?)>, options: HearingOptions?): Types.Sense
@@ -109,16 +108,29 @@ function Hearing.new(noises: Types.Signal<(Vector3, number?)>, options: HearingO
 	local self: self = {
 		_options = resolved,
 		_buffers = setmetatable({}, { __mode = "k" }) :: any,
+		_noises = noises,
 		_connection = nil,
+		_destroyed = false,
 	}
 
 	local hearing = setmetatable(self, Hearing)
-
-	self._connection = noises:Connect(function(position: Vector3, loudness: number?)
-		hearing:_onNoise(position, loudness)
-	end)
+	hearing:_connect()
 
 	return hearing :: any
+end
+
+--[[
+	Listens to the noise signal. Called at construction and again from Tick after every agent
+	that shared the sense was destroyed, so a later agent still hears.
+]]
+function Hearing._connect(self: Hearing)
+	if self._connection ~= nil or self._destroyed then
+		return
+	end
+
+	self._connection = self._noises:Connect(function(position: Vector3, loudness: number?)
+		self:_onNoise(position, loudness)
+	end)
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -163,6 +175,8 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
 	local blackboard = agent.Blackboard
+
+	self:_connect()
 
 	local buffer = self._buffers[agent]
 	if buffer == nil then
@@ -211,14 +225,22 @@ end
 	Disconnects from the noise signal and drops every agent's buffer. The signal itself is yours;
 	it is not destroyed.
 ]=]
-function Hearing.Destroy(self: Hearing)
+function Hearing.Destroy(self: Hearing, agent: Types.Agent?)
+	if agent ~= nil then
+		self._buffers[agent] = nil
+		if next(self._buffers) ~= nil then
+			return
+		end
+	else
+		self._destroyed = true
+		table.clear(self._buffers)
+	end
+
 	local connection = self._connection
 	if connection ~= nil then
 		connection:Disconnect()
 		self._connection = nil
 	end
-
-	table.clear(self._buffers)
 end
 
 return Hearing

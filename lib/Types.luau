@@ -194,7 +194,7 @@ export type Blackboard = { [string]: any }
 	@within Types
 
 	.Tick (self: any, agent: Agent, deltaTime: number) -> () -- Called once per agent tick. Writes to `agent.Blackboard`.
-	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
+	.Destroy ((self: any, agent: Agent?) -> ())? -- Optional cleanup, called with each agent that is destroyed. A shared sense releases that agent's state and tears down only when none remain; called with no agent it tears down outright.
 
 	Perceives and nothing else. Senses tick in the order they were added, before the navigator and
 	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
@@ -205,7 +205,7 @@ export type Blackboard = { [string]: any }
 ]=]
 export type Sense = {
 	Tick: (self: any, agent: Agent, deltaTime: number) -> (),
-	Destroy: ((self: any) -> ())?,
+	Destroy: ((self: any, agent: Agent?) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------

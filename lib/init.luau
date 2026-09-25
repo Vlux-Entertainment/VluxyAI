@@ -229,7 +229,7 @@ VluxyAI.Internals = {
 	@within VluxyAI
 
 	.Navmesh table? -- Options for [Navmesh.new].
-	.Mover table? -- Options for [Humanoid.new].
+	.Mover table? -- Options for [HumanoidMover.new].
 	.Sight table? -- Options for [Sight.new].
 	.Proximity table? -- Options for [Proximity.new].
 ]=]
@@ -245,7 +245,7 @@ export type HumanoidPresetOptions = {
 	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder }
 
 	Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a
-	[Navmesh] pathfinder, a [Humanoid] mover, and [Sight] and [Proximity] senses; add a brain
+	[Navmesh] pathfinder, a [HumanoidMover] mover, and [Sight] and [Proximity] senses; add a brain
 	and build. It is the 0.1 "standard" agent, but opt-in and overridable.
 ]=]
 VluxyAI.Presets = {

@@ -91,7 +91,7 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 	@within Sight
 	@param options SightOptions?
 	@return Sight
-	@error "unknown option" -- A key not in [SightOptions].
+	@error "unknown option" -- A key not in `SightOptions`.
 	@error "Range must be zero or more"
 ]=]
 function Sight.new(options: SightOptions?): Types.Sense
@@ -153,6 +153,11 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	end
 
 	blackboard.SeenDistance = math.huge
+
+	-- A state may forget early by clearing SeenAt; the position goes with it.
+	if blackboard.SeenAt == nil then
+		blackboard.SeenPosition = nil
+	end
 
 	local seenAt = blackboard.SeenAt
 	if type(seenAt) == "number" and now - seenAt > options.Memory then

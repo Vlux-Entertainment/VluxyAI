@@ -89,7 +89,7 @@ local map = Map.Build(Workspace)
 local noises: VluxyAI.Signal<(Vector3, number?)> = VluxyAI.Signal.new()
 
 --[[
-	Player jumps and landings are ordinary noises; the noise pad is a loud one.
+	Player jumps are ordinary noises; the noise pad is a loud one.
 ]]
 local function watchCharacter(character: Model)
 	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?

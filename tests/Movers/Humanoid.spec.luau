@@ -186,7 +186,7 @@ return {
 			HumanoidMover.new(model :: any, { Speeed = 20 } :: any)
 		end)
 		expect.includes(message, "[VluxyAI]")
-		expect.includes(message, 'Humanoid.new: unknown option "Speeed"')
+		expect.includes(message, 'HumanoidMover.new: unknown option "Speeed"')
 		expect.includes(message, "Speed, StuckDistance")
 	end,
 
@@ -201,7 +201,7 @@ return {
 		expect.includes(warnings[1], "[VluxyAI]")
 		expect.includes(warnings[1], "Workspace.Rig")
 		expect.includes(warnings[1], "Network ownership API can only be called on a part in Workspace")
-		expect.includes(warnings[1], "descendant of Workspace and unanchored before Humanoid.new")
+		expect.includes(warnings[1], "descendant of Workspace and unanchored before HumanoidMover.new")
 
 		warnings = {}
 		HumanoidMover = load(nil, warnings)
@@ -384,6 +384,32 @@ return {
 		expect.sequence(s.events, { "arrived false" }, "0.2 studs is not progress; 1.1 seconds is the timeout")
 		expect.falsy(s.mover:IsMoving())
 		expect.equal(s.humanoid.MoveTos[2], Vector3.new(1.2, 0, 0), "cancelled")
+	end,
+
+	["a rig jostled about without getting closer is stuck"] = function(expect)
+		local s = setup({ StuckTimeout = 1, StuckDistance = 0.5 })
+		s.mover:Follow({ step(40, 0, 0) })
+
+		-- Shoved a stud sideways every half second: plenty of movement, no progress.
+		s.root.Position = Vector3.new(0, 0, 1)
+		s.heartbeat:Fire(0.5)
+		s.root.Position = Vector3.new(0, 0, -1)
+		s.heartbeat:Fire(0.4)
+		expect.sequence(s.events, {}, "one second is the limit")
+		s.root.Position = Vector3.new(0, 0, 1)
+		s.heartbeat:Fire(0.2)
+		expect.sequence(s.events, { "arrived false" })
+	end,
+
+	["getting closer to the step counts as progress even while drifting sideways"] = function(expect)
+		local s = setup({ StuckTimeout = 1, StuckDistance = 0.5 })
+		s.mover:Follow({ step(40, 0, 0) })
+
+		s.root.Position = Vector3.new(1, 0, 3)
+		s.heartbeat:Fire(0.8)
+		s.root.Position = Vector3.new(2, 0, -3)
+		s.heartbeat:Fire(0.8)
+		expect.sequence(s.events, {}, "each heartbeat was nearer the step than the best so far")
 	end,
 
 	["the stuck clock restarts at each step"] = function(expect)

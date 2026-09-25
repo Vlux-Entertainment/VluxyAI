@@ -51,7 +51,7 @@ type self = {
 
 	_path: Types.Path?,
 	_index: number,
-	_stuckPosition: Vector3,
+	_bestDistance: number,
 	_stuckTime: number,
 	_destroyed: boolean,
 
@@ -152,7 +152,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		return FormatMessage.Error(`{model:GetFullName()} has no Humanoid; the Humanoid mover needs one`, 2)
 	end
 
-	local resolved = Options.Resolve("Humanoid.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
+	local resolved = Options.Resolve("HumanoidMover.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	humanoid.WalkSpeed = resolved.Speed
 
@@ -162,8 +162,8 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		end)
 		if not ok then
 			FormatMessage.Warn(
-				`Humanoid.new: could not hand {model:GetFullName()} to the server ({tostring(err)}); `
-					.. "the model must be a descendant of Workspace and unanchored before Humanoid.new, "
+				`HumanoidMover.new: could not hand {model:GetFullName()} to the server ({tostring(err)}); `
+					.. "the model must be a descendant of Workspace and unanchored before HumanoidMover.new, "
 					.. "or a client-owned rig will ignore MoveTo"
 			)
 		end
@@ -183,7 +183,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 
 		_path = nil,
 		_index = 0,
-		_stuckPosition = root.Position,
+		_bestDistance = math.huge,
 		_stuckTime = 0,
 		_destroyed = false,
 
@@ -229,7 +229,8 @@ function HumanoidMover._walkTo(self: HumanoidMover, index: number)
 
 	local step = path[index]
 	self._index = index
-	self._stuckPosition = self._root.Position
+	-- Progress is measured from here, so a rig that never gets closer is stuck after StuckTimeout.
+	self._bestDistance = Tables.FlatDistance(self._root.Position, step.Position)
 	self._stuckTime = 0
 
 	if step.Action == "Jump" then
@@ -245,9 +246,17 @@ end
 	seconds have passed without one.
 ]]
 function HumanoidMover._isStuck(self: HumanoidMover): boolean
-	local position = self._root.Position
-	if (position - self._stuckPosition).Magnitude >= self._options.StuckDistance then
-		self._stuckPosition = position
+	local path = self._path
+	local step = if path then path[self._index] else nil
+	if step == nil then
+		return false
+	end
+
+	-- Progress is getting closer to the step, not moving about: a rig jostled against a wall by
+	-- physics or another NPC covers distance without ever getting anywhere.
+	local remaining = Tables.FlatDistance(self._root.Position, step.Position)
+	if remaining <= self._bestDistance - self._options.StuckDistance then
+		self._bestDistance = remaining
 		self._stuckTime = 0
 		return false
 	end

@@ -114,7 +114,7 @@ local function Watcher(model: Model, _context: Context.Context): VluxyAI.Agent
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 60, FieldOfView = 360, Memory = 8 }))
 		:AddSense(VluxyAI.Senses.Watched.new({ Range = 80, FieldOfView = 100 }))
 		:SetTick(0.05)
-		:SetNavigation({ RepathInterval = 0.2, ArriveDistance = 1.5 })
+		:SetNavigation({ RepathInterval = 0.2 })
 		:Build()
 end
 

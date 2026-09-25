@@ -360,6 +360,43 @@ return {
 		expect.falsy(agent:TimerDone("Attack"), "restarted")
 	end,
 
+	["Destroy from the initial Enter leaves no heartbeat behind"] = function(expect)
+		local heartbeat = Harness.ManualHeartbeat()
+		local Agent = load({ heartbeat = heartbeat })
+		local agent
+		local brain = {
+			Initial = "Idle",
+			States = {
+				Idle = {
+					Enter = function()
+						agent:Destroy()
+					end,
+				},
+			},
+		}
+		agent = Agent.new({ Entity = Fakes.Entity(), Brain = brain })
+
+		agent:Start()
+		expect.falsy(agent:IsRunning())
+		expect.equal(heartbeat:Count(), 0)
+	end,
+
+	["a sense's Destroy receives the agent"] = function(expect)
+		local Agent = load()
+		local received = nil
+		local sense = {
+			Tick = function() end,
+			Destroy = function(_self, agent)
+				received = agent
+			end,
+		}
+		local agent =
+			Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}), Senses = { sense } })
+
+		agent:Destroy()
+		expect.equal(received, agent)
+	end,
+
 	["a sense without Destroy is fine"] = function(expect)
 		local Agent = load()
 		local sense = { Tick = function() end }

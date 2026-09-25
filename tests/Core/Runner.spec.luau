@@ -259,7 +259,7 @@ return {
 		runner:Start()
 		runner:Step(0.1)
 		expect.equal(runner:GetState(), "C")
-		expect.sequence(log, { "enter A", "update A", "exit A", "exit B", "enter C" }, "B's Enter never runs")
+		expect.sequence(log, { "enter A", "update A", "exit A", "enter C" }, "B was never entered, so it is not exited")
 	end,
 
 	["a transition made from Enter runs the new state's Exit on the way out"] = function(expect)
@@ -307,6 +307,27 @@ return {
 		runner:Step(0.1)
 		expect.equal(runner:GetState(), "C")
 		expect.sequence(log, { "enter A", "exit A", "enter C" })
+	end,
+
+	["an Exit that stops the runner runs once"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B" }, log, {
+			A = function()
+				return "B"
+			end,
+		})
+		brain.States.A.Exit = function()
+			table.insert(log, "exit A")
+			runner:Stop()
+		end
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), nil, "Stop from Exit wins over the transition")
+		expect.sequence(log, { "enter A", "update A", "exit A" })
 	end,
 
 	["a transition made from an Exit that Stop is running is ignored"] = function(expect)

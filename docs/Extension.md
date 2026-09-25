@@ -9,8 +9,12 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 
 ## A sense
 
-Anything with `Tick(self, agent, deltaTime)`. It writes to `agent.Blackboard` and reads nothing
-from states. Document the keys you write.
+Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
+It writes to `agent.Blackboard` and reads nothing from states. Document the keys you write, use
+`math.huge` for a distance with nothing to measure, and keep memory (a `SeenAt`-style timestamp)
+on the blackboard rather than in the sense, so one instance can serve many agents. The agent's
+position is `agent:GetPosition()`; [Perception](/api/Perception) has the alive player roots, cone
+and line-of-sight helpers the built-in senses use.
 
 ```lua
 local Fear = {}
@@ -77,12 +81,19 @@ graph, then the navmesh.
 ## A mover
 
 Anything with `Follow(path)`, `Stop()`, `GetPosition()`, `GetSpeed()`, `SetSpeed(speed)`,
-`IsMoving()`, and two signals: `StepReached` and `Arrived`. Two rules keep it honest with the
-[Navigator](/api/Navigator):
+`IsMoving()`, and two signals: `StepReached` and `Arrived`. The rules that keep it honest with
+the [Navigator](/api/Navigator), all listed on [Types.Mover](/api/Types#Mover):
 
-1. `Follow` fires `Arrived(false)` for the path it replaces, before starting the new one.
-2. The new path's outcome, `Arrived(true)` at the end or `Arrived(false)` when stuck, is reported
-   on a later frame, never from inside `Follow`.
+1. `Follow` fires `Arrived(false)` for the path it replaces, before starting the new one, and
+   must not yield: the navigator calls it from its planning thread.
+2. The new path's outcome is reported on a later frame, never from inside `Follow`:
+   `Arrived(true)` once the last step is reached (fire `StepReached` for it first), `Arrived(false)`
+   when stuck. An empty path is `Arrived(false)` on the next frame.
+3. `Stop` fires `Arrived(false)` if a path was in progress, and nothing otherwise.
+4. Steps are floor positions; add your own height. `GetPosition` returns the body, not the floor.
+
+What the navigator does with the outcome: on `true` it checks the target against `ArriveDistance`
+and either reports arrival or re-plans; on `false` it re-plans on its cadence.
 
 Make the signals with `VluxyAI.Signal.new()`. Read [CFrameMover](/api/CFrameMover) for a small
 complete one; it is what a server-side "logical position" agent with no rig uses.

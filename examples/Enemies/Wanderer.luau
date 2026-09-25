@@ -5,7 +5,7 @@
 	from the Humanoid preset, so the whole stack is one line, and it reads none of the senses the
 	preset adds: it only shows the runner, the navmesh pathfinder and the humanoid mover.
 
-	Blackboard: none read. Data: Map, Random (from the playground), Since (when the walk began).
+	Blackboard: none read. Data: Map, Random (from the playground). Timers: Rest, Walk.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

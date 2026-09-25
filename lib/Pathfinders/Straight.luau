@@ -45,7 +45,7 @@ local OPTIONAL_KEYS = { "Ignore" }
 	.AgentRadius number? -- Radius of the swept sphere, the agent's half width. Must be below `AgentHeight / 2` or the sweep scrapes the floor. Default `2`.
 	.AgentHeight number? -- The agent's height; the sweep runs `AgentHeight / 2` above the floor. Default `5`.
 	.FloorCheck boolean? -- Require floor under the segment and project the endpoints onto it. Default `true`.
-	.FloorSpacing number? -- Studs between floor samples along the segment; never more than `AgentRadius`, so a gap the body could fall through is always sampled. Default `4`.
+	.FloorSpacing number? -- Studs between floor samples along the segment, capped at `AgentRadius` so a gap the body could fall through is always sampled. Default `4`, which with the default radius means a ray every 2 studs; a long straight leg costs that many rays per plan.
 	.MaxDrop number? -- Studs the floor may be below a sample, and below the previous sample's floor. Default `6`.
 	.Ignore ((agent: Agent) -> { Instance })? -- Instances the casts pass through. Default: [Straight.DefaultIgnore], the agent's entity and every player's character.
 ]=]

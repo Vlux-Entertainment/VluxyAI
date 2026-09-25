@@ -169,7 +169,9 @@ end
 	Warns about an unreachable target once, since retries on the cadence would repeat it.
 ]]
 function Navigator._warnOnce(self: Navigator, target: Vector3, message: string)
-	if self._warnedTarget == target then
+	-- A player's root jitters, so "the same target" is anything within RepathDistance of the last.
+	local warned = self._warnedTarget
+	if warned ~= nil and (target - warned).Magnitude <= self._options.RepathDistance then
 		return
 	end
 
@@ -217,15 +219,18 @@ function Navigator._onMoverArrived(self: Navigator, reached: boolean)
 
 	local target = self._target :: Vector3
 	local plannedTarget = self._plannedTarget
+	local position = self._mover:GetPosition()
 	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
+	local reachedPlan = plannedTarget ~= nil
+		and Tables.FlatDistance(position, plannedTarget) <= self._options.ArriveDistance
 
-	if reached and not targetMoved then
-		-- The whole path was walked and the target has not moved: the plan itself falls short, so
-		-- planning again would only walk the same path. Report it instead of looping.
+	if reached and not targetMoved and not reachedPlan then
+		-- The whole path was walked, the target has not moved, and we are still not where the plan
+		-- was going: the plan itself falls short, so planning again would only walk the same path.
 		self._status = "Failed"
 		self:_warnOnce(
 			target,
-			`the path to {target} ends {math.round(Tables.FlatDistance(self._mover:GetPosition(), target))} studs short`
+			`the path to {target} ends {math.round(Tables.FlatDistance(position, target))} studs short`
 		)
 		self.Arrived:Fire(false)
 		return
@@ -302,11 +307,18 @@ function Navigator._planIfDue(self: Navigator, force: boolean)
 		return
 	end
 
+	-- Arrived is only true while the mover is at the target; the moment it is not, say so and go.
+	if self._status == "Arrived" then
+		self._status = "Idle"
+		self._plannedTarget = nil
+		force = true
+	end
+
 	local now = os.clock()
 	local sinceLast = now - self._plannedAt
 	local plannedTarget = self._plannedTarget
 	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
-	local stale = self._status == "Arrived" or self._status == "Failed" or self._status == "Idle"
+	local stale = self._status == "Failed" or self._status == "Idle"
 
 	local immediate = force or plannedTarget == nil
 	local due = (self._needsPlan or targetMoved or stale) and sinceLast >= self._options.RepathInterval
@@ -336,11 +348,12 @@ function Navigator.MoveTo(self: Navigator, target: Vector3)
 	self._target = target
 
 	local force = previous == nil
+	local settled = self._status == "Arrived" or self._status == "Failed" or self._status == "Idle"
 
-	if not force and self._status == "Arrived" then
+	if not force and settled then
 		local anchor = self._plannedTarget or previous
 		if anchor and (target - anchor).Magnitude > self._options.RepathDistance then
-			-- Arrived was about the old target. Leave it so the new one can arrive or plan at once.
+			-- The old outcome was about the old target. Drop it so the new one plans at once.
 			self._status = "Idle"
 			self._plannedTarget = nil
 			force = true

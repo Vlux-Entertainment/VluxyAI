@@ -256,6 +256,79 @@ return {
 		expect.sequence(s.arrivals, { true, true }, "the second target arrives in its own right")
 	end,
 
+	["a target that drifts out of reach after arriving is chased at once"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5, RepathDistance = 2, ArriveDistance = 2.5 } })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(7.6, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+
+		-- Moved less than RepathDistance, but now 4.4 studs away: not arrived any more.
+		s.navigator:MoveTo(Vector3.new(12, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Moving")
+		expect.equal(#s.pathfinder.Calls, 2, "planned without waiting for the cadence")
+	end,
+
+	["a path that reached what it planned while the target shuffled re-plans instead of failing"] = function(expect)
+		local warnings = {}
+		local s = setup({
+			navigation = { RepathInterval = 0.5, RepathDistance = 2, ArriveDistance = 2.5 },
+			warnings = warnings,
+		})
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		-- The target shuffled 1.9 studs (under RepathDistance) and the path ended 1 stud short of
+		-- where it was planned to: we got where we were going, the target just moved.
+		s.navigator._target = Vector3.new(11.9, 0, 0)
+		s.mover.Position = Vector3.new(9, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Moving")
+		expect.equal(#warnings, 0)
+		expect.sequence(s.arrivals, {})
+
+		s.clock:Advance(0.6)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "re-planned on the cadence")
+	end,
+
+	["an unreachable target that jitters warns once"] = function(expect)
+		local warnings = {}
+		local s = setup({
+			plan = function()
+				return nil, "blocked"
+			end,
+			navigation = { RepathInterval = 0.5, RepathDistance = 2 },
+			warnings = warnings,
+		})
+
+		for index = 1, 10 do
+			s.clock:Advance(1)
+			s.navigator:MoveTo(Vector3.new(10 + index * 0.1, 0, 0))
+		end
+		expect.equal(#warnings, 1)
+	end,
+
+	["a far new target after a failure plans at once"] = function(expect)
+		local calls = 0
+		local s = setup({
+			plan = function(_from, to)
+				calls += 1
+				if calls == 1 then
+					return nil, "blocked"
+				end
+				return { { Position = to, Action = "Walk" } }
+			end,
+			navigation = { RepathInterval = 0.5 },
+		})
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Failed")
+		s.navigator:MoveTo(Vector3.new(100, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Moving", "no wait for the cadence")
+		expect.equal(calls, 2)
+	end,
+
 	["a new target already within reach after arriving arrives again"] = function(expect)
 		local s = setup({ navigation = { RepathDistance = 2, ArriveDistance = 1 } })
 

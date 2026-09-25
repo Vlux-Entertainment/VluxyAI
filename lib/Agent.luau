@@ -321,7 +321,8 @@ function Agent.Start(self: Agent, manual: boolean?): Agent
 	self._running = true
 	self._runner:Start()
 
-	if not manual then
+	-- The initial Enter may have destroyed the agent; a heartbeat would then outlive it.
+	if not manual and self._running then
 		local RunService = game:GetService("RunService")
 		self._trove:Connect(RunService.Heartbeat, function(deltaTime: number)
 			self:_onHeartbeat(deltaTime)
@@ -361,10 +362,11 @@ function Agent.Destroy(self: Agent)
 		self._navigator:Destroy()
 	end
 
+	local asContract = (self :: any) :: Types.Agent
 	for _, sense in self.Senses do
 		local destroy = sense.Destroy
 		if destroy then
-			destroy(sense)
+			destroy(sense, asContract)
 		end
 	end
 

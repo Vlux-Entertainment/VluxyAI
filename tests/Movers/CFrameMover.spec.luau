@@ -220,6 +220,38 @@ return {
 		expect.sequence(s.events, { "arrived false", "step 1 new", "arrived true" })
 	end,
 
+	["a negative Speed or TurnSpeed is refused"] = function(expect)
+		local CFrameMover = load()
+		local pivot = fakePivot(Vector3.new(0, 0, 0))
+		local message = expect.errors(function()
+			CFrameMover.new(pivot, { Speed = -1 })
+		end)
+		expect.includes(message, "Speed must be 0 or more")
+
+		message = expect.errors(function()
+			CFrameMover.new(pivot, { TurnSpeed = -1 })
+		end)
+		expect.includes(message, "TurnSpeed must be 0 or more")
+
+		local mover = CFrameMover.new(pivot)
+		message = expect.errors(function()
+			mover:SetSpeed(-3)
+		end)
+		expect.includes(message, "Speed must be 0 or more")
+	end,
+
+	["a step it never gets closer to is given up after StuckTimeout"] = function(expect)
+		local s = setup({ Speed = 0, StuckTimeout = 2 })
+
+		s.mover:Follow({ step(10, 0, 0) })
+		s.heartbeat:Fire(0.1) -- the first frame sets the baseline distance
+		s.heartbeat:Fire(1.9)
+		expect.sequence(s.events, {}, "not yet")
+		s.heartbeat:Fire(0.2)
+		expect.sequence(s.events, { "arrived false" })
+		expect.falsy(s.mover:IsMoving())
+	end,
+
 	["Stop fires Arrived(false) once and a second Stop does nothing"] = function(expect)
 		local s = setup()
 
@@ -394,7 +426,7 @@ return {
 		expect.includes(message, "[VluxyAI]")
 		expect.includes(
 			message,
-			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Speed, StepDistance, TurnSpeed'
+			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Speed, StepDistance, StuckTimeout, TurnSpeed'
 		)
 
 		local message2 = expect.errors(function()

@@ -23,6 +23,7 @@ type self = {
 	_generation: number,
 	_exiting: boolean,
 	_stopping: boolean,
+	_entered: boolean,
 }
 
 local Runner = {}
@@ -43,6 +44,7 @@ function Runner.new(brain: Types.Brain, agent: Types.Agent, onChanged: ((new: st
 		_generation = 0,
 		_exiting = false,
 		_stopping = false,
+		_entered = false,
 	}
 
 	return setmetatable(self, Runner)
@@ -94,8 +96,9 @@ function Runner.Transition(self: Runner, name: string)
 	self._generation += 1
 	local generation = self._generation
 
-	-- A transition made from inside Exit must not run that same Exit again.
-	if previousState and previousState.Exit and not self._exiting then
+	-- A transition made from inside Exit must not run that same Exit again, and a state whose
+	-- Enter never ran (superseded from the change handler) has nothing to exit.
+	if previousState and previousState.Exit and not self._exiting and self._entered then
 		self._exiting = true
 		previousState.Exit(self._agent)
 		self._exiting = false
@@ -106,6 +109,7 @@ function Runner.Transition(self: Runner, name: string)
 	end
 
 	self._current = name
+	self._entered = false
 	-- From here the new state owns things: a transition from Enter must run this state's Exit.
 	self._exiting = false
 
@@ -117,6 +121,7 @@ function Runner.Transition(self: Runner, name: string)
 		return
 	end
 
+	self._entered = true
 	if state.Enter then
 		state.Enter(self._agent)
 	end
@@ -173,11 +178,13 @@ function Runner.Stop(self: Runner)
 	self._generation += 1
 	self._current = nil
 
-	if state.Exit then
+	-- Stop from inside this state's own Exit (an Exit that destroys the agent) must not run it twice.
+	if state.Exit and self._entered and not self._exiting then
 		self._stopping = true
 		state.Exit(self._agent)
 		self._stopping = false
 	end
+	self._entered = false
 end
 
 return Runner

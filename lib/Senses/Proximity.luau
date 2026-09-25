@@ -66,7 +66,7 @@ export type Proximity = typeof(setmetatable({} :: self, Proximity))
 	@within Proximity
 	@param options ProximityOptions?
 	@return Proximity
-	@error "unknown option" -- A key not in [ProximityOptions].
+	@error "unknown option" -- A key not in `ProximityOptions`.
 	@error "Range must be zero or more"
 ]=]
 function Proximity.new(options: ProximityOptions?): Types.Sense
