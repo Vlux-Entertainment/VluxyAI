@@ -1,45 +1,24 @@
 {
+    "editor.formatOnSave": true,
     "cSpell.words": [
-        "adammillsy",
-        "alastair",
-        "aspecky",
-        "blox",
-        "boatbomber",
-        "boattween",
-        "Brushtool",
-        "cameronpcampbell",
-        "denispionicul",
-        "Endy",
-        "evaera",
-        "exceptable",
-        "Flipbook",
-        "foreverhd",
-        "Freefall",
-        "jakeywastaken",
-        "johnnymorganz",
-        "jsdotlua",
-        "levnth",
-        "lightwxve",
-        "loleris",
-        "Morganz",
-        "ncxyzero",
-        "Parkinglot",
-        "patt",
-        "Profilestore",
-        "rajden",
-        "signalplus",
-        "simplespline",
+        "greenviper",
+        "moonwave",
+        "pcall",
+        "setmetatable",
         "sleitnick",
-        "smartbone",
-        "SPSM",
         "stylua",
-        "thelaundryshift",
-        "topbarplus",
-        "TPTP",
-        "tweenplus",
-        "typeforge",
         "Vlux",
-        "Vluxy"
+        "Vluxy",
+        "vluxyai"
     ],
-    "luau-lsp.completion.imports.separateGroupsWithLine": false
+    "luau-lsp.sourcemap.rojoProjectFile": "test-place.project.json",
+    "luau-lsp.completion.imports.separateGroupsWithLine": false,
+    "[luau]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua",
+        "editor.formatOnSave": true
+    },
+    "[lua]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua",
+        "editor.formatOnSave": true
+    }
 }

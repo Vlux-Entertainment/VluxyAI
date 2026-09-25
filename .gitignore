@@ -1,6 +1,20 @@
-# Project place file
-/VluxyAI.rbxlx
+# Place and model builds
+/*.rbxl
+/*.rbxlx
+/*.rbxm
+/*.rbxmx
 
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
+
+# Tool output
+sourcemap.json
+.luau-analyze/
+build/
+PackageTests/*.tar.gz
+PackageTests/unpacked/
+
+# Editors
+.vscode/*
+!.vscode/settings.json

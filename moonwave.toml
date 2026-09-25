@@ -1,0 +1,68 @@
+title = "VluxyAI"
+gitRepoUrl = "https://github.com/Vlux-Entertainment/VluxyAI"
+
+changelog = false
+gitSourceBranch = "master"
+
+classOrder = [
+    "VluxyAI",
+    "Types",
+    "Builder",
+    "Agent",
+    "Navigator",
+    "Validate",
+    "Utility",
+    "Signal",
+    "Navmesh",
+    "Straight",
+    "Ladder",
+    "Graph",
+    "Hybrid",
+    "HumanoidMover",
+    "CFrameMover",
+    "Sight",
+    "Proximity",
+    "Hearing",
+    "Watched",
+    "Surroundings",
+    "Perception",
+    "Broadcaster",
+    "Replica",
+    "Attack",
+    "Kill",
+    "NPCAnimator",
+    "Locomotion",
+    "PathVisual",
+    "StateLabel",
+    "Rig",
+]
+
+[docusaurus]
+organizationName = "VluxEntertainment(Partnership)"
+projectName = "VluxyAI"
+deploymentBranch = "gh-pages"
+tagline = "Simple, composable AI for Roblox: stack a brain, a pathfinder, a mover and some senses."
+
+url = "https://Vlux-Entertainment.github.io"
+baseUrl = "/VluxyAI/"
+
+[home]
+enabled = true
+includeReadme = false
+
+[[navbar.items]]
+href = "https://discord.gg/Ebbp9UgBUD"
+label = "Discord"
+position = "right"
+
+[[home.features]]
+title = "A brain is a table"
+description = "States with Enter, Update, Exit and ordered transitions. The whole AI reads top to bottom, and a bad field fails at Build() with its path."
+
+[[home.features]]
+title = "Senses write, states read"
+description = "Sight, hearing, proximity and being-watched write a blackboard every tick. States never raycast, so brains stay readable and run headless."
+
+[[home.features]]
+title = "Contracts, not registries"
+description = "A pathfinder is anything with FindPath, a mover anything with Follow and Stop. Pass your own in; the package never learns it exists."
