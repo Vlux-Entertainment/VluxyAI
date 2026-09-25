@@ -3,9 +3,9 @@
 registry = "test"
 
 [[package]]
-name = "green/vluxyai"
-version = "0.1.0"
-dependencies = [["trove", "sleitnick/trove@1.5.0"]]
+name = "greenviper126/vluxyai"
+version = "0.2.0"
+dependencies = [["Trove", "sleitnick/trove@1.5.0"]]
 
 [[package]]
 name = "sleitnick/trove"

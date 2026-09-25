@@ -1,11 +1,31 @@
 [package]
-name = "green/vluxyai"
-version = "0.1.0"
+name = "greenviper126/vluxyai"
+
+description = """
+Simple, composable AI for Roblox: a state table, a pathfinder, a mover and some senses, stacked with a builder.
+
+Source: https://github.com/Vlux-Entertainment/VluxyAI
+"""
+version = "0.2.0"
+license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
-authors = ["Viper <greenviper126@gmail.com>"]
-private = true
+include = ["lib", "default.project.json", "LICENSE", "README.md"]
+
+exclude = [
+    "examples",
+    "tests",
+    "docs",
+    "build",
+    "Art",
+    "PackageTests",
+    "moonwave.toml",
+    "stylua.toml",
+    "selene.toml",
+    "sourcemap.json",
+    "test-place.project.json",
+]
 
 [server-dependencies]
 
@@ -13,17 +33,15 @@ private = true
 
 #optional:
 
-
 [dev-dependencies]
 
 #main:
 
 #optional:
 
-
 [dependencies]
 
 #main:
-trove = "sleitnick/trove@1.5.0"
+Trove = "sleitnick/trove@1.5.0"
 
 #optional:
