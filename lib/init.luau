@@ -8,6 +8,7 @@
 local Agent = require(script.Agent)
 local Animator = require(script.Animator)
 local Builder = require(script.Builder)
+local Locomotion = require(script.Animator.Locomotion)
 local Navigator = require(script.Navigator)
 local Types = require(script.Types)
 
@@ -15,14 +16,18 @@ local Runner = require(script.Brain.Runner)
 local Utility = require(script.Brain.Utility)
 local Validate = require(script.Brain.Validate)
 
+local Attack = require(script.Combat.Attack)
 local Kill = require(script.Combat.Kill)
 
 local PathVisual = require(script.Debug.PathVisual)
+local Rig = require(script.Debug.Rig)
 local StateLabel = require(script.Debug.StateLabel)
 
 local CFrameMover = require(script.Movers.CFrameMover)
 local HumanoidMover = require(script.Movers.Humanoid)
 
+local Graph = require(script.Pathfinders.Graph)
+local Hybrid = require(script.Pathfinders.Hybrid)
 local Ladder = require(script.Pathfinders.Ladder)
 local Navmesh = require(script.Pathfinders.Navmesh)
 local Straight = require(script.Pathfinders.Straight)
@@ -31,6 +36,7 @@ local Hearing = require(script.Senses.Hearing)
 local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
+local Surroundings = require(script.Senses.Surroundings)
 local Watched = require(script.Senses.Watched)
 
 local Broadcaster = require(script.Sync.Broadcaster)
@@ -77,6 +83,7 @@ export type AnimationInfo = Animator.AnimationInfo
 export type Broadcaster = Broadcaster.Broadcaster
 export type Replica = Replica.Replica
 export type KillHandle = Kill.KillHandle
+export type GraphNode = Graph.GraphNode
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -164,14 +171,18 @@ VluxyAI.Signal = Signal
 
 --[=[
 	@within VluxyAI
-	@prop Pathfinders { Navmesh: Navmesh, Straight: Straight, Ladder: Ladder }
+	@prop Pathfinders { Navmesh: Navmesh, Straight: Straight, Ladder: Ladder, Graph: Graph, Hybrid: Hybrid }
 
-	The built-in [Types.Pathfinder]s.
+	The built-in [Types.Pathfinder]s: [Navmesh] for geometry, [Straight] for a clear line,
+	[Ladder] to try several in order, [Graph] for A* over authored nodes, and [Hybrid] to
+	compose a graph with a local pathfinder.
 ]=]
 VluxyAI.Pathfinders = {
 	Navmesh = Navmesh,
 	Straight = Straight,
 	Ladder = Ladder,
+	Graph = Graph,
+	Hybrid = Hybrid,
 }
 
 --[=[
@@ -187,7 +198,7 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Watched: Watched }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Watched: Watched, Surroundings: Surroundings }
 
 	The built-in [Types.Sense]s.
 ]=]
@@ -196,6 +207,7 @@ VluxyAI.Senses = {
 	Proximity = Proximity,
 	Hearing = Hearing,
 	Watched = Watched,
+	Surroundings = Surroundings,
 }
 
 --[=[
@@ -217,6 +229,14 @@ VluxyAI.Animator = Animator
 
 --[=[
 	@within VluxyAI
+	@prop Locomotion Locomotion
+
+	Idle and walk for a rig from its real speed, plus one-shots by name, through the animator.
+]=]
+VluxyAI.Locomotion = Locomotion
+
+--[=[
+	@within VluxyAI
 	@prop Sync { Broadcaster: Broadcaster, Replica: Replica }
 
 	Client-side presentation: a [Broadcaster] watches an agent on the server, a [Replica] drives
@@ -231,21 +251,24 @@ VluxyAI.Sync = {
 	@within VluxyAI
 	@prop Combat { Kill: Kill }
 
-	[Kill.Live] and [Kill.BlackBox]: the two ways an agent kills a character.
+	[Attack.State], the one generic state, and [Kill.Live] and [Kill.BlackBox], the two ways an
+	agent kills a character.
 ]=]
 VluxyAI.Combat = {
+	Attack = Attack,
 	Kill = Kill,
 }
 
 --[=[
 	@within VluxyAI
-	@prop Debug { PathVisual: PathVisual, StateLabel: StateLabel }
+	@prop Debug { PathVisual: PathVisual, StateLabel: StateLabel, Rig: Rig }
 
-	Opt-in debug views.
+	Opt-in debug views, and a runtime R15 rig for tests and playgrounds.
 ]=]
 VluxyAI.Debug = {
 	PathVisual = PathVisual,
 	StateLabel = StateLabel,
+	Rig = Rig,
 }
 
 --[=[

@@ -17,7 +17,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
@@ -83,7 +82,7 @@ local Brain: VluxyAI.Brain = {
 		},
 
 		-- One touch is the end: a black-box kill, the screen cuts before anything is seen.
-		Attack = Combat.AttackState({
+		Attack = VluxyAI.Combat.Attack.State({
 			Damage = ATTACK_DAMAGE,
 			Cooldown = ATTACK_COOLDOWN,
 			TargetKey = "SeenTarget",

@@ -10,6 +10,10 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 ## A sense
 
 Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
+The built-ins are [Sight](/api/Sight), [Proximity](/api/Proximity), [Hearing](/api/Hearing),
+[Watched](/api/Watched) and [Surroundings](/api/Surroundings) (a ring of rays for the nearest
+obstacle and the most open direction); the playground's Hunter carries a stamina sense written
+in a dozen lines.
 It writes to `agent.Blackboard` and reads nothing from states. Document the keys you write, use
 `math.huge` for a distance with nothing to measure, and keep memory (a `SeenAt`-style timestamp)
 on the blackboard rather than in the sense, so one instance can serve many agents. The agent's
@@ -44,39 +48,56 @@ mover's root position and `to` is wherever the state asked to go; return a list 
 `Position` is a **floor** position, or `nil` and a short reason.
 
 ```lua
-local Graph = {}
-Graph.__index = Graph
+local Teleporters = {}
+Teleporters.__index = Teleporters
 
-function Graph.new(nodes)
-	return setmetatable({ Name = "Graph", _nodes = nodes }, Graph)
+function Teleporters.new(pads)
+	return setmetatable({ Name = "Teleporters", _pads = pads }, Teleporters)
 end
 
-function Graph.FindPath(self, from, to, agent)
-	local route = self:_astar(from, to)
-	if route == nil then
-		return nil, "no route through the graph"
+function Teleporters.FindPath(self, from, to, agent)
+	local pad = self:_nearestPad(from)
+	if pad == nil then
+		return nil, "no pad near"
 	end
 
-	local path = {}
-	for _, node in route do
-		table.insert(path, { Position = node.Position, Action = "Walk" })
-	end
-	return path
+	return {
+		{ Position = pad.Entrance, Action = "Custom", Label = "Teleport" },
+		{ Position = to, Action = "Walk" },
+	}
 end
 
-return Graph
+return Teleporters
 ```
 
-Compose it with the built-ins through a [Ladder](/api/Ladder): try a straight line, then your
-graph, then the navmesh.
+Compose it with the built-ins through a [Ladder](/api/Ladder), which tries each in order:
 
 ```lua
 :UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
 	VluxyAI.Pathfinders.Straight.new(),
-	Graph.new(nodes),
+	Teleporters.new(pads),
 	VluxyAI.Pathfinders.Navmesh.new(),
 }))
 ```
+
+For a level with doors, one-way drops or rooms the navmesh cannot connect, the package already
+has the two pieces the design plan calls for: a [Graph](/api/Graph) of hand-placed nodes with
+A\*, read out of a folder of parts with `Graph.FromInstances`, and a [Hybrid](/api/Hybrid) that
+uses your local pathfinder up close and the graph for long legs, refining both ends locally.
+
+```lua
+:UsePathfinder(VluxyAI.Pathfinders.Hybrid.new({
+	Graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph),
+	Local = VluxyAI.Pathfinders.Ladder.new({
+		VluxyAI.Pathfinders.Straight.new(),
+		VluxyAI.Pathfinders.Navmesh.new(),
+	}),
+	LocalRadius = 40,
+}))
+```
+
+A door is a `Custom` step on a graph link: the game listens to `agent.Navigator.StepReached`,
+stops the agent, opens the door, and calls `MoveTo` again.
 
 ## A mover
 

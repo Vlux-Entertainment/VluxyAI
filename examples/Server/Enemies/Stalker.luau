@@ -17,7 +17,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
@@ -152,12 +151,15 @@ local Brain: VluxyAI.Brain = {
 		},
 
 		-- The finishing blow is a live kill: the stalker holds you while both animations play.
-		Attack = Combat.AttackState({
+		Attack = VluxyAI.Combat.Attack.State({
 			Damage = 34,
 			Cooldown = 1.8,
 			TargetKey = "SeenTarget",
 			Then = "Hunt",
 			Kill = "Live",
+			-- Roblox's own R15 animations: a swing for the killer, a flail for the victim.
+			KillerAnimation = 522635514,
+			VictimAnimation = 507767968,
 		}),
 	},
 }

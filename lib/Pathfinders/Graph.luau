@@ -1,0 +1,431 @@
+--!strict
+
+--[[
+	A hand-placed node graph with A* over it. Nodes are floor positions with links to other
+	nodes; a path is the nearest node to the start, the nearest node to the goal, and the shortest
+	chain of links between them, followed by the goal itself. Doors, one-way edges and anything
+	else the navmesh cannot express are authored as links.
+
+	The graph can be built from data (`new`) for tests and generated maps, or read out of the
+	place (`FromInstances`): parts or attachments under a folder are nodes, `ObjectValue` children
+	named Link are explicit edges, and nodes within `LinkRadius` with a clear ray between them are
+	linked automatically. `AStar` and `Nearest` are pure and specced.
+]]
+
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
+local Tables = require(script.Parent.Parent.Utility.Tables)
+local Types = require(script.Parent.Parent.Types)
+
+------------------------------------------------------------------------------------------------------------------------
+
+local DEFAULT_OPTIONS = table.freeze({
+	-- A start or goal further than this from every node has no path.
+	NearestLimit = 60,
+})
+
+local BUILD_DEFAULTS = table.freeze({
+	LinkRadius = 24,
+	AutoLink = true,
+	Ignore = {} :: { Instance },
+})
+
+--[=[
+	@interface GraphNode
+	@within Graph
+
+	.Position Vector3 -- A floor position.
+	.Links { number } -- Indices of the nodes this one connects to. Directed: add both ways for a two-way link.
+
+	One node of a [Graph].
+]=]
+export type GraphNode = {
+	Position: Vector3,
+	Links: { number },
+}
+
+--[=[
+	@interface GraphOptions
+	@within Graph
+
+	.NearestLimit number? -- Studs; a start or goal further than this from every node has no path. Default `60`.
+	.LineOfSight ((from: Vector3, to: Vector3) -> boolean)? -- When given, the entry and exit nodes are the nearest ones this returns `true` for, so a route never starts through a wall.
+]=]
+export type GraphOptions = {
+	NearestLimit: number?,
+	LineOfSight: ((from: Vector3, to: Vector3) -> boolean)?,
+}
+
+--[=[
+	@interface GraphBuildOptions
+	@within Graph
+
+	.LinkRadius number? -- Studs within which two nodes are linked automatically when a ray between them is clear. Default `24`.
+	.AutoLink boolean? -- Turn the automatic linking off to use only explicit links. Default `true`.
+	.Ignore { Instance }? -- Instances the linking rays pass through (the node parts themselves always are).
+]=]
+export type GraphBuildOptions = {
+	LinkRadius: number?,
+	AutoLink: boolean?,
+	Ignore: { Instance }?,
+}
+
+type ResolvedOptions = {
+	NearestLimit: number,
+	LineOfSight: ((from: Vector3, to: Vector3) -> boolean)?,
+}
+
+type self = {
+	Name: string,
+	_nodes: { GraphNode },
+	_options: ResolvedOptions,
+}
+
+local Graph = {}
+Graph.__index = Graph
+
+type GraphClass = typeof(setmetatable({} :: self, Graph))
+
+--[=[
+	@class Graph
+
+	A [Types.Pathfinder] over hand-placed nodes with A*. Use it for the long legs of a level a
+	navmesh cannot plan across (doors, one-way drops), and compose it with a local pathfinder
+	through [Hybrid]. `Name` is `"Graph"`.
+
+	```lua
+	local graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph)
+	local pathfinder = VluxyAI.Pathfinders.Hybrid.new({
+		Graph = graph,
+		Local = VluxyAI.Pathfinders.Navmesh.new(),
+	})
+	```
+]=]
+
+--[=[
+	@within Graph
+	@param nodes { GraphNode }
+	@param options GraphOptions?
+	@return Pathfinder
+	@error string -- No nodes, or a link to an index that does not exist.
+]=]
+function Graph.new(nodes: { GraphNode }, options: GraphOptions?): Types.Pathfinder
+	local resolved = Options.Resolve("Graph.new", DEFAULT_OPTIONS, options :: any, { "LineOfSight" }) :: ResolvedOptions
+
+	if type(nodes) ~= "table" or #nodes == 0 then
+		FormatMessage.Error("Graph.new: needs at least one node", 2)
+	end
+	for index, node in nodes do
+		if typeof(node.Position) ~= "Vector3" then
+			FormatMessage.Error(`Graph.new: node {index} has no Vector3 Position`, 2)
+		end
+		if node.Links then
+			for _, link in node.Links do
+				if nodes[link] == nil then
+					FormatMessage.Error(
+						`Graph.new: node {index} links to node {tostring(link)}, which does not exist`,
+						2
+					)
+				end
+			end
+		end
+	end
+
+	local copy: { GraphNode } = {}
+	for index, node in nodes do
+		copy[index] = { Position = node.Position, Links = table.clone(node.Links or {}) }
+	end
+
+	local self: self = {
+		Name = "Graph",
+		_nodes = copy,
+		_options = resolved,
+	}
+
+	return setmetatable(self, Graph) :: any
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Graph
+	@param nodes { GraphNode }
+	@param start number -- Index of the start node.
+	@param goal number -- Index of the goal node.
+	@return { number }? -- Node indices from `start` to `goal` inclusive, or `nil` when unreachable.
+
+	A* over the links with straight-line distance as the heuristic. Pure.
+]=]
+function Graph.AStar(nodes: { GraphNode }, start: number, goal: number): { number }?
+	if nodes[start] == nil or nodes[goal] == nil then
+		return nil
+	end
+	if start == goal then
+		return { start }
+	end
+
+	local goalPosition = nodes[goal].Position
+	local cameFrom: { [number]: number } = {}
+	local costSoFar: { [number]: number } = { [start] = 0 }
+	local open: { number } = { start }
+	local inOpen: { [number]: boolean } = { [start] = true }
+	local closed: { [number]: boolean } = {}
+
+	local function estimate(index: number): number
+		return costSoFar[index] + (nodes[index].Position - goalPosition).Magnitude
+	end
+
+	while #open > 0 do
+		-- Smallest estimate first. The lists are small (a level's worth of nodes), so a scan is fine.
+		local bestSlot = 1
+		for slot = 2, #open do
+			if estimate(open[slot]) < estimate(open[bestSlot]) then
+				bestSlot = slot
+			end
+		end
+		local current = table.remove(open, bestSlot) :: number
+		inOpen[current] = nil
+
+		if current == goal then
+			local route = { goal }
+			local step = goal
+			while cameFrom[step] ~= nil do
+				step = cameFrom[step]
+				table.insert(route, 1, step)
+			end
+			return route
+		end
+
+		closed[current] = true
+		local currentPosition = nodes[current].Position
+
+		for _, neighbour in nodes[current].Links do
+			if closed[neighbour] then
+				continue
+			end
+			local cost = costSoFar[current] + (nodes[neighbour].Position - currentPosition).Magnitude
+			local known = costSoFar[neighbour]
+			if known == nil or cost < known then
+				costSoFar[neighbour] = cost
+				cameFrom[neighbour] = current
+				if not inOpen[neighbour] then
+					table.insert(open, neighbour)
+					inOpen[neighbour] = true
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+--[=[
+	@within Graph
+	@param nodes { GraphNode }
+	@param position Vector3
+	@param limit number -- Studs; nodes further away are ignored.
+	@param accept ((node: GraphNode) -> boolean)? -- Skip nodes this returns `false` for.
+	@return number? -- The index of the nearest acceptable node within `limit`.
+
+	Pure.
+]=]
+function Graph.Nearest(
+	nodes: { GraphNode },
+	position: Vector3,
+	limit: number,
+	accept: ((node: GraphNode) -> boolean)?
+): number?
+	local best: number? = nil
+	local bestDistance = limit
+
+	for index, node in nodes do
+		local distance = (node.Position - position).Magnitude
+		if distance <= bestDistance and (accept == nil or accept(node)) then
+			best = index
+			bestDistance = distance
+		end
+	end
+
+	return best
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Graph
+	@param container Instance -- A folder of nodes.
+	@param options GraphBuildOptions?
+	@return Pathfinder
+	@error string -- No nodes under the container.
+
+	Reads a graph out of the place. Every `BasePart` or `Attachment` directly under `container`
+	is a node at its position (a part's position is lowered to its bottom face). An `ObjectValue`
+	named `Link` under a node whose value is another node is a one-way link; add the reverse
+	for two-way. With `AutoLink`, nodes within `LinkRadius` of each other with a clear ray between
+	them are linked both ways.
+]=]
+function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): Types.Pathfinder
+	local resolved = Options.Resolve("Graph.FromInstances", BUILD_DEFAULTS, options :: any) :: typeof(BUILD_DEFAULTS)
+
+	local instances: { Instance } = {}
+	local positions: { Vector3 } = {}
+	local indexOf: { [Instance]: number } = {}
+
+	for _, child in container:GetChildren() do
+		local position: Vector3? = nil
+		if child:IsA("BasePart") then
+			position = child.Position - Vector3.new(0, child.Size.Y / 2, 0)
+		elseif child:IsA("Attachment") then
+			position = child.WorldPosition
+		end
+		if position then
+			table.insert(instances, child)
+			table.insert(positions, position)
+			indexOf[child] = #instances
+		end
+	end
+
+	if #instances == 0 then
+		FormatMessage.Error(`Graph.FromInstances: no parts or attachments under {container:GetFullName()}`, 2)
+	end
+
+	local nodes: { GraphNode } = {}
+	for index, position in positions do
+		nodes[index] = { Position = position, Links = {} }
+	end
+
+	local function link(a: number, b: number)
+		if a ~= b and not table.find(nodes[a].Links, b) then
+			table.insert(nodes[a].Links, b)
+		end
+	end
+
+	for index, instance in instances do
+		for _, value in instance:GetChildren() do
+			if value:IsA("ObjectValue") and value.Name == "Link" and value.Value ~= nil then
+				local target = indexOf[value.Value :: Instance]
+				if target then
+					link(index, target)
+				end
+			end
+		end
+	end
+
+	if resolved.AutoLink then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore = table.clone(resolved.Ignore)
+		table.insert(ignore, container)
+		params.FilterDescendantsInstances = ignore
+
+		local lift = Vector3.new(0, 1.5, 0)
+		for a = 1, #nodes do
+			for b = a + 1, #nodes do
+				local from = nodes[a].Position + lift
+				local offset = (nodes[b].Position + lift) - from
+				if offset.Magnitude <= resolved.LinkRadius and workspace:Raycast(from, offset, params) == nil then
+					link(a, b)
+					link(b, a)
+				end
+			end
+		end
+	end
+
+	return Graph.new(nodes)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	The nearest node to a position that the LineOfSight option accepts, if there is one.
+]]
+function Graph._entry(self: GraphClass, position: Vector3): number?
+	local lineOfSight = self._options.LineOfSight
+	local accept = if lineOfSight
+		then function(node: GraphNode)
+			return lineOfSight(position, node.Position)
+		end
+		else nil
+
+	return Graph.Nearest(self._nodes, position, self._options.NearestLimit, accept)
+end
+
+--[=[
+	@within Graph
+	@param from Vector3
+	@param to Vector3
+	@param agent Agent
+	@return Path? -- The route's node positions as Walk steps, then `to`.
+	@return string? -- `no node near <from|to>` or `no route`.
+]=]
+function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
+	local _ = agent
+
+	local start = self:_entry(from)
+	if start == nil then
+		return nil, `no node near {from}`
+	end
+	local goal = self:_entry(to)
+	if goal == nil then
+		return nil, `no node near {to}`
+	end
+
+	local route = Graph.AStar(self._nodes, start, goal)
+	if route == nil then
+		return nil, "no route"
+	end
+
+	local path: Types.Path = {}
+	for _, index in route do
+		table.insert(path, { Position = self._nodes[index].Position, Action = "Walk" })
+	end
+	table.insert(path, { Position = to, Action = "Walk" })
+
+	return path, nil
+end
+
+--[=[
+	@within Graph
+	@param from Vector3
+	@param to Vector3
+	@return number? -- Length in studs of the route through the graph, or `nil` when there is none.
+
+	The "distance through the level" a chase or tension system wants, rather than a straight line
+	through a wall.
+]=]
+function Graph.PathLength(self: GraphClass, from: Vector3, to: Vector3): number?
+	local path = self:FindPath(from, to, nil :: any)
+	if path == nil then
+		return nil
+	end
+
+	local length = Tables.FlatDistance(from, path[1].Position)
+	for index = 2, #path do
+		length += (path[index].Position - path[index - 1].Position).Magnitude
+	end
+
+	return length
+end
+
+--[=[
+	@within Graph
+	@return { GraphNode } -- A copy of the nodes.
+]=]
+function Graph.GetNodes(self: GraphClass): { GraphNode }
+	local copy = {}
+	for index, node in self._nodes do
+		copy[index] = { Position = node.Position, Links = table.clone(node.Links) }
+	end
+	return copy
+end
+
+--[=[
+	@within Graph
+
+	Nothing to release; present so the pathfinder contract is complete.
+]=]
+function Graph.Destroy(self: GraphClass)
+	local _ = self
+end
+
+return Graph

@@ -18,9 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Context = require(script.Parent.Context)
-local Locomotion = require(script.Parent.Locomotion)
 local Map = require(script.Parent.Map)
-local Rig = require(script.Parent.Rig)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local Enemies = script.Parent.Enemies
@@ -162,7 +160,7 @@ for _, entry in ROSTER do
 		continue
 	end
 
-	local model = Rig.Create(entry.Name, {
+	local model = VluxyAI.Debug.Rig.Create(entry.Name, {
 		Humanoid = entry.Humanoid,
 		Color = entry.Color,
 		Transparency = entry.Transparency,
@@ -173,7 +171,7 @@ for _, entry in ROSTER do
 	local create = require(entry.Module) :: Context.Enemy
 	local agent = create(model, context)
 
-	Locomotion.Attach(agent)
+	VluxyAI.Locomotion.Attach(agent)
 	VluxyAI.Debug.StateLabel.new(agent, { Keys = entry.Keys })
 	VluxyAI.Debug.PathVisual.new(agent, { Color = entry.Color })
 

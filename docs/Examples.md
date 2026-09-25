@@ -7,8 +7,7 @@ sidebar_position: 4
 The repository ships a playground: a seeded maze (recursive backtracking, then a pass that
 removes some walls so it has loops) and four example AIs on standard R15 rigs. Clone the repo,
 run `wally install`, serve `test-place.project.json` with Rojo and press Play. Each rig is built
-at runtime, animated through the package's [Animator](/api/NPCAnimator) by a small locomotion
-helper that blends idle and walk from the rig's real speed, and carries a label with its state,
+at runtime by [Rig](/api/Rig), animated by [Locomotion](/api/Locomotion), and carries a label with its state,
 its navigator status and a few blackboard values, plus the path it is following.
 
 Colour says which enemy it is. Transparency says how it moves: solid rigs walk with the Humanoid

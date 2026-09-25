@@ -17,9 +17,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
-local Locomotion = require(script.Parent.Parent.Locomotion)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local WANDER_SPEED = 8
@@ -88,7 +86,7 @@ local Brain: VluxyAI.Brain = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
 				agent:StartTimer("Alert", 0.8)
-				Locomotion.PlayAttack(agent)
+				VluxyAI.Locomotion.Play(agent, "Attack")
 				-- The alarm is a loud noise at the guardian's position; whoever listens, listens.
 				agent.Data.Noises:Fire(agent:GetPosition(), ALARM_LOUDNESS)
 			end,
@@ -127,7 +125,7 @@ local Brain: VluxyAI.Brain = {
 			},
 		},
 
-		Attack = Combat.AttackState({ Damage = 20, Cooldown = 1.2, TargetKey = "SeenTarget", Then = "Chase" }),
+		Attack = VluxyAI.Combat.Attack.State({ Damage = 20, Cooldown = 1.2, TargetKey = "SeenTarget", Then = "Chase" }),
 	},
 }
 

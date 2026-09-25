@@ -16,8 +16,8 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `rok
 Three deliverables live here:
 
 1. **`lib/`** — the Wally package (what ships; see `include`/`exclude` in `wally.toml`).
-2. **`examples/Server`** — the four example AIs, the R15 rig, combat and locomotion helpers, and the
-   playground that builds a seeded maze, spawns them and relays them over one RemoteEvent.
+2. **`examples/Server`** — the four example AIs and the playground that builds a seeded maze,
+   spawns them on runtime rigs and relays them over one RemoteEvent.
    **`examples/Client`** — the replicas: per-enemy client visuals and the kill presentation.
    Excluded from the package; mounted by `test-place.project.json`.
 3. **Docs** — Moonwave site (`moonwave.toml`, `docs/*.md`), generated into `build/`.
@@ -50,14 +50,15 @@ lib/
   Brain/Runner       runs a Brain table: Enter/Update/Exit, ordered transitions
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
-  Senses/            Sight, Proximity, Hearing, Watched: Tick(agent, dt) writes the blackboard
+  Senses/            Sight, Proximity, Hearing, Watched, Surroundings: Tick(agent, dt) writes the blackboard
   Senses/Perception  public helpers the senses are made of (alive roots, cones, line of sight, HumanoidOf)
-  Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works)
+  Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
+                     Graph (A* over authored nodes), Hybrid (graph for the level, local for geometry)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
-  Animator.luau      NPC animation helper carried over from 0.1
+  Animator/          NPCAnimator (tracks by name) and Locomotion (idle/walk from real speed, one-shots)
   Sync/              Broadcaster (server: state, position samples, events) and Replica (client: rig + Visuals)
-  Combat/Kill        Live (held pose + animations) and BlackBox (announce, delay, cut) kills
-  Debug/             PathVisual (waypoint balls), StateLabel (billboard); opt-in, make parts
+  Combat/            Attack (Strike and the one generic state) and Kill (Live and BlackBox kills)
+  Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
   Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Trove (the one outside require)
 ```
 

@@ -17,7 +17,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Combat = require(script.Parent.Parent.Combat)
 local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
@@ -197,7 +196,12 @@ local Brain: VluxyAI.Brain = {
 			},
 		},
 
-		Attack = Combat.AttackState({ Damage = 15, Cooldown = 1.2, TargetKey = "NearestTarget", Then = "Hunt" }),
+		Attack = VluxyAI.Combat.Attack.State({
+			Damage = 15,
+			Cooldown = 1.2,
+			TargetKey = "NearestTarget",
+			Then = "Hunt",
+		}),
 	},
 }
 
