@@ -283,6 +283,10 @@ return {
 		agent.StateChanged:Connect(function()
 			changes += 1
 		end)
+		local destroyedFires = 0
+		agent.Destroyed:Connect(function()
+			destroyedFires += 1
+		end)
 
 		agent:Start(true)
 		agent:MoveTo(Vector3.new(10, 0, 0))
@@ -298,6 +302,7 @@ return {
 
 		agent:Destroy()
 		expect.equal(mover.Stops, 1, "second Destroy does nothing")
+		expect.equal(destroyedFires, 1, "Destroyed fired once")
 		agent:Step(0.1)
 		expect.equal(#log, 2, "no ticks after Destroy")
 	end,

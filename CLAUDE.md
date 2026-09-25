@@ -16,7 +16,8 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `rok
 Three deliverables live here:
 
 1. **`lib/`** — the Wally package (what ships; see `include`/`exclude` in `wally.toml`).
-2. **`examples/`** — the cylinder test AIs and the playground that builds a map and spawns them.
+2. **`examples/`** — the six example AIs, the R15 rig and locomotion helpers, and the playground
+   that builds a map and spawns them.
    Excluded from the package; mounted by `test-place.project.json`.
 3. **Docs** — Moonwave site (`moonwave.toml`, `docs/*.md`), generated into `build/`.
 

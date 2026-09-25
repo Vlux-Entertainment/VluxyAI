@@ -34,6 +34,7 @@ type self = {
 	Mover: Types.Mover?,
 	Pathfinder: Types.Pathfinder?,
 	StateChanged: Types.Signal<(string, string?)>,
+	Destroyed: Types.Signal<()>,
 
 	_runner: Runner.Runner,
 	_navigator: Navigator.Navigator?,
@@ -84,6 +85,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		Mover = definition.Mover,
 		Pathfinder = definition.Pathfinder,
 		StateChanged = Signal.new(),
+		Destroyed = Signal.new(),
 
 		_runner = nil :: any,
 		_navigator = nil,
@@ -344,8 +346,8 @@ end
 	@within Agent
 
 	Exits the current state, stops moving, and destroys the navigator, every sense, the mover and
-	the pathfinder that have a `Destroy`. Safe to call twice. The entity model is left alone; it is
-	yours.
+	the pathfinder that have a `Destroy`, then fires `Destroyed`. Safe to call twice. The entity
+	model is left alone; it is yours.
 ]=]
 function Agent.Destroy(self: Agent)
 	if self._destroyed then
@@ -387,6 +389,8 @@ function Agent.Destroy(self: Agent)
 	end
 
 	self.StateChanged:Destroy()
+	self.Destroyed:Fire()
+	self.Destroyed:Destroy()
 end
 
 return Agent

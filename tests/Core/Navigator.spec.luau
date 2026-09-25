@@ -266,8 +266,41 @@ return {
 
 		-- Moved less than RepathDistance, but now 4.4 studs away: not arrived any more.
 		s.navigator:MoveTo(Vector3.new(12, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Idle", "Arrived is dropped at once")
+		expect.equal(#s.pathfinder.Calls, 1, "the plan waits for the cadence")
+
+		s.clock:Advance(0.6)
+		s.navigator:MoveTo(Vector3.new(12, 0, 0))
 		expect.equal(s.navigator:GetStatus(), "Moving")
-		expect.equal(#s.pathfinder.Calls, 2, "planned without waiting for the cadence")
+		expect.equal(#s.pathfinder.Calls, 2)
+	end,
+
+	["a target jittering across ArriveDistance is one arrival and no plan spam"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5, RepathDistance = 2, ArriveDistance = 2.5 } })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		expect.sequence(s.arrivals, { true })
+
+		for index = 1, 10 do
+			local offset = if index % 2 == 0 then 2.4 else 2.6
+			s.navigator:MoveTo(Vector3.new(10 + offset, 0, 0))
+		end
+		expect.equal(#s.pathfinder.Calls, 1, "no plan within the cadence")
+		expect.equal(s.mover.Stops, 0, "nothing to stop: the mover finished its path on its own")
+		expect.sequence(s.arrivals, { true }, "one arrival")
+	end,
+
+	["a target hovering above the end of the path is an ends-short failure, not a loop"] = function(expect)
+		local warnings = {}
+		local s = setup({ navigation = { RepathInterval = 0.5, ArriveHeight = 8 }, warnings = warnings })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(10, 20, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Failed")
+		expect.equal(#warnings, 1)
 	end,
 
 	["a path that reached what it planned while the target shuffled re-plans instead of failing"] = function(expect)

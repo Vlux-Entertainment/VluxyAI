@@ -330,6 +330,25 @@ return {
 		expect.sequence(log, { "enter A", "update A", "exit A" })
 	end,
 
+	["an Exit that errors does not stop a later Exit from running"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local brain = Fakes.Brain("A", { "A", "B" }, log)
+		brain.States.A.Exit = function()
+			error("broken exit")
+		end
+		local runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		expect.errors(function()
+			runner:Transition("B")
+		end)
+		-- The transition died inside A's Exit; the runner is still in A. Move on and stop.
+		runner:Transition("B")
+		runner:Stop()
+		expect.sequence(log, { "enter A", "enter B", "exit B" })
+	end,
+
 	["a transition made from an Exit that Stop is running is ignored"] = function(expect)
 		local Runner = load()
 		local log = {}

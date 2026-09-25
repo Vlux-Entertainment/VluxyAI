@@ -59,7 +59,7 @@ Then `wally install`. The package is `shared` realm: requiring it on a client is
 
 ## Repository
 
-- `lib/` is the package. `examples/` is a playground with six cylinder AIs that each show one
+- `lib/` is the package. `examples/` is a playground with six R15 example AIs that each show one
   feature; serve `test-place.project.json` and press Play.
 - `lune run tests/runner` runs the headless suite; `.\Commands\Verify.ps1` runs everything.
 - `PLAN.md` is the design record. `CLAUDE.md` is the map for contributors.

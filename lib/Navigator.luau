@@ -53,6 +53,9 @@ type self = {
 	_following: boolean,
 	_destroyed: boolean,
 	_warnedTarget: Vector3?,
+	_leftArrivedAt: number,
+	_anchor: Vector3?,
+	_anchorKind: "Arrived" | "Failed" | nil,
 
 	_connections: { Types.Connection },
 }
@@ -114,6 +117,9 @@ function Navigator.new(
 		_following = false,
 		_destroyed = false,
 		_warnedTarget = nil,
+		_leftArrivedAt = -math.huge,
+		_anchor = nil,
+		_anchorKind = nil,
 
 		_connections = {},
 	}
@@ -187,9 +193,13 @@ function Navigator._arrive(self: Navigator)
 		return
 	end
 
+	local silent = os.clock() - self._leftArrivedAt < self._options.RepathInterval
+
 	self._generation += 1
 	self._status = "Arrived"
 	self._needsPlan = false
+	self._anchor = self._target
+	self._anchorKind = "Arrived"
 
 	if self._mover:IsMoving() then
 		self._stopping = true
@@ -197,7 +207,10 @@ function Navigator._arrive(self: Navigator)
 		self._stopping = false
 	end
 
-	self.Arrived:Fire(true)
+	-- A target that slipped out and straight back in is one arrival, not two.
+	if not silent then
+		self.Arrived:Fire(true)
+	end
 end
 
 --[[
@@ -223,11 +236,14 @@ function Navigator._onMoverArrived(self: Navigator, reached: boolean)
 	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
 	local reachedPlan = plannedTarget ~= nil
 		and Tables.FlatDistance(position, plannedTarget) <= self._options.ArriveDistance
+		and math.abs(position.Y - plannedTarget.Y) <= self._options.ArriveHeight
 
 	if reached and not targetMoved and not reachedPlan then
 		-- The whole path was walked, the target has not moved, and we are still not where the plan
 		-- was going: the plan itself falls short, so planning again would only walk the same path.
 		self._status = "Failed"
+		self._anchor = target
+		self._anchorKind = "Failed"
 		self:_warnOnce(
 			target,
 			`the path to {target} ends {math.round(Tables.FlatDistance(position, target))} studs short`
@@ -274,6 +290,8 @@ function Navigator._plan(self: Navigator)
 
 		if path == nil or #path == 0 then
 			self._status = "Failed"
+			self._anchor = target
+			self._anchorKind = "Failed"
 			self:_setPath(nil)
 			if reason then
 				self:_warnOnce(target, `no path to {target} ({reason})`)
@@ -307,20 +325,22 @@ function Navigator._planIfDue(self: Navigator, force: boolean)
 		return
 	end
 
-	-- Arrived is only true while the mover is at the target; the moment it is not, say so and go.
+	local now = os.clock()
+
+	-- Arrived is only true while the mover is at the target. The moment it is not, say so; the plan
+	-- follows on the cadence, so a target jittering across the line does not cost a plan per tick.
 	if self._status == "Arrived" then
 		self._status = "Idle"
-		self._plannedTarget = nil
-		force = true
+		self._needsPlan = true
+		self._leftArrivedAt = now
 	end
 
-	local now = os.clock()
 	local sinceLast = now - self._plannedAt
 	local plannedTarget = self._plannedTarget
 	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
 	local stale = self._status == "Failed" or self._status == "Idle"
 
-	local immediate = force or plannedTarget == nil
+	local immediate = force or self._plannedAt == -math.huge
 	local due = (self._needsPlan or targetMoved or stale) and sinceLast >= self._options.RepathInterval
 
 	if immediate or due then
@@ -349,13 +369,20 @@ function Navigator.MoveTo(self: Navigator, target: Vector3)
 
 	local force = previous == nil
 	local settled = self._status == "Arrived" or self._status == "Failed" or self._status == "Idle"
+	local anchor = self._anchor
 
-	if not force and settled then
-		local anchor = self._plannedTarget or previous
-		if anchor and (target - anchor).Magnitude > self._options.RepathDistance then
+	if not force and settled and anchor ~= nil then
+		-- After arriving, a small drift is chased on the cadence; only a target that has clearly
+		-- moved on is new. After a failure any move past RepathDistance is worth a fresh plan.
+		local threshold = self._options.RepathDistance
+		if self._anchorKind == "Arrived" then
+			threshold += self._options.ArriveDistance
+		end
+		if (target - anchor).Magnitude > threshold then
 			-- The old outcome was about the old target. Drop it so the new one plans at once.
 			self._status = "Idle"
-			self._plannedTarget = nil
+			self._anchor = nil
+			self._anchorKind = nil
 			force = true
 		end
 	end
@@ -380,6 +407,8 @@ function Navigator.Stop(self: Navigator)
 	self._plannedTarget = nil
 	self._needsPlan = false
 	self._status = "Idle"
+	self._anchor = nil
+	self._anchorKind = nil
 	self:_setPath(nil)
 
 	if self._mover:IsMoving() then

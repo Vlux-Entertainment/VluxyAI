@@ -418,6 +418,7 @@ export type AgentDefinition = {
 	.Mover Mover? -- The mover, if any.
 	.Pathfinder Pathfinder? -- The pathfinder, if any.
 	.StateChanged Signal<(string, string?)> -- Fired with the new and previous state names.
+	.Destroyed Signal<()> -- Fired once, at the end of `Destroy`, so anything built around the agent can go with it.
 	.GetState (self: Agent) -> string? -- The current state name, `nil` before `Start`.
 	.SetState (self: Agent, name: string) -> () -- Force a transition, re-entering if already there.
 	.MoveTo (self: Agent, target: Vector3) -> () -- Shorthand for `Navigator:MoveTo`. Errors without a navigator.
@@ -447,6 +448,7 @@ export type Agent = {
 	Mover: Mover?,
 	Pathfinder: Pathfinder?,
 	StateChanged: Signal<(string, string?)>,
+	Destroyed: Signal<()>,
 
 	GetState: (self: Agent) -> string?,
 	SetState: (self: Agent, name: string) -> (),

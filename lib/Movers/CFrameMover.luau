@@ -84,7 +84,7 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	.TurnSpeed number? -- Radians per second of yaw. Default `10`.
 	.HeightOffset number? -- Added to every step's Y, so a body rides above floor steps. A number is used as given; leave it out and the first `Follow` measures the pivot's height above the first step (never below `0`) and keeps that for the life of the mover. Default: measured.
 	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
-	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`.
+	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`. Progress under 0.05 studs per check does not count, so speeds below about 0.01 studs per second read as stuck.
 ]=]
 export type CFrameMoverOptions = {
 	Speed: number?,

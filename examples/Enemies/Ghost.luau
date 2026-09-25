@@ -1,9 +1,9 @@
 --!strict
 
 --[[
-	Ghost: no Humanoid at all. An anchored, half-transparent cylinder driven by the CFrame mover
+	Ghost: the Humanoid does no work. An anchored, see-through rig driven by the CFrame mover
 	along ordinary navmesh paths, floating a little above the floor (HeightOffset is set by hand
-	here; left out, the mover measures it from where the part starts). It drifts between random
+	here; left out, the mover measures it from where the rig starts). It drifts between random
 	points and rushes at anyone it sees. Shows that the runner and the pathfinders never cared
 	about rigs, and gives the server-side "logical position" model a body to test with.
 

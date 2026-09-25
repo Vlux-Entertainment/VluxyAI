@@ -230,7 +230,7 @@ function HumanoidMover._walkTo(self: HumanoidMover, index: number)
 	local step = path[index]
 	self._index = index
 	-- Progress is measured from here, so a rig that never gets closer is stuck after StuckTimeout.
-	self._bestDistance = Tables.FlatDistance(self._root.Position, step.Position)
+	self._bestDistance = (self._root.Position - step.Position).Magnitude
 	self._stuckTime = 0
 
 	if step.Action == "Jump" then
@@ -254,7 +254,7 @@ function HumanoidMover._isStuck(self: HumanoidMover): boolean
 
 	-- Progress is getting closer to the step, not moving about: a rig jostled against a wall by
 	-- physics or another NPC covers distance without ever getting anywhere.
-	local remaining = Tables.FlatDistance(self._root.Position, step.Position)
+	local remaining = (self._root.Position - step.Position).Magnitude
 	if remaining <= self._bestDistance - self._options.StuckDistance then
 		self._bestDistance = remaining
 		self._stuckTime = 0

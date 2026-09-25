@@ -4,7 +4,8 @@
 	Watcher: the weeping angel. It never patrols. Once it has spotted you it only moves while
 	nobody is looking at it, freezes the instant anyone is, and strikes when it gets close while
 	unwatched. If it loses you for long enough it goes dormant again. Shows the Watched sense
-	(the sight check run from the players' side) and the CFrame mover halting instantly.
+	(the sight check run from the players' side) and the CFrame mover halting an anchored rig
+	instantly.
 
 	"Looking" is judged from each player's head facing, which on a default rig is the direction
 	they walk. A game that wants the real camera direction replicates it and passes `Eye` to the
@@ -17,6 +18,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Context = require(script.Parent.Parent.Context)
+local Locomotion = require(script.Parent.Parent.Locomotion)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local ATTACK_RANGE = 3.5
@@ -84,6 +86,7 @@ local Brain: VluxyAI.Brain = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
 				agent:StartTimer("Attack", ATTACK_COOLDOWN)
+				Locomotion.PlayAttack(agent)
 
 				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Blackboard.SeenTarget)
 				if humanoid then

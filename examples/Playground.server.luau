@@ -2,7 +2,9 @@
 
 --[[
 	The playground. Builds the map, wires the noise signal to player jumps and the noise pad,
-	spawns one cylinder per example enemy with a debug label and a path visual, and starts them.
+	spawns one R15 rig per example enemy with animations, a debug label and a path visual, and
+	starts them. Colour says which enemy it is; transparency says how it moves: solid rigs walk
+	with the Humanoid mover, see-through ones are pivoted by the CFrame mover.
 	Serve `test-place.project.json` and press Play.
 ]]
 
@@ -11,8 +13,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Context = require(script.Parent.Context)
-local Cylinder = require(script.Parent.Cylinder)
+local Locomotion = require(script.Parent.Locomotion)
 local Map = require(script.Parent.Map)
+local Rig = require(script.Parent.Rig)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local Enemies = script.Parent.Enemies
@@ -31,11 +34,12 @@ local ROSTER: {
 	}
 } =
 	{
+		-- Solid rigs walk with the Humanoid mover.
 		{
 			Slot = "1",
 			Name = "Wanderer",
 			Module = Enemies.Wanderer,
-			Color = Color3.fromRGB(90, 200, 120),
+			Color = Color3.fromRGB(90, 200, 120), -- green: harmless
 			Humanoid = true,
 			Keys = {},
 		},
@@ -43,7 +47,7 @@ local ROSTER: {
 			Slot = "2",
 			Name = "Stalker",
 			Module = Enemies.Stalker,
-			Color = Color3.fromRGB(220, 70, 70),
+			Color = Color3.fromRGB(220, 70, 70), -- red: chases on sight
 			Humanoid = true,
 			Keys = { "SeenTarget", "SeenDistance" },
 		},
@@ -51,7 +55,7 @@ local ROSTER: {
 			Slot = "3",
 			Name = "Patroller",
 			Module = Enemies.Patroller,
-			Color = Color3.fromRGB(240, 200, 60),
+			Color = Color3.fromRGB(240, 200, 60), -- yellow: reacts to noise
 			Humanoid = true,
 			Keys = { "HeardPosition", "HeardLoudness" },
 		},
@@ -59,25 +63,27 @@ local ROSTER: {
 			Slot = "4",
 			Name = "Hunter",
 			Module = Enemies.Hunter,
-			Color = Color3.fromRGB(230, 130, 40),
+			Color = Color3.fromRGB(230, 130, 40), -- orange: picks its prey
 			Humanoid = true,
 			Keys = { "SeenTargets", "NearestDistance" },
 		},
+		-- See-through rigs are pivoted by the CFrame mover; the Humanoid does no work.
 		{
 			Slot = "5",
 			Name = "Ghost",
 			Module = Enemies.Ghost,
-			Color = Color3.fromRGB(170, 190, 255),
+			Color = Color3.fromRGB(170, 190, 255), -- pale blue: floats
 			Humanoid = false,
-			Transparency = 0.5,
+			Transparency = 0.6,
 			Keys = { "SeenTarget" },
 		},
 		{
 			Slot = "6",
 			Name = "Watcher",
 			Module = Enemies.Watcher,
-			Color = Color3.fromRGB(40, 40, 45),
+			Color = Color3.fromRGB(40, 40, 45), -- near black: only moves unseen
 			Humanoid = false,
+			Transparency = 0.35,
 			Keys = { "IsWatched", "SeenTarget", "SeenDistance" },
 		},
 	}
@@ -124,10 +130,8 @@ for _, pad in map.NoisePads do
 		if os.clock() - lastFired < 0.5 then
 			return
 		end
-		if
-			not hit:FindFirstAncestorOfClass("Model")
-			or not Players:GetPlayerFromCharacter(hit:FindFirstAncestorOfClass("Model") :: Model)
-		then
+		local character = hit:FindFirstAncestorOfClass("Model")
+		if not character or not Players:GetPlayerFromCharacter(character) then
 			return
 		end
 		lastFired = os.clock()
@@ -155,17 +159,18 @@ for _, entry in ROSTER do
 		continue
 	end
 
-	local model = Cylinder.Create(entry.Name, {
+	local model = Rig.Create(entry.Name, {
 		Humanoid = entry.Humanoid,
 		Color = entry.Color,
 		Transparency = entry.Transparency,
 	})
-	model:PivotTo(CFrame.new(spawn + Vector3.new(0, 2.5, 0)))
+	model:PivotTo(CFrame.new(spawn + Vector3.new(0, 3, 0)))
 	model.Parent = map.Folder
 
 	local create = require(entry.Module) :: Context.Enemy
 	local agent = create(model, context)
 
+	Locomotion.Attach(agent)
 	VluxyAI.Debug.StateLabel.new(agent, { Keys = entry.Keys })
 	VluxyAI.Debug.PathVisual.new(agent, { Color = entry.Color })
 

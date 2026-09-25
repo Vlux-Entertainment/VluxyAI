@@ -17,6 +17,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Context = require(script.Parent.Parent.Context)
+local Locomotion = require(script.Parent.Parent.Locomotion)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local Curves = VluxyAI.Utility.Curves
@@ -110,6 +111,7 @@ local Brain: VluxyAI.Brain = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:Stop()
 				agent:StartTimer("Attack", ATTACK_COOLDOWN)
+				Locomotion.PlayAttack(agent)
 
 				local humanoid = VluxyAI.Perception.HumanoidOf(agent.Data.Target)
 				if humanoid then
