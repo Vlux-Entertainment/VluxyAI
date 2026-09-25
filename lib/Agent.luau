@@ -41,6 +41,7 @@ type self = {
 	_accumulator: number,
 	_running: boolean,
 	_destroyed: boolean,
+	_timers: { [string]: number },
 	_trove: Trove.Trove,
 }
 
@@ -90,6 +91,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_accumulator = 0,
 		_running = false,
 		_destroyed = false,
+		_timers = {},
 		_trove = Trove.new(),
 	}
 
@@ -130,11 +132,51 @@ end
 ]=]
 function Agent.SetState(self: Agent, name: string)
 	if not self._running then
-		FormatMessage.Warn(`{self.Name}: SetState("{name}") before Start does nothing`)
+		if self._destroyed then
+			FormatMessage.Warn(`{self.Name}: SetState("{name}") on a destroyed agent does nothing`)
+		else
+			FormatMessage.Warn(`{self.Name}: SetState("{name}") before Start does nothing`)
+		end
 		return
 	end
 
 	self._runner:Transition(name)
+end
+
+--[=[
+	@within Agent
+	@param name string -- Any name; `"Attack"`, `"Look"`.
+	@param seconds number
+
+	Starts (or restarts) a named timer that [Agent:TimerDone] reports on. Timers are the usual
+	way a state waits: start one in `Enter`, transition when it is done.
+]=]
+function Agent.StartTimer(self: Agent, name: string, seconds: number)
+	self._timers[name] = os.clock() + seconds
+end
+
+--[=[
+	@within Agent
+	@param name string
+	@return boolean -- `true` when the timer has run out, or was never started.
+]=]
+function Agent.TimerDone(self: Agent, name: string): boolean
+	local endsAt = self._timers[name]
+	return endsAt == nil or os.clock() >= endsAt
+end
+
+--[=[
+	@within Agent
+	@param name string
+	@return number -- Seconds left, `0` when done or never started.
+]=]
+function Agent.TimerLeft(self: Agent, name: string): number
+	local endsAt = self._timers[name]
+	if endsAt == nil then
+		return 0
+	end
+
+	return math.max(0, endsAt - os.clock())
 end
 
 --[=[
@@ -222,12 +264,24 @@ function Agent.Step(self: Agent, deltaTime: number)
 
 	local asContract = (self :: any) :: Types.Agent
 
+	-- A sense or a state may Destroy the agent mid-tick; nothing after it may run.
 	for _, sense in self.Senses do
+		if not self._running then
+			return
+		end
 		sense:Tick(asContract, deltaTime)
+	end
+
+	if not self._running then
+		return
 	end
 
 	if self._navigator then
 		self._navigator:Step(deltaTime)
+	end
+
+	if not self._running then
+		return
 	end
 
 	self._runner:Step(deltaTime)

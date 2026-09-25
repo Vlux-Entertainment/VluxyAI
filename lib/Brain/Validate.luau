@@ -40,10 +40,12 @@ local DEFINITION_FIELDS = {
 	Name = true,
 }
 
+-- true = must be above zero; false = zero is meaningful ("re-plan on any movement").
 local NAVIGATION_FIELDS = {
 	RepathInterval = true,
-	RepathDistance = true,
-	ArriveDistance = true,
+	RepathDistance = false,
+	ArriveDistance = false,
+	ArriveHeight = false,
 }
 
 local MOVER_METHODS = { "Follow", "Stop", "GetPosition", "GetSpeed", "SetSpeed", "IsMoving" }
@@ -105,9 +107,15 @@ local function expectPositiveNumber(value: any, path: string)
 	end
 end
 
+local function expectNonNegativeNumber(value: any, path: string)
+	if type(value) ~= "number" or value ~= value or value < 0 then
+		fail(path, `must be a number of 0 or more, got {describe(value)}`)
+	end
+end
+
 local function expectKnownFields(value: { [any]: any }, known: { [string]: boolean }, path: string)
 	for key in value do
-		if type(key) ~= "string" or not known[key] then
+		if type(key) ~= "string" or known[key] == nil then
 			fail(
 				`{path}.{tostring(key)}`,
 				`is not a field VluxyAI knows; expected one of {table.concat(Tables.SortedKeys(known), ", ")}`
@@ -299,10 +307,16 @@ function Validate.Definition(definition: any)
 	if definition.Navigation ~= nil then
 		local navigationPath = `{root}.Navigation`
 		expectTable(definition.Navigation, navigationPath)
-		expectKnownFields(definition.Navigation, NAVIGATION_FIELDS, navigationPath)
-		for key in NAVIGATION_FIELDS do
-			if definition.Navigation[key] ~= nil then
-				expectPositiveNumber(definition.Navigation[key], `{navigationPath}.{key}`)
+		expectKnownFields(definition.Navigation, NAVIGATION_FIELDS :: any, navigationPath)
+		for key, mustBePositive in NAVIGATION_FIELDS do
+			local value = definition.Navigation[key]
+			if value == nil then
+				continue
+			end
+			if mustBePositive then
+				expectPositiveNumber(value, `{navigationPath}.{key}`)
+			else
+				expectNonNegativeNumber(value, `{navigationPath}.{key}`)
 			end
 		end
 	end

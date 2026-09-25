@@ -77,7 +77,8 @@ export type Signal<T...> = {
 
 	What a [Types.Mover] does at a step. Mirrors `Enum.PathWaypointAction`. `Custom` steps come
 	from `PathfindingModifier` labels or your own pathfinder; the mover walks to them like any other
-	step and [Navigator.StepReached] tells you when it got there, so a door or a ladder is your code.
+	step and the [Types.Navigator]'s `StepReached` tells you when it got there, so a door or a ladder
+	is your code.
 ]=]
 export type StepAction = "Walk" | "Jump" | "Custom"
 
@@ -120,8 +121,10 @@ export type Path = { Step }
 
 	Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
 	a target. `from` and `to` may be at any height: `from` is the mover's root and `to` is often a
-	player's root or a floor node; the path it returns holds floor positions. `VluxyAI.Pathfinders`
-	ships `Navmesh`, `Straight` and `Ladder`; your own is any table with `FindPath`.
+	player's root or a floor node; the path it returns holds floor positions. An empty path counts
+	as a failure. `FindPath` runs in its own thread and may yield or error; an error is treated as a
+	failed plan and warned about once. `VluxyAI.Pathfinders` ships `Navmesh`, `Straight` and
+	`Ladder`; your own is any table with `FindPath`.
 ]=]
 export type Pathfinder = {
 	FindPath: (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?),
@@ -147,10 +150,18 @@ export type Pathfinder = {
 	.Arrived Signal<boolean> -- Fired once per `Follow`: `true` at the end of the path, `false` if stopped, replaced or stuck.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 
-	Executes a [Types.Path] and nothing else. Two rules keep movers and the [Navigator] honest:
-	`Follow` fires `Arrived(false)` for the path it replaces before starting the new one, and the
-	new path's outcome is reported on a later frame, never from inside `Follow`. `VluxyAI.Movers` ships `Humanoid` (uses `MoveTo`)
-	and `CFrame` (steps a pivot, no rig needed); your own is any table with this shape.
+	Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:
+
+	- `Follow` fires `Arrived(false)` for the path it replaces before starting the new one, and
+	  the new path's outcome is reported on a later frame, never from inside `Follow`. An empty
+	  path is `Arrived(false)` on the next frame.
+	- `Follow` is called from the navigator's planning thread, so it must not yield.
+	- `Arrived(true)` means the last step was reached. The navigator then checks the target for
+	  itself: within `ArriveDistance` it reports arrival, otherwise it re-plans or reports failure.
+	- `Arrived(false)` from a stuck detector makes the navigator re-plan on its cadence.
+
+	`VluxyAI.Movers` ships `Humanoid` (uses `MoveTo`) and `CFrame` (steps a pivot, no rig needed);
+	your own is any table with this shape. Make the signals with `VluxyAI.Signal.new()`.
 ]=]
 export type Mover = {
 	Follow: (self: any, path: Path) -> (),
@@ -185,8 +196,12 @@ export type Blackboard = { [string]: any }
 	.Tick (self: any, agent: Agent, deltaTime: number) -> () -- Called once per agent tick. Writes to `agent.Blackboard`.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 
-	Perceives and nothing else. `VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing` and
-	`Watched`; your own is any table with `Tick`.
+	Perceives and nothing else. Senses tick in the order they were added, before the navigator and
+	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
+	the blackboard, so one instance may serve many agents and a state may clear a memory early by
+	setting the key to `nil`. Distances are `math.huge` when there is nothing to measure.
+	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing` and `Watched`; your own is any table
+	with `Tick`.
 ]=]
 export type Sense = {
 	Tick: (self: any, agent: Agent, deltaTime: number) -> (),
@@ -204,7 +219,10 @@ export type Sense = {
 	.To string -- The state to enter. Must exist in the brain; `Build()` checks.
 	.When (agent: Agent) -> boolean -- Checked every tick, in order, before `Update`.
 
-	A declarative transition. The first one whose `When` returns `true` wins.
+	A declarative transition. The first one whose `When` returns `true` wins. `To` may name the
+	current state, which re-enters it (`Exit` then `Enter`); an `Update` returning the current name
+	does nothing. If `When` forces a change through [Agent:SetState], that change wins and its own
+	result is ignored.
 ]=]
 export type Transition = {
 	To: string,
@@ -222,7 +240,8 @@ export type Transition = {
 
 	One state of a [Types.Brain]. Every field is optional, so a state can be as small as a single
 	`Update`. Returning the current state's name from `Update` does nothing; use [Agent:SetState] to
-	re-enter a state on purpose.
+	re-enter a state on purpose. If `Update` itself forces a change through `SetState`, its return
+	value is ignored so two transitions never stack.
 ]=]
 export type State = {
 	Enter: ((agent: Agent) -> ())?,
@@ -311,7 +330,8 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 
 	.RepathInterval number? -- Seconds between re-plans while the target keeps moving. Default `0.5`.
 	.RepathDistance number? -- Studs the target must move before a re-plan happens. Default `2`.
-	.ArriveDistance number? -- Studs from the target that count as arrived without planning. Default `1`.
+	.ArriveDistance number? -- Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default `2.5`.
+	.ArriveHeight number? -- Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.
 
 	Tunes how [Navigator] turns repeated `MoveTo` calls into plans.
 ]=]
@@ -319,6 +339,7 @@ export type NavigationOptions = {
 	RepathInterval: number?,
 	RepathDistance: number?,
 	ArriveDistance: number?,
+	ArriveHeight: number?,
 }
 
 --[=[
@@ -405,6 +426,9 @@ export type AgentDefinition = {
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
 	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
 	.SetSpeed (self: Agent, speed: number) -> () -- Shorthand for `Mover:SetSpeed`. No-op without a mover.
+	.StartTimer (self: Agent, name: string, seconds: number) -> () -- Starts a named timer.
+	.TimerDone (self: Agent, name: string) -> boolean -- `true` once the timer ran out, or if it was never started.
+	.TimerLeft (self: Agent, name: string) -> number -- Seconds left on the timer, `0` when done.
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
@@ -432,6 +456,9 @@ export type Agent = {
 	HasArrived: (self: Agent) -> boolean,
 	GetPathStatus: (self: Agent) -> PathStatus,
 	SetSpeed: (self: Agent, speed: number) -> (),
+	StartTimer: (self: Agent, name: string, seconds: number) -> (),
+	TimerDone: (self: Agent, name: string) -> boolean,
+	TimerLeft: (self: Agent, name: string) -> number,
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,

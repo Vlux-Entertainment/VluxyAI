@@ -220,6 +220,112 @@ return {
 		}, "the next tick updates Final, not Middle")
 	end,
 
+	["a transition made inside Exit does not run that Exit twice"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B", "C" }, log, {
+			A = function()
+				return "B"
+			end,
+		})
+		brain.States.A.Exit = function()
+			table.insert(log, "exit A")
+			runner:Transition("C")
+		end
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "C")
+		expect.sequence(log, { "enter A", "update A", "exit A", "enter C" })
+	end,
+
+	["a transition made from the change handler supersedes the state being entered"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B", "C" }, log, {
+			A = function()
+				return "B"
+			end,
+		})
+		runner = Runner.new(brain, Fakes.Agent(), function(new)
+			if new == "B" then
+				runner:Transition("C")
+			end
+		end)
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "C")
+		expect.sequence(log, { "enter A", "update A", "exit A", "exit B", "enter C" }, "B's Enter never runs")
+	end,
+
+	["a transition made from Enter runs the new state's Exit on the way out"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B", "C", "D" }, log, {
+			A = function()
+				return "B"
+			end,
+		})
+		brain.States.B.Enter = function()
+			table.insert(log, "enter B")
+			runner:Transition("C")
+		end
+		brain.States.C.Enter = function()
+			table.insert(log, "enter C")
+			runner:Transition("D")
+		end
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "D")
+		expect.sequence(log, { "enter A", "update A", "exit A", "enter B", "exit B", "enter C", "exit C", "enter D" })
+	end,
+
+	["a When that forces a transition wins and its result is ignored"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B", "C" }, log)
+		brain.States.A.Transitions = {
+			{
+				To = "B",
+				When = function()
+					runner:Transition("C")
+					return true
+				end,
+			},
+		}
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Step(0.1)
+		expect.equal(runner:GetState(), "C")
+		expect.sequence(log, { "enter A", "exit A", "enter C" })
+	end,
+
+	["a transition made from an Exit that Stop is running is ignored"] = function(expect)
+		local Runner = load()
+		local log = {}
+		local runner
+		local brain = Fakes.Brain("A", { "A", "B" }, log)
+		brain.States.A.Exit = function()
+			table.insert(log, "exit A")
+			runner:Transition("B")
+		end
+		runner = Runner.new(brain, Fakes.Agent())
+
+		runner:Start()
+		runner:Stop()
+		expect.equal(runner:GetState(), nil)
+		expect.sequence(log, { "enter A", "exit A" })
+	end,
+
 	["a transition forced during Update is not stacked on by Update's return"] = function(expect)
 		local Runner = load()
 		local log = {}

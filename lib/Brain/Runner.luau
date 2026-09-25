@@ -21,6 +21,8 @@ type self = {
 	_current: string?,
 	_onChanged: ((new: string, old: string?) -> ())?,
 	_generation: number,
+	_exiting: boolean,
+	_stopping: boolean,
 }
 
 local Runner = {}
@@ -39,6 +41,8 @@ function Runner.new(brain: Types.Brain, agent: Types.Agent, onChanged: ((new: st
 		_current = nil,
 		_onChanged = onChanged,
 		_generation = 0,
+		_exiting = false,
+		_stopping = false,
 	}
 
 	return setmetatable(self, Runner)
@@ -64,8 +68,12 @@ end
 
 --[[
 	Exits the current state and enters `name`, even when `name` is the current state. An unknown
-	name warns and changes nothing. A transition started from inside Enter wins over the one that
-	called it: the outer call sees the generation move on and does not touch the state again.
+	name warns and changes nothing.
+
+	Re-entrancy rules, each covered by a spec: a transition started from inside Enter, Exit or a
+	change handler wins over the one that called it (the outer call sees the generation move on and
+	does not touch the state again); a transition started from inside Exit does not run that Exit a
+	second time; a transition started from an Exit that Stop is running is ignored.
 ]]
 function Runner.Transition(self: Runner, name: string)
 	local state = self._brain.States[name]
@@ -76,25 +84,37 @@ function Runner.Transition(self: Runner, name: string)
 		return
 	end
 
+	if self._stopping then
+		return
+	end
+
 	local previous = self._current
 	local previousState = if previous then self._brain.States[previous] else nil
 
 	self._generation += 1
 	local generation = self._generation
 
-	if previousState and previousState.Exit then
+	-- A transition made from inside Exit must not run that same Exit again.
+	if previousState and previousState.Exit and not self._exiting then
+		self._exiting = true
 		previousState.Exit(self._agent)
+		self._exiting = false
 	end
 
-	-- Exit may have transitioned elsewhere already; that later transition owns the state now.
 	if self._generation ~= generation then
 		return
 	end
 
 	self._current = name
+	-- From here the new state owns things: a transition from Enter must run this state's Exit.
+	self._exiting = false
 
 	if self._onChanged then
 		self._onChanged(name, previous)
+	end
+
+	if self._generation ~= generation then
+		return
 	end
 
 	if state.Enter then
@@ -113,10 +133,17 @@ function Runner.Step(self: Runner, deltaTime: number)
 	end
 
 	local state = self._brain.States[current]
+	local generation = self._generation
 
 	if state.Transitions then
 		for _, transition in state.Transitions do
-			if transition.When(self._agent) then
+			local fired = transition.When(self._agent)
+
+			-- When may have forced a state change through SetState; that wins and this tick is over.
+			if self._generation ~= generation then
+				return
+			end
+			if fired then
 				self:Transition(transition.To)
 				return
 			end
@@ -127,7 +154,7 @@ function Runner.Step(self: Runner, deltaTime: number)
 		local next = state.Update(self._agent, deltaTime)
 
 		-- Update may have forced a state change through SetState; do not stack another on it.
-		if next ~= nil and next ~= current and self._current == current then
+		if next ~= nil and next ~= current and self._generation == generation then
 			self:Transition(next)
 		end
 	end
@@ -147,7 +174,9 @@ function Runner.Stop(self: Runner)
 	self._current = nil
 
 	if state.Exit then
+		self._stopping = true
 		state.Exit(self._agent)
+		self._stopping = false
 	end
 end
 

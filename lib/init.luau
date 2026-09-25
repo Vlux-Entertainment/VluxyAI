@@ -105,8 +105,8 @@ VluxyAI.new = Builder.new
 	@return Agent
 	@error string -- The definition failed validation; the message names the field.
 
-	Builds an [Agent] straight from a definition table, for content modules that end
-	`return Stalker :: VluxyAI.AgentDefinition`.
+	Builds an [Agent] straight from a definition table, for code that assembles definitions
+	itself rather than through the [Builder].
 ]=]
 VluxyAI.NewAgent = Agent.new
 
@@ -143,7 +143,7 @@ VluxyAI.Utility = Utility
 	@within VluxyAI
 	@prop Signal Signal
 
-	The package's [Signal]; make one for a [Senses.Hearing] noise source.
+	The package's [Signal]; make one for a [Hearing] noise source.
 ]=]
 VluxyAI.Signal = Signal
 

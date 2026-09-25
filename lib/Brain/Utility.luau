@@ -96,9 +96,12 @@ local function checkConsideration(consideration: any, index: number)
 
 	local min = consideration.Min or 0
 	local max = consideration.Max or 1
-	if type(min) ~= "number" or type(max) ~= "number" or min == max then
+	local function finite(value: any): boolean
+		return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+	end
+	if not finite(min) or not finite(max) or min == max then
 		FormatMessage.Error(
-			`Considerations[{index}] has Min {tostring(min)} and Max {tostring(max)}; they must be different numbers`,
+			`Considerations[{index}] has Min {tostring(min)} and Max {tostring(max)}; they must be different finite numbers`,
 			3
 		)
 	end
@@ -125,8 +128,14 @@ local function scoreConsideration<T>(consideration: Types.Consideration<T>, agen
 	end
 
 	local curve = consideration.Curve or Utility.Curves.Linear
+	local result = curve(normalised)
 
-	return math.clamp(curve(normalised), 0, 1)
+	-- A curve that returns NaN (0 / 0, a logistic with steepness 0) must not poison the product.
+	if type(result) ~= "number" or result ~= result then
+		return 0
+	end
+
+	return math.clamp(result, 0, 1)
 end
 
 ------------------------------------------------------------------------------------------------------------------------

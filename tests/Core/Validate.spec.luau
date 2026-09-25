@@ -245,8 +245,17 @@ return {
 
 	["Navigation fields are checked"] = function(expect)
 		failsWith(expect, function(definition)
-			definition.Navigation = { RepathInterval = -1 }
-		end, "Definition.Navigation.RepathInterval must be a number above 0, got -1")
+			definition.Navigation = { RepathInterval = 0 }
+		end, "Definition.Navigation.RepathInterval must be a number above 0, got 0")
+
+		failsWith(expect, function(definition)
+			definition.Navigation = { ArriveDistance = -1 }
+		end, "Definition.Navigation.ArriveDistance must be a number of 0 or more, got -1")
+
+		local Validate = load()
+		local zeroes = goodDefinition()
+		zeroes.Navigation = { RepathDistance = 0, ArriveDistance = 0, ArriveHeight = 0 }
+		Validate.Definition(zeroes)
 
 		failsWith(expect, function(definition)
 			definition.Navigation = { Repath = 1 }

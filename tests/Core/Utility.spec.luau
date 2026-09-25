@@ -122,6 +122,54 @@ return {
 		expect.equal(Utility.Score(Fakes.Agent(), "x", { nan }), 0)
 	end,
 
+	["a curve that returns NaN vetoes instead of poisoning the sort"] = function(expect)
+		local Utility = load()
+		local nan = {
+			Input = function()
+				return 1
+			end,
+			Curve = function()
+				return 0 / 0
+			end,
+		}
+		expect.equal(Utility.Score(Fakes.Agent(), "x", { nan }), 0)
+		expect.equal(
+			Utility.Score(
+				Fakes.Agent(),
+				"x",
+				{ {
+					Input = function()
+						return 0.5
+					end,
+					Curve = Utility.Curves.Logistic(0),
+				} }
+			),
+			0,
+			"a flat logistic is a veto, not NaN"
+		)
+
+		local scored = Utility.ScoreAll(Fakes.Agent(), { "a", "b" }, { nan })
+		expect.equal(scored[1].Score, 0)
+		expect.equal(scored[2].Score, 0)
+	end,
+
+	["Min and Max must be finite"] = function(expect)
+		local Utility = load()
+		for _, bad in { { Min = 0 / 0 }, { Max = math.huge }, { Min = -math.huge, Max = 1 } } do
+			local consideration = {
+				Input = function()
+					return 1
+				end,
+				Min = bad.Min,
+				Max = bad.Max,
+			}
+			local message = expect.errors(function()
+				Utility.Score(Fakes.Agent(), "x", { consideration })
+			end)
+			expect.includes(message, "finite")
+		end
+	end,
+
 	["a curve result outside 0 to 1 is clamped"] = function(expect)
 		local Utility = load()
 		local wild = {

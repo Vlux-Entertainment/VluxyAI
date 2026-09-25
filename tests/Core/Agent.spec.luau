@@ -302,6 +302,64 @@ return {
 		expect.equal(#log, 2, "no ticks after Destroy")
 	end,
 
+	["Destroy from inside a sense stops the rest of the tick"] = function(expect)
+		local Agent = load()
+		local log = {}
+		local agent
+		local killer = {
+			Tick = function()
+				table.insert(log, "killer")
+				agent:Destroy()
+			end,
+		}
+		agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, log),
+			Senses = { killer, Fakes.Sense("after", log) },
+		})
+
+		agent:Start(true)
+		agent:Step(0.1)
+		expect.sequence(log, { "enter Idle", "killer", "exit Idle" })
+	end,
+
+	["SetState after Destroy says so"] = function(expect)
+		local warnings = {}
+		local Agent = load({ warnings = warnings })
+		local agent = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+
+		agent:Start(true)
+		agent:Destroy()
+		agent:SetState("Idle")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "destroyed agent")
+	end,
+
+	["timers run out on the clock"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local Agent = Harness.Load("lib/Agent.luau", {
+			globals = { os = clock.os },
+			services = { RunService = { Heartbeat = Harness.ManualHeartbeat() } },
+		})
+		local agent = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+
+		expect.truthy(agent:TimerDone("Attack"), "a timer never started is done")
+		expect.equal(agent:TimerLeft("Attack"), 0)
+
+		agent:StartTimer("Attack", 2)
+		expect.falsy(agent:TimerDone("Attack"))
+		expect.near(agent:TimerLeft("Attack"), 2)
+		clock:Advance(1.5)
+		expect.falsy(agent:TimerDone("Attack"))
+		expect.near(agent:TimerLeft("Attack"), 0.5)
+		clock:Advance(0.5)
+		expect.truthy(agent:TimerDone("Attack"))
+		expect.equal(agent:TimerLeft("Attack"), 0)
+
+		agent:StartTimer("Attack", 1)
+		expect.falsy(agent:TimerDone("Attack"), "restarted")
+	end,
+
 	["a sense without Destroy is fine"] = function(expect)
 		local Agent = load()
 		local sense = { Tick = function() end }

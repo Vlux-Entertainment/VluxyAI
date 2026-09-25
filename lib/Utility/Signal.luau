@@ -62,7 +62,7 @@ end
 
 	A small signal with the same surface as `RBXScriptSignal`, written in plain Luau so the core
 	runs outside Roblox. Every [Types.Signal] the package exposes is one of these; you can make your
-	own for a [Senses.Hearing] noise source with `VluxyAI.Signal.new()`.
+	own for a [Hearing] noise source with `VluxyAI.Signal.new()`.
 ]=]
 
 --[=[

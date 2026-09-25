@@ -11,6 +11,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Utility.Options)
 local Signal = require(script.Parent.Utility.Signal)
 local Tables = require(script.Parent.Utility.Tables)
 local Types = require(script.Parent.Types)
@@ -20,13 +21,15 @@ local Types = require(script.Parent.Types)
 local DEFAULT_OPTIONS = {
 	RepathInterval = 0.5,
 	RepathDistance = 2,
-	ArriveDistance = 1,
+	ArriveDistance = 2.5,
+	ArriveHeight = 8,
 }
 
 type Options = {
 	RepathInterval: number,
 	RepathDistance: number,
 	ArriveDistance: number,
+	ArriveHeight: number,
 }
 
 type self = {
@@ -69,8 +72,9 @@ export type Navigator = typeof(setmetatable({} :: self, Navigator))
 	the mover gets stuck, and reports through `GetStatus` and `Arrived`. Every [Agent] built with
 	both a pathfinder and a mover has one at `agent.Navigator`.
 
-	Arrival is judged by horizontal distance, because a humanoid's root and a floor waypoint sit
-	at different heights.
+	Arrival is judged by horizontal distance within `ArriveDistance`, with the height difference
+	allowed up to `ArriveHeight`: a humanoid's root and a floor waypoint sit at different heights,
+	but a target on the floor above is not reached.
 ]=]
 
 --[=[
@@ -87,12 +91,7 @@ function Navigator.new(
 	agent: Types.Agent,
 	options: Types.NavigationOptions?
 ): Navigator
-	local resolved = table.clone(DEFAULT_OPTIONS)
-	if options then
-		for key, value in options do
-			(resolved :: any)[key] = value
-		end
-	end
+	local resolved = Options.Resolve("Navigator.new", DEFAULT_OPTIONS, options :: any)
 
 	local self: self = {
 		StepReached = Signal.new(),
@@ -161,7 +160,21 @@ function Navigator._isAtTarget(self: Navigator): boolean
 		return false
 	end
 
-	return Tables.FlatDistance(self._mover:GetPosition(), target) <= self._options.ArriveDistance
+	local position = self._mover:GetPosition()
+	return Tables.FlatDistance(position, target) <= self._options.ArriveDistance
+		and math.abs(position.Y - target.Y) <= self._options.ArriveHeight
+end
+
+--[[
+	Warns about an unreachable target once, since retries on the cadence would repeat it.
+]]
+function Navigator._warnOnce(self: Navigator, target: Vector3, message: string)
+	if self._warnedTarget == target then
+		return
+	end
+
+	self._warnedTarget = target
+	FormatMessage.Warn(`{self._agent.Name}: {message}`)
 end
 
 --[[
@@ -202,7 +215,23 @@ function Navigator._onMoverArrived(self: Navigator, reached: boolean)
 		return
 	end
 
-	-- The path ended short (the target moved) or the mover got stuck: plan again on the cadence.
+	local target = self._target :: Vector3
+	local plannedTarget = self._plannedTarget
+	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
+
+	if reached and not targetMoved then
+		-- The whole path was walked and the target has not moved: the plan itself falls short, so
+		-- planning again would only walk the same path. Report it instead of looping.
+		self._status = "Failed"
+		self:_warnOnce(
+			target,
+			`the path to {target} ends {math.round(Tables.FlatDistance(self._mover:GetPosition(), target))} studs short`
+		)
+		self.Arrived:Fire(false)
+		return
+	end
+
+	-- The target moved since the plan, or the mover got stuck: plan again on the cadence.
 	self._needsPlan = true
 end
 
@@ -225,7 +254,14 @@ function Navigator._plan(self: Navigator)
 	self._plannedAt = os.clock()
 
 	task.spawn(function()
-		local path, reason = self._pathfinder:FindPath(self._mover:GetPosition(), target, self._agent)
+		-- A pathfinder that errors must not leave the navigator planning forever.
+		local ok, path, reason = pcall(function()
+			return self._pathfinder:FindPath(self._mover:GetPosition(), target, self._agent)
+		end)
+		if not ok then
+			reason = `FindPath errored: {tostring(path)}`
+			path = nil
+		end
 
 		if self._destroyed or self._generation ~= generation then
 			return
@@ -234,10 +270,8 @@ function Navigator._plan(self: Navigator)
 		if path == nil or #path == 0 then
 			self._status = "Failed"
 			self:_setPath(nil)
-			-- Once per target: retries on the cadence would otherwise repeat this every interval.
-			if reason and self._warnedTarget ~= target then
-				self._warnedTarget = target
-				FormatMessage.Warn(`{self._agent.Name}: no path to {target} ({reason})`)
+			if reason then
+				self:_warnOnce(target, `no path to {target} ({reason})`)
 			end
 			self.Arrived:Fire(false)
 			return
@@ -290,17 +324,30 @@ end
 
 	Heads to `target`. Call it every tick with a moving target; a plan only happens when the
 	target is new, has moved more than `RepathDistance` since the last plan, or the last plan
-	failed or ran out, and never more often than `RepathInterval`.
+	failed or ran out, and never more often than `RepathInterval`. A new target after arriving is
+	treated as new: the status leaves `Arrived` at once.
 ]=]
 function Navigator.MoveTo(self: Navigator, target: Vector3)
 	if self._destroyed then
 		return
 	end
 
-	local isNew = self._target == nil
+	local previous = self._target
 	self._target = target
 
-	self:_planIfDue(isNew)
+	local force = previous == nil
+
+	if not force and self._status == "Arrived" then
+		local anchor = self._plannedTarget or previous
+		if anchor and (target - anchor).Magnitude > self._options.RepathDistance then
+			-- Arrived was about the old target. Leave it so the new one can arrive or plan at once.
+			self._status = "Idle"
+			self._plannedTarget = nil
+			force = true
+		end
+	end
+
+	self:_planIfDue(force)
 end
 
 --[=[

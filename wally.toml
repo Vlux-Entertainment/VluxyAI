@@ -19,12 +19,20 @@ exclude = [
     "docs",
     "build",
     "Art",
+    "Commands",
     "PackageTests",
+    "CLAUDE.md",
+    "PLAN.md",
+    "rokit.toml",
     "moonwave.toml",
     "stylua.toml",
     "selene.toml",
     "sourcemap.json",
     "test-place.project.json",
+    ".vscode",
+    ".moonwave",
+    ".luau-analyze",
+    ".gitignore",
 ]
 
 [server-dependencies]

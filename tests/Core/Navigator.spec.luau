@@ -185,21 +185,27 @@ return {
 		expect.equal(#s.pathfinder.Calls, 1, "no re-plan while at the target")
 	end,
 
-	["arrival ignores height"] = function(expect)
-		local s = setup({ navigation = { ArriveDistance = 1 } })
+	["arrival allows a height difference up to ArriveHeight and no more"] = function(expect)
+		local s = setup({ navigation = { ArriveDistance = 1, ArriveHeight = 8 } })
 		s.mover.Position = Vector3.new(0, 2.5, 0)
 
-		s.navigator:MoveTo(Vector3.new(0.5, -10, 0))
-		expect.equal(s.navigator:GetStatus(), "Arrived")
+		s.navigator:MoveTo(Vector3.new(0.5, -3, 0))
+		expect.equal(s.navigator:GetStatus(), "Arrived", "a floor node under a root is reached")
 		expect.equal(#s.pathfinder.Calls, 0, "already there horizontally, no plan needed")
+
+		s = setup({ navigation = { ArriveDistance = 1, ArriveHeight = 8 } })
+		s.mover.Position = Vector3.new(0, 2.5, 0)
+		s.navigator:MoveTo(Vector3.new(0.5, 30, 0))
+		expect.equal(s.navigator:GetStatus(), "Moving", "a target on the floor above is not reached")
+		expect.equal(#s.pathfinder.Calls, 1)
 	end,
 
-	["reaching the end of the path away from the target re-plans on the cadence"] = function(expect)
-		local s = setup({ navigation = { RepathInterval = 0.5 } })
-		local target = Vector3.new(10, 0, 0)
+	["reaching the end of the path after the target moved re-plans on the cadence"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5, RepathDistance = 2 } })
 
-		s.navigator:MoveTo(target)
-		s.mover.Position = Vector3.new(5, 0, 0)
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.navigator._target = Vector3.new(16, 0, 0) -- the target moved after the plan
+		s.mover.Position = Vector3.new(10, 0, 0)
 		s.mover:Finish(true)
 		expect.equal(s.navigator:GetStatus(), "Moving", "not there yet")
 
@@ -208,6 +214,87 @@ return {
 		s.clock:Advance(0.6)
 		s.navigator:Step(0.1)
 		expect.equal(#s.pathfinder.Calls, 2, "re-planned from Step without another MoveTo")
+	end,
+
+	["a path that ends short of a target that did not move fails instead of looping"] = function(expect)
+		local warnings = {}
+		local s = setup({ navigation = { RepathInterval = 0.5 }, warnings = warnings })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.mover.Position = Vector3.new(6, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Failed")
+		expect.sequence(s.arrivals, { false })
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "ends 4 studs short")
+
+		for _ = 1, 5 do
+			s.clock:Advance(1)
+			s.navigator:MoveTo(target)
+			s.mover.Position = Vector3.new(6, 0, 0)
+			s.mover:Finish(true)
+		end
+		expect.equal(#warnings, 1, "warned once")
+	end,
+
+	["a new target after arriving leaves Arrived at once"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5, RepathDistance = 2 } })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+
+		s.navigator:MoveTo(Vector3.new(90, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Moving", "no wait for the cadence")
+		expect.equal(#s.pathfinder.Calls, 2)
+		expect.sequence(s.arrivals, { true })
+
+		s.mover.Position = Vector3.new(90, 0, 0)
+		s.mover:Finish(true)
+		expect.sequence(s.arrivals, { true, true }, "the second target arrives in its own right")
+	end,
+
+	["a new target already within reach after arriving arrives again"] = function(expect)
+		local s = setup({ navigation = { RepathDistance = 2, ArriveDistance = 1 } })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		s.mover.Position = Vector3.new(50, 0, 0)
+		s.navigator:MoveTo(Vector3.new(50.5, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+		expect.sequence(s.arrivals, { true, true })
+		expect.equal(#s.pathfinder.Calls, 1, "no plan needed for a target under our feet")
+	end,
+
+	["a pathfinder that errors is a failed plan, not a navigator stuck in Planning"] = function(expect)
+		local warnings = {}
+		local calls = 0
+		local s = setup({
+			plan = function(_from, to)
+				calls += 1
+				if calls == 1 then
+					error("boom")
+				end
+				return { { Position = to, Action = "Walk" } }
+			end,
+			navigation = { RepathInterval = 0.5 },
+			warnings = warnings,
+		})
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		expect.equal(s.navigator:GetStatus(), "Failed")
+		expect.sequence(s.arrivals, { false })
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "FindPath errored")
+		expect.includes(warnings[1], "boom")
+
+		s.clock:Advance(1)
+		s.navigator:MoveTo(target)
+		expect.equal(s.navigator:GetStatus(), "Moving", "the cadence retried")
 	end,
 
 	["a stuck mover re-plans on the cadence"] = function(expect)

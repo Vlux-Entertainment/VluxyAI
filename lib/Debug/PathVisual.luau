@@ -7,6 +7,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
 local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
@@ -21,12 +22,20 @@ local DEFAULT_OPTIONS = {
 }
 table.freeze(DEFAULT_OPTIONS)
 
-type Options = {
+type ResolvedOptions = {
 	Color: Color3,
 	EndColor: Color3,
 	Size: number,
 }
 
+--[=[
+	@interface PathVisualOptions
+	@within PathVisual
+
+	.Color Color3? -- Colour of the step balls. Default green.
+	.EndColor Color3? -- Colour of the last ball. Default white.
+	.Size number? -- Diameter of a step ball in studs; the last one is twice that. Default `0.5`.
+]=]
 export type PathVisualOptions = {
 	Color: Color3?,
 	EndColor: Color3?,
@@ -35,7 +44,7 @@ export type PathVisualOptions = {
 
 type self = {
 	_agent: Types.Agent,
-	_options: Options,
+	_options: ResolvedOptions,
 	_trove: Trove.Trove,
 	_parts: Trove.Trove,
 }
@@ -81,12 +90,7 @@ end
 	@return PathVisual
 ]=]
 function PathVisual.new(agent: Types.Agent, options: PathVisualOptions?): PathVisual
-	local resolved = table.clone(DEFAULT_OPTIONS) :: Options
-	if options then
-		for key, value in options do
-			(resolved :: any)[key] = value
-		end
-	end
+	local resolved = Options.Resolve("PathVisual.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	local trove = Trove.new()
 	local self: self = {

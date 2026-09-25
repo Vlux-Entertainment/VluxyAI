@@ -5,6 +5,7 @@
 	you ask for. Opt-in; refreshes on state changes and on a slow timer for the values.
 ]]
 
+local Options = require(script.Parent.Parent.Utility.Options)
 local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
@@ -18,13 +19,22 @@ local DEFAULT_OPTIONS = {
 }
 table.freeze(DEFAULT_OPTIONS)
 
-type Options = {
+type ResolvedOptions = {
 	Keys: { string },
 	Offset: Vector3,
 	Interval: number,
 	TextSize: number,
 }
 
+--[=[
+	@interface StateLabelOptions
+	@within StateLabel
+
+	.Keys { string }? -- Blackboard keys to show under the state. Default none.
+	.Offset Vector3? -- World offset of the billboard from the root. Default `(0, 4, 0)`.
+	.Interval number? -- Seconds between value refreshes. Default `0.25`.
+	.TextSize number? -- Default `14`.
+]=]
 export type StateLabelOptions = {
 	Keys: { string }?,
 	Offset: Vector3?,
@@ -34,7 +44,7 @@ export type StateLabelOptions = {
 
 type self = {
 	_agent: Types.Agent,
-	_options: Options,
+	_options: ResolvedOptions,
 	_label: TextLabel,
 	_trove: Trove.Trove,
 }
@@ -87,12 +97,7 @@ end
 function StateLabel.new(agent: Types.Agent, options: StateLabelOptions?): StateLabel
 	local RunService = game:GetService("RunService")
 
-	local resolved = table.clone(DEFAULT_OPTIONS) :: Options
-	if options then
-		for key, value in options do
-			(resolved :: any)[key] = value
-		end
-	end
+	local resolved = Options.Resolve("StateLabel.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	local trove = Trove.new()
 
