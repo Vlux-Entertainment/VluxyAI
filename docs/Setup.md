@@ -77,6 +77,15 @@ mover gets stuck, and never plans more often than its `RepathInterval`. Ask it h
 with `agent:GetPathStatus()` (`Idle`, `Planning`, `Moving`, `Arrived`, `Failed`) or
 `agent:HasArrived()`.
 
+A path to a target that stays put is walked to its end. When the level changes under the agent,
+the [Navmesh](/api/Navmesh) pathfinder's `Blocked` signal makes the navigator re-plan on its next
+cadence tick, and `MaxPathAge` in [Builder:SetNavigation](/api/Builder#SetNavigation) plans again
+every so many seconds regardless, for the games where a fresh path is worth one `ComputeAsync`:
+
+```lua
+:SetNavigation({ MaxPathAge = 2 })
+```
+
 ## 4. Take it apart
 
 ```lua

@@ -68,6 +68,80 @@ return {
 		expect.equal(#s.pathfinder.Calls, 1)
 	end,
 
+	["MaxPathAge re-plans a target that has not moved, on the cadence"] = function(expect)
+		local s = setup({ navigation = { MaxPathAge = 2, RepathInterval = 0.5 } })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.clock:Advance(1.9)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 1, "younger than MaxPathAge")
+
+		s.clock:Advance(0.2)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "aged out without a MoveTo")
+		expect.equal(#s.mover.Followed, 2, "the fresh path replaced the old one")
+		expect.equal(s.navigator:GetStatus(), "Moving")
+
+		s.clock:Advance(1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 2, "the age counts from the last plan")
+		s.clock:Advance(1.1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 3)
+	end,
+
+	["MaxPathAge does not re-plan after arriving"] = function(expect)
+		local s = setup({ navigation = { MaxPathAge = 1, ArriveDistance = 2 } })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.mover.Position = Vector3.new(9, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+
+		s.clock:Advance(5)
+		s.navigator:Step(0.1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 1, "an arrived target is not re-planned by age")
+	end,
+
+	["a pathfinder's Blocked signal re-plans on the cadence"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5 } })
+		s.pathfinder.Blocked = Fakes.Signal().new()
+		local navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+			.new(s.pathfinder, s.mover, Fakes.Agent(), { RepathInterval = 0.5 })
+		local target = Vector3.new(10, 0, 0)
+
+		navigator:MoveTo(target)
+		s.clock:Advance(0.2)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 1, "too soon after the last plan")
+		expect.equal(navigator:GetStatus(), "Moving")
+
+		s.clock:Advance(0.4)
+		navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "re-planned once the interval elapsed, with no MoveTo")
+		expect.equal(#s.mover.Followed, 2)
+
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 3, "a block after the interval re-plans at once")
+
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(navigator:GetStatus(), "Arrived")
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 3, "a block after arriving is ignored")
+
+		navigator:Destroy()
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 3, "Destroy disconnects from Blocked")
+	end,
+
 	["a target that moved within RepathDistance does not re-plan"] = function(expect)
 		local s = setup({ navigation = { RepathDistance = 3 } })
 

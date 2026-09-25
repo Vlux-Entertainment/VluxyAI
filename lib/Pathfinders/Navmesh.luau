@@ -8,9 +8,13 @@
 	line, so a mover turns fewer corners. It keeps every Jump, Custom or labelled step and the step
 	right before a Jump, because those carry meaning a straight line does not. Both `Simplify` and
 	`FromWaypoints` are pure so they are specced under Lune; the service call is play-tested.
+
+	`Blocked` relays the Path instance's own `Blocked` event without the waypoint index, because
+	`Simplify` renumbers the steps and the Navigator re-plans either way.
 ]]
 
 local Options = require(script.Parent.Parent.Utility.Options)
+local Signal = require(script.Parent.Parent.Utility.Signal)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -64,9 +68,11 @@ type ResolvedOptions = {
 
 type self = {
 	Name: string,
+	Blocked: Types.Signal<()>,
 
 	_options: ResolvedOptions,
 	_path: Path,
+	_blockedConnection: RBXScriptConnection,
 	_destroyed: boolean,
 }
 
@@ -85,7 +91,9 @@ export type Navmesh = typeof(setmetatable({} :: self, Navmesh))
 	than one per plan. Never share one between agents: `ComputeAsync` yields, so a second agent's
 	plan would overwrite the waypoints the first is about to read.
 
-	`Name` is `"Navmesh"`, which [Ladder] uses in its reasons.
+	`Name` is `"Navmesh"`, which [Ladder] uses in its reasons. `Blocked` fires whenever the
+	`Path` instance reports its last computed path blocked, so a [Navigator] re-plans when a door
+	closes or a part moves into the way instead of waiting for the mover's stuck check.
 ]=]
 
 --[=[
@@ -109,11 +117,17 @@ function Navmesh.new(options: Options?): Types.Pathfinder
 		Costs = resolved.Costs,
 	})
 
+	local blocked = Signal.new()
+
 	local self: self = {
 		Name = "Navmesh",
+		Blocked = blocked,
 
 		_options = resolved,
 		_path = path,
+		_blockedConnection = path.Blocked:Connect(function()
+			blocked:Fire()
+		end),
 		_destroyed = false,
 	}
 
@@ -240,7 +254,8 @@ end
 --[=[
 	@within Navmesh
 
-	Destroys the `Path` instance. `FindPath` after this returns `nil, "destroyed"`.
+	Destroys the `Path` instance and the `Blocked` signal. `FindPath` after this returns
+	`nil, "destroyed"`.
 ]=]
 function Navmesh.Destroy(self: Navmesh)
 	if self._destroyed then
@@ -248,7 +263,9 @@ function Navmesh.Destroy(self: Navmesh)
 	end
 
 	self._destroyed = true
+	self._blockedConnection:Disconnect()
 	self._path:Destroy()
+	self.Blocked:Destroy()
 end
 
 return Navmesh

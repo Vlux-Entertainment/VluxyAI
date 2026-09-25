@@ -171,6 +171,16 @@ return {
 		expect.sequence(labels(path), { "n1", "goal" })
 	end,
 
+	["Blocked is the local pathfinder's signal, and absent when it has none"] = function(expect)
+		local s = setup()
+		expect.equal(s.hybrid.Blocked, nil)
+
+		local signal = Fakes.Signal().new()
+		s.localPathfinder.Blocked = signal
+		local hybrid = s.Hybrid.new({ Graph = s.graph, Local = s.localPathfinder })
+		expect.equal(hybrid.Blocked, signal)
+	end,
+
 	["Destroy destroys both and new checks its arguments"] = function(expect)
 		local s = setup()
 		s.hybrid:Destroy()

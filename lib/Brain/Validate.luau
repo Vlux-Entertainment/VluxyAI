@@ -44,6 +44,7 @@ local DEFINITION_FIELDS = {
 local NAVIGATION_FIELDS = {
 	RepathInterval = true,
 	RepathDistance = false,
+	MaxPathAge = true,
 	ArriveDistance = false,
 	ArriveHeight = false,
 }
@@ -278,6 +279,9 @@ function Validate.Definition(definition: any)
 
 	if hasPathfinder then
 		expectMethods(definition.Pathfinder, { "FindPath" }, `{root}.Pathfinder`)
+		if definition.Pathfinder.Blocked ~= nil then
+			expectSignals(definition.Pathfinder, { "Blocked" }, `{root}.Pathfinder`)
+		end
 		expectMethods(definition.Mover, MOVER_METHODS, `{root}.Mover`)
 		expectSignals(definition.Mover, MOVER_SIGNALS, `{root}.Mover`)
 	end

@@ -6,6 +6,7 @@
 	service is a play-test.
 ]]
 
+local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local roblox = require("@lune/roblox")
@@ -38,6 +39,7 @@ end
 local function fakePath(status: any, waypoints: { any }?, computeError: string?)
 	local path = {
 		Status = status,
+		Blocked = Fakes.Signal().new(),
 		Computed = {} :: { { any } },
 		Destroyed = false,
 	}
@@ -265,6 +267,27 @@ return {
 		local result, reason = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(4, 0, 0), {} :: any)
 		expect.equal(result, nil)
 		expect.equal(reason, "Unable to cast to Vector3")
+	end,
+
+	["Blocked relays the Path instance's Blocked event until Destroy"] = function(expect)
+		local path = fakePath(Enum.PathStatus.Success, { waypoint(0, 0, 0), waypoint(4, 0, 0) })
+		local Navmesh = loadWithService(path)
+		local navmesh = Navmesh.new()
+
+		local fired = 0
+		local arguments = -1
+		navmesh.Blocked:Connect(function(...)
+			fired += 1
+			arguments = select("#", ...)
+		end)
+
+		path.Blocked:Fire(3)
+		expect.equal(fired, 1)
+		expect.equal(arguments, 0, "the waypoint index is not passed on")
+
+		navmesh:Destroy()
+		path.Blocked:Fire(3)
+		expect.equal(fired, 1, "disconnected on Destroy")
 	end,
 
 	["Destroy destroys the Path instance once and FindPath then fails"] = function(expect)

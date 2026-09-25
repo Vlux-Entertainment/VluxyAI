@@ -259,6 +259,10 @@ return {
 			definition.Navigation = { ArriveDistance = -1 }
 		end, "Definition.Navigation.ArriveDistance must be a number of 0 or more, got -1")
 
+		failsWith(expect, function(definition)
+			definition.Navigation = { MaxPathAge = 0 }
+		end, "Definition.Navigation.MaxPathAge must be a number above 0, got 0")
+
 		local Validate = load()
 		local zeroes = goodDefinition()
 		zeroes.Navigation = { RepathDistance = 0, ArriveDistance = 0, ArriveHeight = 0 }
@@ -267,6 +271,17 @@ return {
 		failsWith(expect, function(definition)
 			definition.Navigation = { Repath = 1 }
 		end, "Definition.Navigation.Repath is not a field VluxyAI knows")
+	end,
+
+	["a pathfinder's Blocked, when present, must be a signal"] = function(expect)
+		failsWith(expect, function(definition)
+			definition.Pathfinder.Blocked = true
+		end, "Definition.Pathfinder.Blocked must be a signal with Connect, got true")
+
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Pathfinder.Blocked = Fakes.Signal().new()
+		Validate.Definition(definition)
 	end,
 
 	["Validate.Brain uses the given path prefix"] = function(expect)

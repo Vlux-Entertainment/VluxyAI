@@ -118,6 +118,7 @@ export type Path = { Step }
 	.FindPath (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?) -- Returns a path, or `nil` and a reason. May yield.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 	.Name string? -- Used in messages, such as a [Ladder]'s joined reasons.
+	.Blocked Signal<()>? -- Optional. Fired when the world changes under the last path returned; the [Navigator] re-plans on its cadence.
 
 	Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
 	a target. `from` and `to` may be at any height: `from` is the mover's root and `to` is often a
@@ -125,11 +126,18 @@ export type Path = { Step }
 	as a failure. `FindPath` runs in its own thread and may yield or error; an error is treated as a
 	failed plan and warned about once. `VluxyAI.Pathfinders` ships `Navmesh`, `Straight` and
 	`Ladder`; your own is any table with `FindPath`.
+
+	`Blocked` is how a pathfinder that watches the world ([Navmesh] listens to its `Path.Blocked`)
+	tells the navigator that the path being walked is no longer good, so the agent re-plans as soon
+	as the cadence allows instead of walking into the obstacle and waiting for the mover's stuck
+	check. A pathfinder that cannot know leaves it out; [Ladder] and [Hybrid] forward it from the
+	rung that produced the current path.
 ]=]
 export type Pathfinder = {
 	FindPath: (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?),
 	Destroy: ((self: any) -> ())?,
 	Name: string?,
+	Blocked: Signal<()>?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -200,8 +208,8 @@ export type Blackboard = { [string]: any }
 	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
 	the blackboard, so one instance may serve many agents and a state may clear a memory early by
 	setting the key to `nil`. Distances are `math.huge` when there is nothing to measure.
-	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing` and `Watched`; your own is any table
-	with `Tick`.
+	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Watched` and
+	`Surroundings`; your own is any table with `Tick`.
 ]=]
 export type Sense = {
 	Tick: (self: any, agent: Agent, deltaTime: number) -> (),
@@ -330,6 +338,7 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 
 	.RepathInterval number? -- Seconds between re-plans while the target keeps moving. Must be above 0; the three distances below may be 0. Default `0.5`.
 	.RepathDistance number? -- Studs the target must move before a re-plan happens. Default `2`.
+	.MaxPathAge number? -- Seconds a path is followed before it is planned again even though the target has not moved, so the agent keeps up with a changing level. Must be above 0. Default `math.huge` (never).
 	.ArriveDistance number? -- Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default `2.5`.
 	.ArriveHeight number? -- Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.
 
@@ -338,6 +347,7 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 export type NavigationOptions = {
 	RepathInterval: number?,
 	RepathDistance: number?,
+	MaxPathAge: number?,
 	ArriveDistance: number?,
 	ArriveHeight: number?,
 }
@@ -356,7 +366,8 @@ export type NavigationOptions = {
 	.PathChanged Signal<Path?> -- Fired with each new path, and with `nil` when there is none.
 
 	Owns the pair of a [Types.Pathfinder] and a [Types.Mover]: plans with one, follows with the
-	other, and re-plans when the target moves. Every agent with both has one at `agent.Navigator`.
+	other, and re-plans when the target moves, the pathfinder reports the path blocked, or the path
+	is older than `MaxPathAge`. Every agent with both has one at `agent.Navigator`.
 ]=]
 export type Navigator = {
 	MoveTo: (self: any, target: Vector3) -> (),

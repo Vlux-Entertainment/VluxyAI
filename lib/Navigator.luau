@@ -2,8 +2,9 @@
 
 --[[
 	Owns the pair of a Pathfinder and a Mover: plans with one, follows with the other, re-plans
-	when the target moves or the mover gives up. A state calls MoveTo every tick with wherever it
-	wants to be and never thinks about paths.
+	when the target moves, the mover gives up, the pathfinder says the path is blocked, or the path
+	is older than MaxPathAge. A state calls MoveTo every tick with wherever it wants to be and never
+	thinks about paths.
 
 	Pure Luau apart from Vector3 values and `task.spawn` for the plan, since FindPath may yield.
 	Every plan carries a generation number; a plan that finishes after Stop, Destroy or a newer
@@ -21,6 +22,7 @@ local Types = require(script.Parent.Types)
 local DEFAULT_OPTIONS = {
 	RepathInterval = 0.5,
 	RepathDistance = 2,
+	MaxPathAge = math.huge,
 	ArriveDistance = 2.5,
 	ArriveHeight = 8,
 }
@@ -28,6 +30,7 @@ local DEFAULT_OPTIONS = {
 type Options = {
 	RepathInterval: number,
 	RepathDistance: number,
+	MaxPathAge: number,
 	ArriveDistance: number,
 	ArriveHeight: number,
 }
@@ -75,6 +78,13 @@ export type Navigator = typeof(setmetatable({} :: self, Navigator))
 	moving target: the navigator re-plans on a cadence, re-plans when the target moves, retries when
 	the mover gets stuck, and reports through `GetStatus` and `Arrived`. Every [Agent] built with
 	both a pathfinder and a mover has one at `agent.Navigator`.
+
+	A path to a target that stays put is followed to its end by default. Two options change that
+	for a level that moves under the agent (doors, moving platforms, other NPCs): a pathfinder
+	with a `Blocked` signal ([Navmesh] has one) makes the navigator re-plan on the next cadence
+	tick, and `MaxPathAge` plans again once the current path is that many seconds old, whether or
+	not anything is known to have changed. Both cost one plan each time; neither plans more often
+	than `RepathInterval`.
 
 	Arrival is judged by horizontal distance within `ArriveDistance`, with the height difference
 	allowed up to `ArriveHeight`: a humanoid's root and a floor waypoint sit at different heights,
@@ -141,6 +151,16 @@ function Navigator.new(
 			navigator:_onMoverArrived(reached)
 		end)
 	)
+
+	local blocked = (pathfinder :: any).Blocked
+	if type(blocked) == "table" and type(blocked.Connect) == "function" then
+		table.insert(
+			self._connections,
+			blocked:Connect(function()
+				navigator:_onBlocked()
+			end)
+		)
+	end
 
 	return navigator
 end
@@ -259,6 +279,21 @@ function Navigator._onMoverArrived(self: Navigator, reached: boolean)
 end
 
 --[[
+	The pathfinder says the path being walked is no longer good. Only a path in progress can be
+	blocked: while Planning the report is about the path that plan is already replacing, and after
+	Arrived or Failed there is nothing to re-plan. The plan itself waits for the cadence, so a
+	level that flickers does not cost a plan per flicker.
+]]
+function Navigator._onBlocked(self: Navigator)
+	if self._destroyed or self._status ~= "Moving" then
+		return
+	end
+
+	self._needsPlan = true
+	self:_planIfDue(false)
+end
+
+--[[
 	Plans a path to the current target in its own thread and follows it when it arrives, unless
 	something newer happened meanwhile.
 ]]
@@ -352,9 +387,10 @@ function Navigator._planIfDue(self: Navigator, force: boolean)
 	local plannedTarget = self._plannedTarget
 	local targetMoved = plannedTarget == nil or (target - plannedTarget).Magnitude > self._options.RepathDistance
 	local stale = self._status == "Failed" or self._status == "Idle"
+	local aged = self._status == "Moving" and sinceLast >= self._options.MaxPathAge
 
 	local immediate = force or self._plannedAt == -math.huge
-	local due = (self._needsPlan or targetMoved or stale) and sinceLast >= self._options.RepathInterval
+	local due = (self._needsPlan or targetMoved or stale or aged) and sinceLast >= self._options.RepathInterval
 
 	if immediate or due then
 		self:_plan()
@@ -368,9 +404,10 @@ end
 	@param target Vector3
 
 	Heads to `target`. Call it every tick with a moving target; a plan only happens when the
-	target is new, has moved more than `RepathDistance` since the last plan, or the last plan
-	failed or ran out, and never more often than `RepathInterval`. A new target after arriving is
-	treated as new: the status leaves `Arrived` at once.
+	target is new, has moved more than `RepathDistance` since the last plan, the last plan failed
+	or ran out, the pathfinder reported the path blocked, or the path is older than `MaxPathAge`,
+	and never more often than `RepathInterval`. A new target after arriving is treated as new: the
+	status leaves `Arrived` at once.
 ]=]
 function Navigator.MoveTo(self: Navigator, target: Vector3)
 	if self._destroyed then
@@ -464,7 +501,8 @@ end
 	@param deltaTime number
 
 	One tick. Retries a plan that is due even when nobody called `MoveTo` this tick, so a state
-	that called `MoveTo` once with a fixed position still gets there after a stuck mover.
+	that called `MoveTo` once with a fixed position still gets there after a stuck mover, a blocked
+	path or a path past `MaxPathAge`.
 ]=]
 function Navigator.Step(self: Navigator, deltaTime: number)
 	local _ = deltaTime
