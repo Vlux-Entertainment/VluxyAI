@@ -11,6 +11,7 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 
 Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
 The built-ins are [Sight](/api/Sight), [Proximity](/api/Proximity), [Hearing](/api/Hearing),
+[Sounds](/api/Sounds) (the tagged `Sound` instances the world is playing, rolled off by distance),
 [Watched](/api/Watched) and [Surroundings](/api/Surroundings) (a ring of rays for the nearest
 obstacle and the most open direction); the playground's Hunter carries a stamina sense written
 in a dozen lines.
@@ -50,6 +51,11 @@ agent, so a sense that holds something outside itself (a signal connection, as
 Anything with `FindPath(self, from, to, agent) -> (Path?, reason?)`. It may yield. `from` is the
 mover's root position and `to` is wherever the state asked to go; return a list of steps whose
 `Position` is a **floor** position, or `nil` and a short reason.
+
+A pathfinder that can tell when the world changes under its last path may also carry a `Blocked`
+signal (`VluxyAI.Signal.new()`). Fire it with no arguments and the navigator re-plans on its next
+cadence tick instead of waiting for the mover's stuck check. [Navmesh](/api/Navmesh) relays the
+`Path.Blocked` event this way; a pathfinder that cannot know simply leaves the field out.
 
 ```lua
 local Teleporters = {}

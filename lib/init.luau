@@ -36,6 +36,7 @@ local Hearing = require(script.Senses.Hearing)
 local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
+local Sounds = require(script.Senses.Sounds)
 local Surroundings = require(script.Senses.Surroundings)
 local Watched = require(script.Senses.Watched)
 
@@ -208,14 +209,16 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Watched: Watched, Surroundings: Surroundings }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Watched: Watched, Surroundings: Surroundings }
 
-	The built-in [Types.Sense]s.
+	The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the
+	tagged `Sound` instances the world is already playing.
 ]=]
 VluxyAI.Senses = {
 	Sight = Sight,
 	Proximity = Proximity,
 	Hearing = Hearing,
+	Sounds = Sounds,
 	Watched = Watched,
 	Surroundings = Surroundings,
 }
