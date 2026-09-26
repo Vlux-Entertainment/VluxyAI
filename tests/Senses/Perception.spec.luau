@@ -433,4 +433,35 @@ return {
 		)
 		expect.equal(eyes[1], watcher.Root)
 	end,
+
+	["CountWalls counts distinct parts along the line, up to the limit, ignoring the margin at the end"] = function(
+		expect
+	)
+		local hits = {}
+		local walls = {
+			{ Name = "Wall1", At = 3 },
+			{ Name = "Wall2", At = 6 },
+			{ Name = "Body", At = 19.5 },
+		}
+		local Perception = Harness.Load("lib/Senses/Perception.luau", {
+			globals = SenseFakes.Globals({
+				rays = hits,
+				hit = function(ray)
+					for _, wall in walls do
+						if not table.find(ray.Params.FilterDescendantsInstances, wall) then
+							return { Instance = wall, Position = ray.From + ray.Direction.Unit * wall.At }
+						end
+					end
+					return nil
+				end,
+			}),
+		})
+
+		local from, to = Vector3.new(0, 0, 0), Vector3.new(0, 0, -20)
+		expect.equal(Perception.CountWalls(from, to, {}), 2, "two walls; the body at the end is inside the margin")
+		expect.equal(Perception.CountWalls(from, to, {}, 1), 1, "limited")
+		expect.equal(Perception.CountWalls(from, to, { walls[1] }), 1, "an ignored part is not a wall")
+		expect.equal(Perception.CountWalls(from, Vector3.new(0, 0, -1), {}), 0, "too short to have a wall")
+		expect.equal(Perception.CountWalls(from, to, {}, 3, 0), 3, "with no margin the body counts")
+	end,
 }

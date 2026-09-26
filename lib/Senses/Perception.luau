@@ -321,6 +321,47 @@ function Perception.LineOfSight(
 	return false
 end
 
+--[=[
+	@within Perception
+	@param from Vector3
+	@param to Vector3
+	@param ignore { Instance } -- What does not count, with descendants: the listener's entity, the source's part.
+	@param limit number? -- Stop counting here. Default `3`.
+	@param margin number? -- Hits within this many studs of `to` do not count, so a noise inside a body is not walled off by that body. Default `2`.
+	@return number -- How many distinct parts the straight line crosses, up to `limit`.
+
+	How many walls stand between a sound and a listener. [Hearing] and [Sounds] multiply the
+	loudness by `Occlusion` once per wall.
+]=]
+function Perception.CountWalls(
+	from: Vector3,
+	to: Vector3,
+	ignore: { Instance },
+	limit: number?,
+	margin: number?
+): number
+	local maxWalls = limit or 3
+	local keep = margin or 2
+	local direction = to - from
+	local length = direction.Magnitude
+	if length <= keep or maxWalls <= 0 then
+		return 0
+	end
+
+	local excluded = table.clone(ignore)
+	local walls = 0
+	while walls < maxWalls do
+		local result = workspace:Raycast(from, direction, Perception.RaycastParams(excluded))
+		if result == nil or (result.Position - from).Magnitude >= length - keep then
+			break
+		end
+		walls += 1
+		table.insert(excluded, result.Instance)
+	end
+
+	return walls
+end
+
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[

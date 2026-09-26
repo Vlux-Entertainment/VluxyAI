@@ -18,11 +18,13 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Range = 100,
 })
 
@@ -32,13 +34,16 @@ local DEFAULT_OPTIONS = table.freeze({
 
 	.Range number? -- Studs within which a target counts as nearby. Default `100`.
 	.Targets ((agent: Agent) -> { BasePart })? -- What to measure. Default [Perception.AliveRoots], every alive player's root.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type ProximityOptions = {
+	Prefix: string?,
 	Range: number?,
 	Targets: ((agent: Types.Agent) -> { BasePart })?,
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Range: number,
 	Targets: (agent: Types.Agent) -> { BasePart },
 }
@@ -94,7 +99,7 @@ end
 function Proximity.Tick(self: Proximity, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	local origin = Perception.PositionOf(agent)
 
@@ -120,6 +125,22 @@ end
 ]=]
 function Proximity.Destroy(self: Proximity)
 	local _ = self
+end
+
+--[=[
+	@within Proximity
+	@param patch ProximityOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Proximity.Configure(self: Proximity, patch: ProximityOptions)
+	self._options =
+		Options.Resolve("Proximity.Configure", self._options, patch :: any, { "Targets" }) :: ResolvedOptions
+	if self._options.Range < 0 then
+		FormatMessage.Error("Proximity: Range must be zero or more", 3)
+	end
 end
 
 return Proximity

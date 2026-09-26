@@ -10,8 +10,8 @@
 
 	- `HeardPosition` Vector3? -- Where the last heard noise was.
 	- `HeardAt` number? -- `os.clock()` of that tick.
-	- `HeardLoudness` number? -- Its loudness. `nil` when nothing is remembered: it is not a
-	  distance, so there is no `math.huge` sentinel.
+	- `HeardLoudness` number? -- Its loudness as heard, after walls. `nil` when nothing is
+	  remembered: it is not a distance, so there is no `math.huge` sentinel.
 
 	All three are memory: they stay for `Memory` seconds after the last heard noise, then go
 	`nil` together. They live on the blackboard, not in the sense, so a state may clear them
@@ -28,13 +28,17 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Range = 30,
 	Memory = 5,
+	Occlusion = 1,
+	OcclusionWalls = 3,
 })
 
 --[[
@@ -48,15 +52,24 @@ local BUFFER_LIMIT = 64
 
 	.Range number? -- Studs a noise of loudness `1` carries. A noise is heard within `Range * loudness`. Default `30`.
 	.Memory number? -- Seconds the heard keys outlive the last heard noise. Default `5`.
+	.Occlusion number? -- Loudness multiplier per wall between the noise and the agent, `0` to `1`. `1` (the default) casts no rays; `0.5` halves a noise per wall.
+	.OcclusionWalls number? -- Walls counted at most. Default `3`.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type HearingOptions = {
+	Prefix: string?,
 	Range: number?,
 	Memory: number?,
+	Occlusion: number?,
+	OcclusionWalls: number?,
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Range: number,
 	Memory: number,
+	Occlusion: number,
+	OcclusionWalls: number,
 }
 
 type Noise = {
@@ -174,7 +187,7 @@ end
 function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	self:_connect()
 
@@ -189,17 +202,30 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 
 	local heard: Noise? = nil
 	local heardDistance = math.huge
+	local heardLoudness = 0
 	for _, noise in buffer do
 		local distance = (noise.Position - origin).Magnitude
-		if distance > options.Range * noise.Loudness then
+		local loudness = noise.Loudness
+
+		-- Only a noise that could be heard through open air is worth the rays.
+		if distance > options.Range * loudness then
 			continue
 		end
+		if options.Occlusion < 1 then
+			local walls =
+				Perception.CountWalls(origin, noise.Position, Perception.IgnoreList(agent), options.OcclusionWalls)
+			loudness *= options.Occlusion ^ walls
+			if distance > options.Range * loudness then
+				continue
+			end
+		end
 
-		local louder = heard == nil or noise.Loudness > heard.Loudness
-		local asLoudButNearer = heard ~= nil and noise.Loudness == heard.Loudness and distance < heardDistance
+		local louder = heard == nil or loudness > heardLoudness
+		local asLoudButNearer = heard ~= nil and loudness == heardLoudness and distance < heardDistance
 		if louder or asLoudButNearer then
 			heard = noise
 			heardDistance = distance
+			heardLoudness = loudness
 		end
 	end
 	table.clear(buffer)
@@ -207,7 +233,7 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 	if heard ~= nil then
 		blackboard.HeardPosition = heard.Position
 		blackboard.HeardAt = now
-		blackboard.HeardLoudness = heard.Loudness
+		blackboard.HeardLoudness = heardLoudness
 		return
 	end
 
@@ -240,6 +266,21 @@ function Hearing.Destroy(self: Hearing, agent: Types.Agent?)
 	if connection ~= nil then
 		connection:Disconnect()
 		self._connection = nil
+	end
+end
+
+--[=[
+	@within Hearing
+	@param patch HearingOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Hearing.Configure(self: Hearing, patch: HearingOptions)
+	self._options = Options.Resolve("Hearing.Configure", self._options, patch :: any, nil) :: ResolvedOptions
+	if self._options.Range < 0 then
+		FormatMessage.Error("Hearing: Range must be zero or more", 3)
 	end
 end
 

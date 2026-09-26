@@ -319,4 +319,43 @@ return {
 		expect.includes(message, "[VluxyAI] Hearing.new")
 		expect.includes(message, "Rnage")
 	end,
+
+	["Occlusion quietens a noise per wall between it and the agent"] = function(expect)
+		local Signal = Fakes.Signal()
+		local wall = { Name = "Wall" }
+		local function load(occlusion: number?)
+			local clock = Harness.ManualClock(100)
+			local Hearing = Harness.Load("lib/Senses/Hearing.luau", {
+				globals = SenseFakes.Globals({
+					clock = clock,
+					hit = function(ray)
+						if table.find(ray.Params.FilterDescendantsInstances, wall) then
+							return nil
+						end
+						return { Instance = wall, Position = ray.From + ray.Direction * 0.5 }
+					end,
+				}),
+			})
+			local noises = Signal.new()
+			local hearing = Hearing.new(noises, { Range = 30, Occlusion = occlusion })
+			local agent = SenseFakes.Agent(Vector3.new(0, 0, 0))
+			hearing:Tick(agent, 0)
+			return hearing, noises, agent
+		end
+
+		local hearing, noises, agent = load(0.5)
+		noises:Fire(Vector3.new(20, 0, 0), 1)
+		hearing:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.HeardPosition, nil, "loudness 1 through one wall carries 15 studs, not 20")
+
+		noises:Fire(Vector3.new(20, 0, 0), 2)
+		hearing:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.HeardPosition, Vector3.new(20, 0, 0))
+		expect.near(agent.Blackboard.HeardLoudness, 1, 1e-6, "the loudness as heard, halved by the wall")
+
+		local open, openNoises, openAgent = load(nil)
+		openNoises:Fire(Vector3.new(20, 0, 0), 1)
+		open:Tick(openAgent, 0.1)
+		expect.equal(openAgent.Blackboard.HeardPosition, Vector3.new(20, 0, 0), "no occlusion by default")
+	end,
 }

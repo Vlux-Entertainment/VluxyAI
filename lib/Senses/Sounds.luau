@@ -33,15 +33,19 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Tag = "AI_SOUND",
 	Threshold = 0.05,
 	MultiplierAttribute = "AI_SOUND/Multiplier",
 	Memory = 5,
+	Occlusion = 1,
+	OcclusionWalls = 3,
 })
 
 local ALLOWED_OPTIONS = { "Filter" }
@@ -54,21 +58,30 @@ local ALLOWED_OPTIONS = { "Filter" }
 	.Threshold number? -- The volume a sound must still have at the agent, after roll-off and the attribute, to be heard. Default `0.05`.
 	.MultiplierAttribute string? -- A number attribute on the `Sound` that multiplies its volume for the AI: `2` carries twice as loud, `0.5` half, `0` is never heard. Missing means `1`. Default `"AI_SOUND/Multiplier"`.
 	.Memory number? -- Seconds the memory keys outlive the last audible tick. Default `5`.
+	.Occlusion number? -- Volume multiplier per wall between the sound and the agent, `0` to `1`. `1` (the default) casts no rays; `0.5` halves a sound per wall.
+	.OcclusionWalls number? -- Walls counted at most. Default `3`.
 	.Filter ((sound: Sound, agent: Agent) -> boolean)? -- Return `false` to ignore a sound for this agent. The agent's own sounds (under its entity) are ignored without it.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SoundsOptions = {
+	Prefix: string?,
 	Tag: string?,
 	Threshold: number?,
 	MultiplierAttribute: string?,
 	Memory: number?,
+	Occlusion: number?,
+	OcclusionWalls: number?,
 	Filter: ((sound: Sound, agent: Types.Agent) -> boolean)?,
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Tag: string,
 	Threshold: number,
 	MultiplierAttribute: string,
 	Memory: number,
+	Occlusion: number,
+	OcclusionWalls: number,
 	Filter: ((sound: Sound, agent: Types.Agent) -> boolean)?,
 }
 
@@ -258,7 +271,7 @@ end
 function Sounds.Tick(self: Sounds, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	local origin = Perception.PositionOf(agent)
 	local now = os.clock()
@@ -306,6 +319,16 @@ function Sounds.Tick(self: Sounds, agent: Types.Agent, deltaTime: number)
 			continue
 		end
 
+		if options.Occlusion < 1 then
+			local ignore = Perception.IgnoreList(agent)
+			table.insert(ignore, candidate.Parent)
+			local walls = Perception.CountWalls(origin, position, ignore, options.OcclusionWalls, 1)
+			loudness *= options.Occlusion ^ walls
+			if loudness < options.Threshold then
+				continue
+			end
+		end
+
 		local louder = loudness > heardLoudness
 		local asLoudButNearer = loudness == heardLoudness and distance < heardDistance
 		if heard == nil or louder or asLoudButNearer then
@@ -333,6 +356,24 @@ function Sounds.Tick(self: Sounds, agent: Types.Agent, deltaTime: number)
 		blackboard.HeardSoundPosition = nil
 		blackboard.HeardSoundLoudness = nil
 		blackboard.HeardSoundAt = nil
+	end
+end
+
+--[=[
+	@within Sounds
+	@param patch SoundsOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Sounds.Configure(self: Sounds, patch: SoundsOptions)
+	self._options = Options.Resolve("Sounds.Configure", self._options, patch :: any, ALLOWED_OPTIONS) :: ResolvedOptions
+	if type(self._options.Tag) ~= "string" or self._options.Tag == "" then
+		FormatMessage.Error("Sounds: Tag must be a non-empty string", 3)
+	end
+	if type(self._options.Threshold) ~= "number" or self._options.Threshold < 0 then
+		FormatMessage.Error("Sounds: Threshold must be zero or more", 3)
 	end
 end
 

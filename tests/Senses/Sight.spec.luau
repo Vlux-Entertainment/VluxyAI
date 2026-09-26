@@ -376,4 +376,43 @@ return {
 		wallStops.sight:Tick(wallStops.agent, 0.1)
 		expect.equal(wallStops.blackboard.SeenTarget, nil, "a wall still blocks")
 	end,
+
+	["Prefix puts every key under a name, so two sights coexist"] = function(expect)
+		local target = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local s = setup({ sight = { Prefix = "Peripheral", Targets = SenseFakes.Targets({ target }) } })
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PeripheralSeenTarget, target)
+		expect.near(s.blackboard.PeripheralSeenDistance, 10)
+		expect.equal(s.blackboard.PeripheralSeenAt, 100)
+		expect.equal(s.blackboard.SeenTarget, nil, "nothing under the bare name")
+
+		s.blackboard.PeripheralSeenAt = nil
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PeripheralSeenAt, 100, "reads go through the prefix too")
+	end,
+
+	["Configure changes options in place and keeps the rest"] = function(expect)
+		local far = SenseFakes.Part(Vector3.new(0, 0, -30))
+		local s = setup({ sight = { Range = 20, Targets = SenseFakes.Targets({ far }) } })
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, nil)
+		s.sight:Configure({ Range = 40 })
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, far, "the wider range sees it; Targets was kept")
+
+		expect.includes(
+			expect.errors(function()
+				s.sight:Configure({ Rnage = 1 } :: any)
+			end),
+			"Sight.Configure"
+		)
+		expect.includes(
+			expect.errors(function()
+				s.sight:Configure({ Range = -1 })
+			end),
+			"Range must be zero or more"
+		)
+	end,
 }

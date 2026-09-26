@@ -8,6 +8,7 @@
 local Agent = require(script.Agent)
 local Animator = require(script.Animator)
 local Builder = require(script.Builder)
+local Director = require(script.Director)
 local Locomotion = require(script.Animator.Locomotion)
 local Navigator = require(script.Navigator)
 local Types = require(script.Types)
@@ -41,14 +42,18 @@ local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
 local Sounds = require(script.Senses.Sounds)
 local Surroundings = require(script.Senses.Surroundings)
+local Throttle = require(script.Senses.Throttle)
 local Watched = require(script.Senses.Watched)
 
 local Broadcaster = require(script.Sync.Broadcaster)
+local Look = require(script.Sync.Look)
 local Replica = require(script.Sync.Replica)
 
+local Claims = require(script.Utility.Claims)
 local Cleaner = require(script.Utility.Cleaner)
 local FormatMessage = require(script.Utility.FormatMessage)
 local Signal = require(script.Utility.Signal)
+local Tables = require(script.Utility.Tables)
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -92,6 +97,11 @@ export type Broadcaster = Broadcaster.Broadcaster
 export type Replica = Replica.Replica
 export type KillHandle = Kill.KillHandle
 export type GraphNode = Graph.GraphNode
+export type GraphLink = Graph.GraphLink
+export type StepHandler = Types.StepHandler
+export type Director = Director.Director
+export type Claims = Claims.Claims
+export type LookReceiver = Look.LookReceiver
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -232,7 +242,7 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Throttle: Throttle }
 
 	The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the
 	tagged `Sound` instances the world is already playing; [Awareness] turns what the others
@@ -246,7 +256,33 @@ VluxyAI.Senses = {
 	Awareness = Awareness,
 	Watched = Watched,
 	Surroundings = Surroundings,
+	Throttle = Throttle,
 }
+
+--[=[
+	@within VluxyAI
+	@prop Director Director
+
+	Pacing and shared knowledge for a group of enemies: a tension meter, a difficulty knob and a
+	shared blackboard, read through `director:Sense()`.
+]=]
+VluxyAI.Director = Director
+
+--[=[
+	@within VluxyAI
+	@prop Claims Claims
+
+	A shared "who is on what" table, so two enemies never chase the same player unless you say so.
+]=]
+VluxyAI.Claims = Claims
+
+--[=[
+	@within VluxyAI
+	@prop Tables Tables
+
+	The package's small table helpers, including [Tables.Prefixed].
+]=]
+VluxyAI.Tables = Tables
 
 --[=[
 	@within VluxyAI
@@ -275,7 +311,7 @@ VluxyAI.Locomotion = Locomotion
 
 --[=[
 	@within VluxyAI
-	@prop Sync { Broadcaster: Broadcaster, Replica: Replica }
+	@prop Sync { Broadcaster: Broadcaster, Replica: Replica, Look: Look }
 
 	Client-side presentation: a [Broadcaster] watches an agent on the server, a [Replica] drives
 	a rig and your client states on the client. The game owns the remotes between them.
@@ -283,6 +319,7 @@ VluxyAI.Locomotion = Locomotion
 VluxyAI.Sync = {
 	Broadcaster = Broadcaster,
 	Replica = Replica,
+	Look = Look,
 }
 
 --[=[

@@ -106,4 +106,14 @@ return {
 		end)
 		expect.includes(message, 'Surroundings.new: unknown option "Ray"')
 	end,
+
+	["Configure recomputes the ring of rays"] = function(expect)
+		local Surroundings = Harness.Load("lib/Senses/Surroundings.luau", { globals = SenseFakes.Globals() })
+		local sense = Surroundings.new({ Rays = 4 })
+		expect.equal(#(sense :: any)._directions, 4)
+		sense:Configure({ Rays = 6 })
+		expect.equal(#(sense :: any)._directions, 6)
+		sense:Configure({ Rays = 0 })
+		expect.equal(#(sense :: any)._directions, 1, "never fewer than one")
+	end,
 }

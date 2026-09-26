@@ -30,11 +30,13 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Range = 40,
 	FieldOfView = 120,
 	EyeOffset = Vector3.new(0, 0, 0),
@@ -53,8 +55,10 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Ignore ((agent: Agent) -> { Instance })? -- What the sight ray passes through. Default [Perception.IgnoreList], the agent's entity.
 	.Visibility ((agent: Agent, target: BasePart) -> number)? -- How visible a target is, `0` to `1` (or more): the range is multiplied by it, so `0` is invisible and `0.5` is seen at half the distance. Pass `function(_, root) return VluxyAI.Perception.LightAt(root.Position) end` for darkness. Default: everything `1`.
 	.SeeThrough ((part: BasePart) -> boolean)? -- Parts the sight ray looks past, such as [Perception.Transparent]. Default: everything blocks.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SightOptions = {
+	Prefix: string?,
 	Range: number?,
 	FieldOfView: number?,
 	EyeOffset: Vector3?,
@@ -66,6 +70,7 @@ export type SightOptions = {
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Range: number,
 	FieldOfView: number,
 	EyeOffset: Vector3,
@@ -141,7 +146,7 @@ end
 function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	local eye = agent.Entity:GetPivot() + options.EyeOffset
 	local ignore = options.Ignore(agent)
@@ -212,6 +217,26 @@ end
 ]=]
 function Sight.Destroy(self: Sight)
 	local _ = self
+end
+
+--[=[
+	@within Sight
+	@param patch SightOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Sight.Configure(self: Sight, patch: SightOptions)
+	self._options = Options.Resolve(
+		"Sight.Configure",
+		self._options,
+		patch :: any,
+		{ "Targets", "Ignore", "Visibility", "SeeThrough" }
+	) :: ResolvedOptions
+	if self._options.Range < 0 then
+		FormatMessage.Error("Sight: Range must be zero or more", 3)
+	end
 end
 
 return Sight

@@ -86,6 +86,10 @@ every so many seconds regardless, for the games where a fresh path is worth one 
 :SetNavigation({ MaxPathAge = 2 })
 ```
 
+The brain above is written by hand. [When](/api/When) and [States](/api/States) shorten the
+common parts, and `Interrupts` on the brain hold the transitions that apply from every state;
+[Building a horror enemy](Horror) shows the whole loop in twenty lines.
+
 ## 4. Take it apart
 
 ```lua

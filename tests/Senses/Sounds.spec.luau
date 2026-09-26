@@ -345,4 +345,49 @@ return {
 		end)
 		expect.includes(message, "Threshold must be zero or more")
 	end,
+
+	["Occlusion lowers a sound's volume per wall, ignoring the sound's own part"] = function(expect)
+		local wall = { Name = "Wall" }
+		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
+		local function load(occlusion: number?)
+			local clock = Harness.ManualClock(100)
+			local Sounds = Harness.Load("lib/Senses/Sounds.luau", {
+				globals = SenseFakes.Globals({
+					clock = clock,
+					hit = function(ray)
+						local excluded = ray.Params.FilterDescendantsInstances
+						expect.truthy(table.find(excluded, radio.Parent) ~= nil, "the sound's part is ignored")
+						if table.find(excluded, wall) then
+							return nil
+						end
+						return { Instance = wall, Position = ray.From + ray.Direction * 0.5 }
+					end,
+				}),
+				services = {
+					CollectionService = {
+						GetTagged = function()
+							return { radio }
+						end,
+					},
+				},
+			})
+			local sense = Sounds.new({ Occlusion = occlusion, Threshold = 0.3 })
+			local agent = SenseFakes.Agent(Vector3.new(0, 0, 0))
+			return sense, agent
+		end
+
+		local sense, agent = load(0.5)
+		sense:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.HeardSound, nil, "0.5 through one wall is 0.25, under the threshold")
+
+		radio.Attributes["AI_SOUND/Multiplier"] = 2
+		sense:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.HeardSound, radio)
+		expect.near(agent.Blackboard.HeardSoundLoudness, 0.5)
+		radio.Attributes["AI_SOUND/Multiplier"] = nil
+
+		local open, openAgent = load(nil)
+		open:Tick(openAgent, 0.1)
+		expect.equal(openAgent.Blackboard.HeardSound, radio, "no occlusion by default")
+	end,
 }

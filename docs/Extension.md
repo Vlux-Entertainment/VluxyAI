@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 # Extension
@@ -12,9 +12,11 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
 The built-ins are [Sight](/api/Sight), [Proximity](/api/Proximity), [Hearing](/api/Hearing),
 [Sounds](/api/Sounds) (the tagged `Sound` instances the world is playing, rolled off by distance),
-[Watched](/api/Watched) and [Surroundings](/api/Surroundings) (a ring of rays for the nearest
-obstacle and the most open direction); the playground's Hunter carries a stamina sense written
-in a dozen lines.
+[Awareness](/api/Awareness) (a detection meter fed by the others), [Watched](/api/Watched) and
+[Surroundings](/api/Surroundings) (a ring of rays for the nearest obstacle and the most open
+direction), plus [Throttle](/api/Throttle) to run any of them less often; the playground's
+Hunter carries a stamina sense written in a dozen lines. Every built-in takes a `Prefix` so two
+of a kind can coexist, and has `Configure` to change its options after construction.
 It writes to `agent.Blackboard` and reads nothing from states. Document the keys you write, use
 `math.huge` for a distance with nothing to measure, and keep memory (a `SeenAt`-style timestamp)
 on the blackboard rather than in the sense, so one instance can serve many agents. The agent's

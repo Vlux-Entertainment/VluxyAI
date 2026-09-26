@@ -23,6 +23,7 @@
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -53,6 +54,7 @@ local DEFAULT_SOURCES: { AwarenessSource } = {
 table.freeze(DEFAULT_SOURCES)
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Rise = 1,
 	Fall = 0.25,
 	Suspicious = 0.3,
@@ -71,8 +73,10 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Alerted number? -- The level at which it becomes `"Alerted"`. Default `1`.
 	.Sources { AwarenessSource }? -- What feeds the meter. Default: `SeenTarget` at weight 1, `HeardAt` at 0.5, `HeardSoundAt` at 0.3.
 	.Key string? -- The `agent.Data` key for the counted timestamps. Default `"Awareness"`.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type AwarenessOptions = {
+	Prefix: string?,
 	Rise: (number | (agent: Types.Agent) -> number)?,
 	Fall: number?,
 	Suspicious: number?,
@@ -82,6 +86,7 @@ export type AwarenessOptions = {
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Rise: number | (agent: Types.Agent) -> number,
 	Fall: number,
 	Suspicious: number,
@@ -171,7 +176,7 @@ end
 ]=]
 function Awareness.Tick(self: Awareness, agent: Types.Agent, deltaTime: number)
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	local counted = agent.Data[options.Key]
 	if type(counted) ~= "table" then
@@ -239,6 +244,18 @@ function Awareness.Tick(self: Awareness, agent: Types.Agent, deltaTime: number)
 		blackboard.LastKnownAt = nil
 		blackboard.LastKnownSource = nil
 	end
+end
+
+--[=[
+	@within Awareness
+	@param patch AwarenessOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Awareness.Configure(self: Awareness, patch: AwarenessOptions)
+	self._options = Options.Resolve("Awareness.Configure", self._options, patch :: any, nil) :: ResolvedOptions
 end
 
 return Awareness

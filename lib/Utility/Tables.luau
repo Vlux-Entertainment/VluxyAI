@@ -6,6 +6,13 @@
 
 local Tables = {}
 
+--[=[
+	@class Tables
+
+	Small table helpers the package shares: deep copy, sorted keys, a flat distance and a
+	prefixed view. Exposed as `VluxyAI.Tables`.
+]=]
+
 --[[
 	Deep-copies plain tables. Anything with a metatable (a class instance, a signal, a cleaner) is
 	shared, not copied: those are objects, and copying them would break their identity. Roblox
@@ -42,6 +49,31 @@ end
 	Horizontal distance between two positions, ignoring height. Arrival checks use this because a
 	humanoid's root and a floor waypoint sit at different heights.
 ]]
+--[=[
+	@within Tables
+	@param target { [string]: any }
+	@param prefix string
+	@return { [string]: any } -- `target` itself when `prefix` is empty, else a view whose reads and writes go to `prefix .. key`.
+
+	A prefixed view of a table, so a sense given `Prefix = "Peripheral"` writes
+	`PeripheralSeenTarget` without knowing. Costs one small table per call; nothing at all when
+	the prefix is empty, which is the default everywhere.
+]=]
+function Tables.Prefixed(target: { [string]: any }, prefix: string): { [string]: any }
+	if prefix == "" then
+		return target
+	end
+
+	return setmetatable({}, {
+		__index = function(_view, key: string)
+			return target[prefix .. key]
+		end,
+		__newindex = function(_view, key: string, value: any)
+			target[prefix .. key] = value
+		end,
+	}) :: any
+end
+
 function Tables.FlatDistance(a: Vector3, b: Vector3): number
 	local dx = a.X - b.X
 	local dz = a.Z - b.Z

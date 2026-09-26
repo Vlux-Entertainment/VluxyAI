@@ -16,11 +16,13 @@
 
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	-- Rays around the agent, evenly spaced.
 	Rays = 8,
 	-- How far each ray reaches, in studs.
@@ -37,8 +39,10 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Distance number? -- Reach of each ray in studs. Default `12`.
 	.Height number? -- Added to the agent's root position for the cast origin. Default `0`.
 	.Ignore ((agent: Agent) -> { Instance })? -- Instances the rays pass through, on top of the agent's own entity, which always is.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SurroundingsOptions = {
+	Prefix: string?,
 	Rays: number?,
 	Distance: number?,
 	Height: number?,
@@ -46,6 +50,7 @@ export type SurroundingsOptions = {
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Rays: number,
 	Distance: number,
 	Height: number,
@@ -183,7 +188,7 @@ function Surroundings.Tick(self: SurroundingsClass, agent: Types.Agent, deltaTim
 	end
 
 	local summary = Surroundings.Evaluate(directions, distances, options.Distance)
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 	blackboard.ObstacleDistance = summary.ObstacleDistance
 	blackboard.ObstacleDirection = summary.ObstacleDirection
 	blackboard.OpenDirection = summary.OpenDirection
@@ -197,6 +202,23 @@ end
 ]=]
 function Surroundings.Destroy(self: SurroundingsClass)
 	local _ = self
+end
+
+--[=[
+	@within Surroundings
+	@param patch SurroundingsOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Surroundings.Configure(self: SurroundingsClass, patch: SurroundingsOptions)
+	self._options =
+		Options.Resolve("Surroundings.Configure", self._options, patch :: any, { "Ignore" }) :: ResolvedOptions
+	if self._options.Rays < 1 then
+		self._options.Rays = 1
+	end
+	self._directions = Surroundings.Directions(self._options.Rays)
 end
 
 return Surroundings

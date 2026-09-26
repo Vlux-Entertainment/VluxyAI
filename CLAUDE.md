@@ -47,19 +47,27 @@ lib/
   Builder.luau       fluent builder -> AgentDefinition -> Agent
   Agent.luau         the running AI: tick loop, blackboard, senses, brain runner, navigator
   Navigator.luau     owns pathfinder + mover; MoveTo every tick, re-plans on a cadence
-  Brain/Runner       runs a Brain table: Enter/Update/Exit, ordered transitions
+  Brain/Runner       runs a Brain table: interrupts, then Enter/Update/Exit and ordered transitions
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
-  Senses/            Sight, Proximity, Hearing, Watched, Surroundings: Tick(agent, dt) writes the blackboard
-  Senses/Perception  public helpers the senses are made of (alive roots, cones, line of sight, HumanoidOf)
+  Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
+  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait); scratch in agent.Data
+  Director.luau      tension meter, difficulty, shared blackboard for a group; director:Sense()
+  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Throttle:
+                     Tick(agent, dt) writes the blackboard; all take Prefix and have Configure
+  Senses/Perception  public helpers the senses are made of (alive roots minus AI_HIDDEN, cones, line of
+                     sight with SeeThrough, LightAt over AI_LIGHT, CountWalls, SeenByAnyone, HumanoidOf)
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
-                     Graph (A* over authored nodes), Hybrid (graph for the level, local for geometry)
+                     Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
+                     Hybrid (graph for the level, local for geometry)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
   Animator/          NPCAnimator (tracks by name) and Locomotion (idle/walk from real speed, one-shots)
-  Sync/              Broadcaster (server: state, position samples, events) and Replica (client: rig + Visuals)
+  Sync/              Broadcaster (server: state, position samples, events), Replica (client: rig + Visuals),
+                     Look (camera direction: Report on the client, Receive on the server, Eye for Watched)
   Combat/            Attack (Strike and the one generic state) and Kill (Live and BlackBox kills)
   Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
-  Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Cleaner (cleanup bag)
+  Utility/           Signal (pure), FormatMessage, Tables (incl. Prefixed), Options (option resolver),
+                     Cleaner (cleanup bag), Claims (who is on what, for a group)
 ```
 
 Rules that keep it composable and testable:
@@ -74,7 +82,10 @@ Rules that keep it composable and testable:
   `agent:MoveTo(position)` and never touch a pathfinder.
 - **Pathfinders only plan, movers only move.** A pathfinder returns `(Path?, reason?)` and may
   yield; a mover fires `Arrived(false)` for a path it replaces inside `Follow` and reports the new
-  path on a later frame, never inside `Follow`.
+  path on a later frame, never inside `Follow`. A labelled step with a handler (`Builder:OnStep`)
+  is the Navigator's job: it stops the mover there, reports `Interacting`, and resumes the path.
+- **Horror tooling is general tooling.** Awareness, hiding, light, doors, Claims and the Director
+  are plain contracts and options any game can use; nothing is named after a genre.
 - **Contracts, not registries.** No string-union catalogue of kinds, no `Register` call. A game
   passes its own pathfinder in; the package never learns it exists.
 - **No dependencies.** Cleanup goes through `Utility/Cleaner`, the package's own bag. Every
@@ -97,7 +108,10 @@ Rules that keep it composable and testable:
   Movers add their own height (`CFrameMover` measures it on the first path).
 - Distances on the blackboard are `math.huge` when there is nothing to measure; memory keys
   (`SeenAt`, `HeardAt`) are cleared to `nil` when forgotten.
-- Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`.
+- Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`. Timers and
+  `TimeInState` hold while the agent is paused.
+- Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND` and
+  `AI_LIGHT`. Prefixed so they do not collide with a project's own.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.
 - Version bumps happen in `wally.toml` and are mentioned in the commit message.
 
