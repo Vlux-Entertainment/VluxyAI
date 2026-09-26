@@ -33,6 +33,7 @@ local Types = require(script.Parent.Parent.Types)
 local DEFAULT_OPTIONS = table.freeze({
 	Prefix = "",
 	Range = 10,
+	Key = "Neighbours",
 })
 
 local ALLOWED_OPTIONS = { "Slow", "Avoid", "Others", "Filter" }
@@ -57,10 +58,12 @@ export type NeighboursSlow = {
 
 	.Radius number -- Studs within which a neighbour pushes the agent sideways. `0` turns the nudge off.
 	.Strength number? -- How hard: the nudge is up to `Strength * Radius` studs. Default `1`.
+	.Deadband number? -- Studs the nudge must change by before the mover is told again, against jitter when neighbours keep moving. Default `0`.
 ]=]
 export type NeighboursAvoid = {
 	Radius: number,
 	Strength: number?,
+	Deadband: number?,
 }
 
 --[=[
@@ -73,6 +76,7 @@ export type NeighboursAvoid = {
 	.Others ((agent: Agent) -> { Agent })? -- Who counts, instead of the agents sharing this instance.
 	.Filter ((agent: Agent, other: Agent) -> boolean)? -- Return `false` to ignore `other` for `agent`: same kind only, say.
 	.Prefix string? -- Prepended to every key this sense writes. Default `""`.
+	.Key string? -- The `agent.Data` key an enemy may set to opt out for itself: `agent.Data.Neighbours = { Slow = false, Avoid = false }`. Default `"Neighbours"`.
 ]=]
 export type NeighboursOptions = {
 	Range: number?,
@@ -81,11 +85,13 @@ export type NeighboursOptions = {
 	Others: ((agent: Types.Agent) -> { Types.Agent })?,
 	Filter: ((agent: Types.Agent, other: Types.Agent) -> boolean)?,
 	Prefix: string?,
+	Key: string?,
 }
 
 type ResolvedOptions = {
 	Prefix: string,
 	Range: number,
+	Key: string,
 	Slow: NeighboursSlow?,
 	Avoid: NeighboursAvoid?,
 	Others: ((agent: Types.Agent) -> { Types.Agent })?,
@@ -95,6 +101,7 @@ type ResolvedOptions = {
 type self = {
 	_options: ResolvedOptions,
 	_members: { [Types.Agent]: Types.Connection | boolean },
+	_lastNudge: { [Types.Agent]: Vector3? },
 }
 
 local Neighbours = {}
@@ -121,9 +128,10 @@ export type Neighbours = typeof(setmetatable({} :: self, Neighbours))
 	```
 
 	Enemies that should crowd (a swarm) take the sense without `Slow` and `Avoid`, or with
-	`Distance = 0` and `Radius = 0`, or leave it out. An enemy that must ignore one kind gives
-	`Filter`; `Configure` turns either behaviour on or off later.
-	`Configure({ Avoid = { Radius = 0 } })` is the opt-out at runtime.
+	`Distance = 0` and `Radius = 0`, or leave it out. One enemy in a shared group opts out for
+	itself with `agent.Data.Neighbours = { Slow = false }` or `{ Avoid = false }` (the `Key`
+	option renames it). An enemy that must ignore one kind gives `Filter`; `Configure` turns
+	either behaviour on or off for the whole group later.
 ]=]
 
 --[=[
@@ -141,6 +149,7 @@ function Neighbours.new(options: NeighboursOptions?): Types.Sense
 	local self: self = {
 		_options = resolved,
 		_members = setmetatable({}, { __mode = "k" }) :: any,
+		_lastNudge = setmetatable({}, { __mode = "k" }) :: any,
 	}
 
 	return setmetatable(self, Neighbours) :: any
@@ -268,8 +277,14 @@ function Neighbours.Tick(self: Neighbours, agent: Types.Agent, deltaTime: number
 	blackboard.Crowding = math.clamp(crowding, 0, 1)
 	blackboard.SeparationDirection = if push.Magnitude > 1e-4 then push.Unit else nil
 
+	local overrides = agent.Data[options.Key]
+	local slowOff = type(overrides) == "table" and overrides.Slow == false
+	local avoidOff = type(overrides) == "table" and overrides.Avoid == false
+
 	local slow = options.Slow
-	if slow ~= nil and slow.Distance > 0 then
+	if slow ~= nil and slowOff then
+		agent:SetSpeedScale(1)
+	elseif slow ~= nil and slow.Distance > 0 then
 		local scale = 1
 		if nearest ~= nil and nearest.Distance < slow.Distance then
 			local t = nearest.Distance / slow.Distance
@@ -286,11 +301,23 @@ function Neighbours.Tick(self: Neighbours, agent: Types.Agent, deltaTime: number
 		local setNudge = if mover then mover.SetNudge else nil
 		if type(setNudge) == "function" then
 			local nudge: Vector3? = nil
-			if nearest ~= nil and nearest.Distance < avoid.Radius and push.Magnitude > 1e-4 then
+			if not avoidOff and nearest ~= nil and nearest.Distance < avoid.Radius and push.Magnitude > 1e-4 then
 				local strength = avoid.Strength or 1
 				local amount = math.min(avoid.Radius, strength * (avoid.Radius - nearest.Distance))
 				nudge = push.Unit * amount
 			end
+
+			-- Within the deadband the mover keeps the nudge it has; a nudge appearing or vanishing
+			-- always goes through.
+			local last = self._lastNudge[agent]
+			local deadband = avoid.Deadband or 0
+			if deadband > 0 and nudge and last then
+				local change = ((nudge :: Vector3) - (last :: Vector3)).Magnitude
+				if change < deadband then
+					return
+				end
+			end
+			self._lastNudge[agent] = nudge
 			setNudge(mover, nudge)
 		end
 	end
@@ -323,6 +350,7 @@ function Neighbours.Destroy(self: Neighbours, agent: Types.Agent?)
 			connection:Disconnect()
 		end
 		self._members[member] = nil
+		self._lastNudge[member] = nil
 
 		local isDestroyed = (member :: any).IsDestroyed
 		if type(isDestroyed) == "function" and member:IsDestroyed() then

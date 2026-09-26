@@ -15,6 +15,8 @@
 	- `SeenAt` number? -- `os.clock()` of the last sighting. `nil` once forgotten.
 	- `SeenVisibility` number -- The `Visibility` factor of `SeenTarget` (`1` without the
 	  option), `0` when nothing is seen.
+	- `SeenMemory` { [BasePart]: { Position: Vector3, At: number } } -- With `PerTarget`: where
+	  each target was last seen, kept `Memory` seconds. One table, updated in place.
 
 	Two hooks make it a horror sense: `Visibility` scales the range per target (darkness, a
 	flashlight, crouching), and `SeeThrough` lets the ray pass glass. Players hidden with
@@ -41,6 +43,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	FieldOfView = 120,
 	EyeOffset = Vector3.new(0, 0, 0),
 	Memory = 3,
+	PerTarget = false,
 })
 
 --[=[
@@ -55,6 +58,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Ignore ((agent: Agent) -> { Instance })? -- What the sight ray passes through. Default [Perception.IgnoreList], the agent's entity.
 	.Visibility ((agent: Agent, target: BasePart) -> number)? -- How visible a target is, `0` to `1` (or more): the range is multiplied by it, so `0` is invisible and `0.5` is seen at half the distance. Pass `function(_, root) return VluxyAI.Perception.LightAt(root.Position) end` for darkness. Default: everything `1`.
 	.SeeThrough ((part: BasePart) -> boolean)? -- Parts the sight ray looks past, such as [Perception.Transparent]. Default: everything blocks.
+	.PerTarget boolean? -- Also write `SeenMemory`, the last position and time of every target seen within `Memory` seconds, so an enemy remembers where each of several players went. Default `false`.
 	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SightOptions = {
@@ -67,6 +71,7 @@ export type SightOptions = {
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
 	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
 	SeeThrough: ((part: BasePart) -> boolean)?,
+	PerTarget: boolean?,
 }
 
 type ResolvedOptions = {
@@ -79,6 +84,7 @@ type ResolvedOptions = {
 	Ignore: (agent: Types.Agent) -> { Instance },
 	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
 	SeeThrough: ((part: BasePart) -> boolean)?,
+	PerTarget: boolean,
 }
 
 type self = {
@@ -186,6 +192,22 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 
 	blackboard.SeenTargets = visible
 	blackboard.SeenTarget = nearest
+
+	if options.PerTarget then
+		local memory = blackboard.SeenMemory
+		if type(memory) ~= "table" then
+			memory = {}
+			blackboard.SeenMemory = memory
+		end
+		for _, target in visible do
+			memory[target] = { Position = target.Position, At = now }
+		end
+		for target, entry in memory do
+			if now - entry.At > options.Memory then
+				memory[target] = nil
+			end
+		end
+	end
 
 	if nearest ~= nil then
 		blackboard.SeenDistance = (nearest.Position - eye.Position).Magnitude

@@ -518,4 +518,35 @@ return {
 		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
 		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0), "cleared")
 	end,
+
+	["Noise fires the signal every Interval while walking, with the loudness for the speed"] = function(expect)
+		local Signal = Fakes.Signal()
+		local noises = Signal.new()
+		local heard = {}
+		noises:Connect(function(position, loudness)
+			table.insert(heard, { position, loudness })
+		end)
+		local s = setup({
+			Speed = 16,
+			Noise = {
+				Signal = noises,
+				Interval = 0.5,
+				Loudness = function(speed)
+					return speed / 8
+				end,
+			},
+		})
+
+		s.heartbeat:Fire(0.4)
+		expect.equal(#heard, 0, "silent while standing")
+		s.mover:Follow({ step(0, 0, 0), step(10, 0, 0) })
+		s.heartbeat:Fire(0.3)
+		expect.equal(#heard, 0)
+		s.heartbeat:Fire(0.3)
+		expect.equal(#heard, 1)
+		expect.equal(heard[1][1], s.root.Position)
+		expect.near(heard[1][2], 2)
+		s.heartbeat:Fire(0.5)
+		expect.equal(#heard, 2)
+	end,
 }

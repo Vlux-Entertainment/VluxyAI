@@ -122,7 +122,18 @@ end)
 The navigator stops the mover at the step, reports `Interacting`, runs the handler, and walks
 the rest of the path when it returns.
 
+## Scares that do not kill
+
+`Kill = "Scare"` on the attack state makes every blow a grab: the same hold and animations as a
+live kill, `Damage` dealt as the victim is let go, no death, announced as `"Scare"` so the
+client can do its jump scare. [Kill.Scare](/api/Kill#Scare) is the same thing for a state of
+your own. A game that keeps health somewhere other than the Humanoid gives the attack state a
+`Health` provider with `Get`, `Damage` and optionally `Kill`.
+
 ## Standing still, staring, vanishing
+
+`agent:SetSpeed(speed, seconds)` ramps to a speed over time, so a lunge builds and a stop
+settles instead of snapping.
 
 - `agent:LookAt(position)` turns the body toward a point while it stands. `nil` stops.
 - `agent:Pause()` freezes the agent for a cutscene or a jumpscare: no ticks, no movement,
@@ -171,7 +182,13 @@ local crowd = VluxyAI.Senses.Neighbours.new({
 `Slow` goes through `agent:SetSpeedScale`, a multiplier kept on top of whatever speed a state
 asks for. `Avoid` goes through the mover's `SetNudge`, which aims at every step but the last
 plus the offset. Two groups that should ignore each other use two instances; `Filter` excludes
-one kind from another.
+one kind from another; one enemy opts out of a shared group for itself with
+`agent.Data.Neighbours = { Avoid = false }`. A `Deadband` on `Avoid` stops the nudge
+flickering when neighbours keep moving.
+
+Enemies also hear each other. Give a mover `Noise = { Signal = noises, Interval = 0.5 }` and it
+fires the same signal the [Hearing](/api/Hearing) sense listens to as it walks, so a pack
+converges on a fight without any wiring in your states.
 
 ## Keeping it cheap
 

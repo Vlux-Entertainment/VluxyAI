@@ -32,6 +32,7 @@ local DEFAULT_OPTIONS = table.freeze({
 })
 
 type ResolvedOptions = {
+	Noise: MoverNoise?,
 	Speed: number,
 	StuckTimeout: number,
 	StuckDistance: number,
@@ -55,6 +56,7 @@ type self = {
 	_stuckTime: number,
 	_facing: Vector3?,
 	_nudge: Vector3?,
+	_noiseClock: number,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
@@ -76,8 +78,24 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 	.StuckDistance number? -- Studs the root must move within `StuckTimeout` to count as progress. Default `0.5`.
 	.SkipDistance number? -- Leading plain Walk steps within this horizontal distance of the rig are skipped. Default `1`.
 	.ServerOwned boolean? -- Set the root's network owner to the server in `new`. Default `true`.
+	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
 ]=]
+--[=[
+	@interface MoverNoise
+	@within HumanoidMover
+
+	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Interval number? -- Seconds between noises while moving. Default `0.5`.
+	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
+]=]
+export type MoverNoise = {
+	Signal: Types.Signal<(Vector3, number?)>,
+	Interval: number?,
+	Loudness: (number | (speed: number) -> number)?,
+}
+
 export type HumanoidOptions = {
+	Noise: MoverNoise?,
 	Speed: number?,
 	StuckTimeout: number?,
 	StuckDistance: number?,
@@ -155,7 +173,8 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		return FormatMessage.Error(`{model:GetFullName()} has no Humanoid; the Humanoid mover needs one`, 2)
 	end
 
-	local resolved = Options.Resolve("HumanoidMover.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
+	local resolved =
+		Options.Resolve("HumanoidMover.new", DEFAULT_OPTIONS, options :: any, { "Noise" }) :: ResolvedOptions
 
 	humanoid.WalkSpeed = resolved.Speed
 
@@ -190,6 +209,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		_stuckTime = 0,
 		_facing = nil,
 		_nudge = nil,
+		_noiseClock = 0,
 		_destroyed = false,
 
 		_cleaner = cleaner,
@@ -320,6 +340,26 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 end
 
 --[[
+	Fires the Noise signal every Interval seconds of walking, with the loudness for this speed.
+]]
+function HumanoidMover._makeNoise(self: HumanoidMover, deltaTime: number)
+	local noise = self._options.Noise
+	if noise == nil then
+		return
+	end
+
+	self._noiseClock += deltaTime
+	if self._noiseClock < (noise.Interval or 0.5) then
+		return
+	end
+	self._noiseClock = 0
+
+	local loudness = noise.Loudness
+	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
+	noise.Signal:Fire(self._root.Position, amount)
+end
+
+--[[
 	Advances the stuck clock; `StuckTimeout` seconds without the root moving `StuckDistance` is a
 	give-up.
 ]]
@@ -327,6 +367,8 @@ function HumanoidMover._onHeartbeat(self: HumanoidMover, deltaTime: number)
 	if self._path == nil then
 		return
 	end
+
+	self:_makeNoise(deltaTime)
 
 	self._stuckTime += deltaTime
 	if self:_isStuck() then

@@ -48,6 +48,7 @@ type self = {
 	_acknowledged: { [string]: any },
 	_baseSpeed: number,
 	_speedScale: number,
+	_ramp: { From: number, To: number, Duration: number, Elapsed: number }?,
 	_stateEnteredAt: number?,
 	_paused: boolean,
 	_pausedAt: number,
@@ -107,6 +108,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_acknowledged = {},
 		_baseSpeed = if definition.Mover then definition.Mover:GetSpeed() else 0,
 		_speedScale = 1,
+		_ramp = nil,
 		_stateEnteredAt = nil,
 		_paused = false,
 		_pausedAt = 0,
@@ -405,15 +407,47 @@ end
 --[=[
 	@within Agent
 	@param speed number -- Studs per second, before the speed scale.
+	@param seconds number? -- Ramp to it over this long instead of at once, so a lunge builds and a stop settles.
 
 	The agent's base speed: what a state asks for. The mover gets `speed` times the speed scale
 	([Agent:SetSpeedScale]), so a crowd ease or a slow-motion effect layered on top survives a
-	state changing its own speed. Does nothing without a mover.
+	state changing its own speed. With `seconds` the base speed moves there over the agent's
+	ticks; a new `SetSpeed` replaces the ramp. Does nothing without a mover.
 ]=]
-function Agent.SetSpeed(self: Agent, speed: number)
+function Agent.SetSpeed(self: Agent, speed: number, seconds: number?)
+	if seconds ~= nil and seconds > 0 and speed ~= self._baseSpeed then
+		self._ramp = { From = self._baseSpeed, To = speed, Duration = seconds, Elapsed = 0 }
+		return
+	end
+
+	self._ramp = nil
+	self:_applySpeed(speed)
+end
+
+--[[
+	Sets the base speed and hands the mover the scaled value.
+]]
+function Agent._applySpeed(self: Agent, speed: number)
 	self._baseSpeed = speed
 	if self.Mover then
 		self.Mover:SetSpeed(speed * self._speedScale)
+	end
+end
+
+--[[
+	One tick of a speed ramp, if one is running.
+]]
+function Agent._stepRamp(self: Agent, deltaTime: number)
+	local ramp = self._ramp
+	if ramp == nil then
+		return
+	end
+
+	ramp.Elapsed += deltaTime
+	local t = math.clamp(ramp.Elapsed / ramp.Duration, 0, 1)
+	self:_applySpeed(ramp.From + (ramp.To - ramp.From) * t)
+	if t >= 1 then
+		self._ramp = nil
 	end
 end
 
@@ -463,6 +497,8 @@ function Agent.Step(self: Agent, deltaTime: number)
 	end
 
 	local asContract = (self :: any) :: Types.Agent
+
+	self:_stepRamp(deltaTime)
 
 	-- A sense or a state may Destroy the agent mid-tick; nothing after it may run.
 	for _, sense in self.Senses do

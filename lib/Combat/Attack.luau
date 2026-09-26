@@ -4,6 +4,8 @@
 	The one generic state in the package: strike a target on entry, wait out a cooldown, go back.
 	A blow that would finish the victim can be delivered as a live or black-box kill instead of
 	damage, and the state then waits for the kill to end so the killer stands still through it.
+	With Kill = "Scare" every blow is a grab that lets go: the same hold, the Damage dealt at the
+	end, no death. Health lives on the Humanoid unless a HealthProvider says otherwise.
 	Everything else about a brain is content; this is here because kills are.
 ]]
 
@@ -19,16 +21,18 @@ local Types = require(script.Parent.Parent.Types)
 	@interface StrikeOptions
 	@within Attack
 
-	.Kill KillKind? -- How a blow that would finish the victim is delivered. Default: plain damage.
+	.Kill KillKind? -- How a blow that would finish the victim is delivered; `"Scare"` makes every blow a hold that lets go. Default: plain damage.
 	.Animation string? -- A one-shot loaded by [Locomotion] to play on a plain blow. Default `"Attack"`.
-	.KillerAnimation number? -- Animation id for the killer in a live kill. Default none.
-	.VictimAnimation number? -- Animation id for the victim in a live kill. Default none.
+	.KillerAnimation number? -- Animation id for the killer in a live kill or scare. Default none.
+	.VictimAnimation number? -- Animation id for the victim in a live kill or scare. Default none.
+	.Health HealthProvider? -- Where the victim's health lives, when not on the Humanoid.
 ]=]
 export type StrikeOptions = {
 	Kill: Types.KillKind?,
 	Animation: string?,
 	KillerAnimation: number?,
 	VictimAnimation: number?,
+	Health: Types.HealthProvider?,
 }
 
 --[=[
@@ -43,6 +47,7 @@ export type StrikeOptions = {
 	.Animation string? -- As [Attack.StrikeOptions].
 	.KillerAnimation number? -- As [Attack.StrikeOptions].
 	.VictimAnimation number? -- As [Attack.StrikeOptions].
+	.Health HealthProvider? -- As [Attack.StrikeOptions].
 ]=]
 export type AttackStateOptions = {
 	Damage: number,
@@ -53,6 +58,7 @@ export type AttackStateOptions = {
 	Animation: string?,
 	KillerAnimation: number?,
 	VictimAnimation: number?,
+	Health: Types.HealthProvider?,
 }
 
 local DATA_KEY = "AttackKill"
@@ -85,9 +91,10 @@ local Attack = {}
 ]=]
 function Attack.Strike(agent: Types.Agent, target: BasePart?, damage: number, options: StrikeOptions?): Kill.KillHandle?
 	local resolved: StrikeOptions = options or {}
+	local health = resolved.Health
 	local humanoid = if target then Perception.HumanoidOf(target) else nil
 	local character = if target then Perception.CharacterOf(target) else nil
-	if humanoid == nil or character == nil then
+	if character == nil or (humanoid == nil and health == nil) then
 		-- Silence here hides a misspelled TargetKey behind an enemy that stands still.
 		local what = if target == nil
 			then "no target"
@@ -96,9 +103,23 @@ function Attack.Strike(agent: Types.Agent, target: BasePart?, damage: number, op
 		return nil
 	end
 
-	if resolved.Kill == nil or humanoid.Health > damage then
+	if resolved.Kill == "Scare" then
+		return Kill.Scare(agent, character, {
+			Damage = damage,
+			KillerAnimation = resolved.KillerAnimation,
+			VictimAnimation = resolved.VictimAnimation,
+			Health = health,
+		})
+	end
+
+	local current = if health ~= nil then health.Get(character) elseif humanoid then humanoid.Health else 0
+	if resolved.Kill == nil or current > damage then
 		Locomotion.Play(agent, resolved.Animation or "Attack")
-		humanoid:TakeDamage(damage)
+		if health ~= nil then
+			health.Damage(character, damage)
+		elseif humanoid then
+			humanoid:TakeDamage(damage)
+		end
 		return nil
 	end
 
@@ -106,10 +127,11 @@ function Attack.Strike(agent: Types.Agent, target: BasePart?, damage: number, op
 		return Kill.Live(agent, character, {
 			KillerAnimation = resolved.KillerAnimation,
 			VictimAnimation = resolved.VictimAnimation,
+			Health = health,
 		})
 	end
 
-	return Kill.BlackBox(agent, character)
+	return Kill.BlackBox(agent, character, { Health = health })
 end
 
 --[=[
@@ -131,6 +153,7 @@ function Attack.State(options: AttackStateOptions): Types.State
 				Animation = options.Animation,
 				KillerAnimation = options.KillerAnimation,
 				VictimAnimation = options.VictimAnimation,
+				Health = options.Health,
 			})
 
 			agent.Data[DATA_KEY] = handle

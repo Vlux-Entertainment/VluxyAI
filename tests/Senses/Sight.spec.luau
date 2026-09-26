@@ -415,4 +415,41 @@ return {
 			"Range must be zero or more"
 		)
 	end,
+
+	["PerTarget keeps where each target was last seen for Memory seconds"] = function(expect)
+		local left = SenseFakes.Part(Vector3.new(-5, 0, -10))
+		local right = SenseFakes.Part(Vector3.new(5, 0, -10))
+		local seen = { left, right }
+		local s = setup({
+			sight = {
+				Memory = 3,
+				PerTarget = true,
+				Targets = function()
+					return seen
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		local memory = s.blackboard.SeenMemory
+		expect.equal(memory[left].Position, Vector3.new(-5, 0, -10))
+		expect.equal(memory[right].At, 100)
+
+		seen = { right }
+		right.Position = Vector3.new(8, 0, -10)
+		s.clock:Advance(2)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenMemory, memory, "the same table, updated in place")
+		expect.equal(memory[left].Position, Vector3.new(-5, 0, -10), "still remembered")
+		expect.equal(memory[right].Position, Vector3.new(8, 0, -10), "refreshed")
+
+		s.clock:Advance(1.5)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(memory[left], nil, "forgotten after Memory")
+		expect.truthy(memory[right] ~= nil)
+
+		local plain = setup({ sight = { Targets = SenseFakes.Targets({ left }) } })
+		plain.sight:Tick(plain.agent, 0.1)
+		expect.equal(plain.blackboard.SeenMemory, nil, "off by default")
+	end,
 }

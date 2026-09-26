@@ -6,7 +6,7 @@ Simple, composable AI for Roblox: a state table, a pathfinder, a mover and some 
 
 Source: https://github.com/Vlux-Entertainment/VluxyAI
 """
-version = "0.5.0"
+version = "0.6.0"
 license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"

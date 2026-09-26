@@ -38,13 +38,14 @@ local DEFAULT_OPTIONS = table.freeze({
 local PROGRESS_EPSILON = 0.05
 
 -- Keys with no default value, so the resolver still accepts them.
-local OPTIONAL_KEYS = { "HeightOffset" }
+local OPTIONAL_KEYS = { "HeightOffset", "Noise" }
 
 -- Below this distance a move is treated as zero-length: the pivot snaps to the target and keeps
 -- its facing, because a direction cannot be read from a vector this short.
 local EPSILON = 1e-5
 
 type ResolvedOptions = {
+	Noise: MoverNoise?,
 	Speed: number,
 	TurnSpeed: number,
 	HeightOffset: number?,
@@ -67,6 +68,7 @@ type self = {
 	_stuckTime: number,
 	_facing: Vector3?,
 	_nudge: Vector3?,
+	_noiseClock: number,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
@@ -88,8 +90,24 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	.HeightOffset number? -- Added to every step's Y, so a body rides above floor steps. A number is used as given; leave it out and the first `Follow` measures the pivot's height above the first step (never below `0`) and keeps that for the life of the mover. Default: measured.
 	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
 	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`. Progress under 0.05 studs per check does not count, so speeds below about 0.01 studs per second read as stuck.
+	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
 ]=]
+--[=[
+	@interface MoverNoise
+	@within CFrameMover
+
+	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Interval number? -- Seconds between noises while moving. Default `0.5`.
+	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
+]=]
+export type MoverNoise = {
+	Signal: Types.Signal<(Vector3, number?)>,
+	Interval: number?,
+	Loudness: (number | (speed: number) -> number)?,
+}
+
 export type CFrameMoverOptions = {
+	Noise: MoverNoise?,
 	Speed: number?,
 	TurnSpeed: number?,
 	HeightOffset: number?,
@@ -250,6 +268,7 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_stuckTime = 0,
 		_facing = nil,
 		_nudge = nil,
+		_noiseClock = 0,
 		_destroyed = false,
 
 		_cleaner = cleaner,
@@ -279,6 +298,26 @@ function CFrameMover._finish(self: CFrameMover, reached: boolean)
 end
 
 --[[
+	Fires the Noise signal every Interval seconds of walking, with the loudness for this speed.
+]]
+function CFrameMover._makeNoise(self: CFrameMover, deltaTime: number)
+	local noise = self._options.Noise
+	if noise == nil then
+		return
+	end
+
+	self._noiseClock += deltaTime
+	if self._noiseClock < (noise.Interval or 0.5) then
+		return
+	end
+	self._noiseClock = 0
+
+	local loudness = noise.Loudness
+	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
+	noise.Signal:Fire(self._target:GetPivot().Position, amount)
+end
+
+--[[
 	One Heartbeat while following: moves toward the current step and reports it when reached.
 ]]
 function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
@@ -294,6 +333,8 @@ function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
 		self:_finish(false)
 		return
 	end
+
+	self:_makeNoise(deltaTime)
 
 	local goal = step.Position + Vector3.new(0, self._heightOffset or 0, 0)
 	if self._nudge ~= nil and index < #path then

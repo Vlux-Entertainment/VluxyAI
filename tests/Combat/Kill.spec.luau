@@ -188,7 +188,7 @@ return {
 		end)
 		task.wait()
 		expect.sequence(outcomes, { false })
-		expect.includes(warnings[1], "already being killed")
+		expect.includes(warnings[1], "already being held")
 
 		first:Cancel()
 		expect.falsy(humanoid.PlatformStand, "the refused hold did not disturb the first one")
@@ -315,5 +315,94 @@ return {
 		task.wait(0.1)
 		expect.equal(humanoid.Health, 100)
 		expect.sequence(outcomes, { false })
+	end,
+
+	["Scare announces, holds, hurts at the end and lets the victim go alive"] = function(expect)
+		local s = setup()
+		local victim, root, humanoid = fakeVictim()
+		humanoid.TakeDamage = function(self, amount)
+			self.Health -= amount
+		end
+		local outcomes = {}
+
+		local handle = s.Kill.Scare(s.agent, victim, { Duration = 1, Damage = 15 })
+		handle.Finished:Connect(function(done)
+			table.insert(outcomes, done)
+		end)
+
+		expect.equal(s.events[1].Name, "Scare")
+		expect.equal(s.events[1].Payload.Kind, "Scare")
+		expect.equal(s.events[1].Payload.Duration, 1)
+		expect.truthy(root.Anchored)
+
+		s.heartbeat:Fire(0.5)
+		expect.equal(humanoid.Health, 100, "unhurt during the hold")
+		s.heartbeat:Fire(0.5)
+		expect.equal(humanoid.Health, 85, "hurt as the hold ends")
+		expect.sequence(outcomes, { true })
+		expect.falsy(root.Anchored, "let go")
+		expect.falsy(humanoid.PlatformStand)
+		expect.equal(#s.events, 1, "no cancel event for a scare that ran its course")
+
+		local again, root2 = fakeVictim()
+		local cut = s.Kill.Scare(s.agent, again, { Duration = 2 })
+		s.heartbeat:Fire(0.5)
+		cut:Cancel()
+		expect.equal(s.events[#s.events].Name, "ScareCancelled")
+		expect.falsy(root2.Anchored)
+	end,
+
+	["a Health provider replaces the Humanoid for Live, Scare and BlackBox"] = function(expect)
+		local s = setup()
+		local victim, root = fakeVictim(false)
+		local health = 40
+		local log = {}
+		local provider = {
+			Get = function()
+				return health
+			end,
+			Damage = function(_character, amount)
+				health -= amount
+				table.insert(log, `damage {amount}`)
+			end,
+			Kill = function()
+				health = 0
+				table.insert(log, "kill")
+			end,
+		}
+
+		local handle = s.Kill.Live(s.agent, victim, { Duration = 1, Health = provider })
+		local outcomes = {}
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		expect.truthy(root.Anchored, "held without a humanoid")
+		s.heartbeat:Fire(1)
+		expect.sequence(log, { "kill" })
+		expect.sequence(outcomes, { true })
+
+		health = 40
+		table.clear(log)
+		s.Kill.Scare(s.agent, victim, { Duration = 0.5, Damage = 10, Health = provider })
+		s.heartbeat:Fire(0.5)
+		expect.sequence(log, { "damage 10" })
+		expect.equal(health, 30)
+
+		local boxed = {}
+		local box = s.Kill.BlackBox(s.agent, victim, { Delay = 0.01, Health = provider })
+		box.Finished:Connect(function(killed)
+			table.insert(boxed, killed)
+		end)
+		task.wait(0.05)
+		expect.sequence(boxed, { true })
+		expect.equal(health, 0)
+
+		local dead = s.Kill.Live(s.agent, victim, { Health = provider })
+		local deadOutcome = {}
+		dead.Finished:Connect(function(killed)
+			table.insert(deadOutcome, killed)
+		end)
+		task.wait(0.01)
+		expect.sequence(deadOutcome, { false }, "already dead by the provider's account")
 	end,
 }

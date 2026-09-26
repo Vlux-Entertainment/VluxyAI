@@ -66,7 +66,8 @@ lib/
   Animator/          NPCAnimator (tracks by name) and Locomotion (idle/walk from real speed, one-shots)
   Sync/              Broadcaster (server: state, position samples, events), Replica (client: rig + Visuals),
                      Look (camera direction: Report on the client, Receive on the server, Eye for Watched)
-  Combat/            Attack (Strike and the one generic state) and Kill (Live and BlackBox kills)
+  Combat/            Attack (Strike and the one generic state; Kill = "Scare" for a non-lethal grab; an
+                     optional HealthProvider) and Kill (Live, BlackBox and Scare, one shared hold)
   Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
   Utility/           Signal (pure), FormatMessage, Tables (incl. Prefixed), Options (option resolver),
                      Cleaner (cleanup bag), Claims (who is on what, for a group)

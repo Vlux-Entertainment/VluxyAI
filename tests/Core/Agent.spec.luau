@@ -630,4 +630,35 @@ return {
 		bare:SetSpeed(3)
 		expect.equal(bare:GetSpeed(), 3, "harmless without a mover")
 	end,
+
+	["SetSpeed with seconds ramps the base speed over the ticks"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		mover.Speed = 10
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:Start(true)
+
+		agent:SetSpeed(20, 1)
+		expect.equal(mover.Speed, 10, "nothing until a tick")
+		agent:Step(0.25)
+		expect.near(mover.Speed, 12.5)
+		expect.near(agent:GetSpeed(), 12.5)
+		agent:SetSpeedScale(0.5)
+		agent:Step(0.25)
+		expect.near(mover.Speed, 7.5, 1e-6, "scaled while ramping")
+		agent:Step(1)
+		expect.near(mover.Speed, 10, 1e-6, "arrived and clamped: 20 * 0.5")
+		agent:Step(1)
+		expect.near(mover.Speed, 10, 1e-6, "the ramp is over")
+
+		agent:SetSpeed(4, 2)
+		agent:SetSpeed(6)
+		agent:Step(1)
+		expect.near(mover.Speed, 3, 1e-6, "a plain SetSpeed replaces the ramp")
+	end,
 }

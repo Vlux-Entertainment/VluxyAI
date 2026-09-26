@@ -426,7 +426,7 @@ return {
 		expect.includes(message, "[VluxyAI]")
 		expect.includes(
 			message,
-			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Speed, StepDistance, StuckTimeout, TurnSpeed'
+			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Noise, Speed, StepDistance, StuckTimeout, TurnSpeed'
 		)
 
 		local message2 = expect.errors(function()
@@ -472,5 +472,23 @@ return {
 		expectVector(expect, s.pivot.Pivot.Position, 4, 0, 2, "the middle step is nudged")
 		s.heartbeat:Fire(0.1)
 		expectVector(expect, s.pivot.Pivot.Position, 8, 0, 0, "the last step is exact")
+	end,
+
+	["Noise fires the signal every Interval while moving"] = function(expect)
+		local Fakes = require("../Support/Fakes")
+		local noises = Fakes.Signal().new()
+		local heard = {}
+		noises:Connect(function(_position, loudness)
+			table.insert(heard, loudness)
+		end)
+		local s = setup({ Noise = { Signal = noises, Interval = 0.2 } })
+
+		s.mover:Follow({ step(0, 0, 0), step(0, 0, -50) })
+		s.heartbeat:Fire(0.1)
+		expect.equal(#heard, 0)
+		s.heartbeat:Fire(0.1)
+		expect.sequence(heard, { 1 }, "the default loudness")
+		s.heartbeat:Fire(0.2)
+		expect.equal(#heard, 2)
 	end,
 }

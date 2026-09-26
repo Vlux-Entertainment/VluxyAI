@@ -484,7 +484,7 @@ export type AgentDefinition = {
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
 	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
-	.SetSpeed (self: Agent, speed: number) -> () -- The base speed; the mover gets it times the speed scale. No-op without a mover.
+	.SetSpeed (self: Agent, speed: number, seconds: number?) -> () -- The base speed; the mover gets it times the speed scale. With `seconds`, ramps there over the ticks. No-op without a mover.
 	.SetSpeedScale (self: Agent, scale: number) -> () -- A multiplier layered on the base speed, kept across states. `1` is none.
 	.GetSpeedScale (self: Agent) -> number
 	.GetSpeed (self: Agent) -> number -- The base speed, before the scale.
@@ -529,7 +529,7 @@ export type Agent = {
 	GetPosition: (self: Agent) -> Vector3,
 	HasArrived: (self: Agent) -> boolean,
 	GetPathStatus: (self: Agent) -> PathStatus,
-	SetSpeed: (self: Agent, speed: number) -> (),
+	SetSpeed: (self: Agent, speed: number, seconds: number?) -> (),
 	SetSpeedScale: (self: Agent, scale: number) -> (),
 	GetSpeedScale: (self: Agent) -> number,
 	GetSpeed: (self: Agent) -> number,
@@ -599,12 +599,30 @@ export type Snapshot = {
 }
 
 --[=[
-	@type KillKind "Live" | "BlackBox"
+	@type KillKind "Live" | "BlackBox" | "Scare"
 	@within Types
 
-	How a [Kill] is presented: played out in the world, or cut to black.
+	How a [Kill] is presented: played out in the world, cut to black, or a scare, which is the
+	live hold without the death.
 ]=]
-export type KillKind = "Live" | "BlackBox"
+export type KillKind = "Live" | "BlackBox" | "Scare"
+
+--[=[
+	@interface HealthProvider
+	@within Types
+
+	.Get (character: Model) -> number -- The character's current health.
+	.Damage (character: Model, amount: number) -> () -- Hurt it.
+	.Kill ((character: Model) -> ())? -- Finish it. Default: `Damage` with `math.huge`.
+
+	How [Attack] and [Kill] read and change a victim's health when the game does not use the
+	`Humanoid` for it. Without one, the Humanoid's `Health` and `TakeDamage` are used.
+]=]
+export type HealthProvider = {
+	Get: (character: Model) -> number,
+	Damage: (character: Model, amount: number) -> (),
+	Kill: ((character: Model) -> ())?,
+}
 
 --[=[
 	@interface KillEvent
@@ -612,10 +630,11 @@ export type KillKind = "Live" | "BlackBox"
 
 	.Kind KillKind
 	.Victim Model -- The character being killed.
-	.Duration number -- Seconds until the victim dies, for the client to match.
+	.Duration number -- Seconds until the victim dies (or, for a scare, is released), for the client to match.
 
-	The payload of the `"Kill"` event an agent emits. A `"KillCancelled"` event with `{ Kind,
-	Victim }` follows if the kill ends without a death.
+	The payload of the `"Kill"` event an agent emits, and of the `"Scare"` event a scare emits.
+	A `"KillCancelled"` (or `"ScareCancelled"`) event with `{ Kind, Victim }` follows if it ends
+	early.
 ]=]
 export type KillEvent = {
 	Kind: KillKind,

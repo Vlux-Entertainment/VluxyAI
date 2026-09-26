@@ -29,9 +29,14 @@ local function setup(health: number)
 		table.insert(kills, { Kind = "Live", Victim = victim, Options = options, Handle = handle })
 		return handle
 	end
-	function fakeKill.BlackBox(_agent, victim)
+	function fakeKill.BlackBox(_agent, victim, options)
 		local handle = makeHandle("BlackBox")
-		table.insert(kills, { Kind = "BlackBox", Victim = victim, Handle = handle })
+		table.insert(kills, { Kind = "BlackBox", Victim = victim, Options = options, Handle = handle })
+		return handle
+	end
+	function fakeKill.Scare(_agent, victim, options)
+		local handle = makeHandle("Scare")
+		table.insert(kills, { Kind = "Scare", Victim = victim, Options = options, Handle = handle })
 		return handle
 	end
 
@@ -174,5 +179,57 @@ return {
 
 		state.Exit(s.agent)
 		expect.truthy(true, "a second Exit is harmless")
+	end,
+
+	["Kill = Scare makes every blow a scare carrying the damage"] = function(expect)
+		local s = setup(100)
+		local handle = s.Attack.Strike(s.agent, s.root, 20, { Kill = "Scare", KillerAnimation = 5 })
+		expect.truthy(handle)
+		expect.equal(#s.kills, 1)
+		expect.equal(s.kills[1].Kind, "Scare")
+		expect.equal(s.kills[1].Options.Damage, 20)
+		expect.equal(s.kills[1].Options.KillerAnimation, 5)
+		expect.equal(s.humanoid.Damage, 0, "the scare deals it, not Strike")
+		expect.equal(#s.played, 0, "no swing; the hold animates")
+	end,
+
+	["a Health provider is used instead of the Humanoid"] = function(expect)
+		local s = setup(100)
+		local health = 25
+		local log = {}
+		local provider = {
+			Get = function()
+				return health
+			end,
+			Damage = function(_character, amount)
+				health -= amount
+				table.insert(log, amount)
+			end,
+		}
+
+		s.Attack.Strike(s.agent, s.root, 10, { Kill = "Live", Health = provider })
+		expect.sequence(log, { 10 }, "a non-finishing blow goes through the provider")
+		expect.equal(s.humanoid.Damage, 0, "the humanoid is left alone")
+		expect.equal(#s.kills, 0)
+
+		s.Attack.Strike(s.agent, s.root, 15, { Kill = "Live", Health = provider })
+		expect.equal(#s.kills, 1, "the provider's 15 left is a finishing blow")
+		expect.equal(s.kills[1].Options.Health, provider, "handed on to the kill")
+
+		local bare = {
+			FindFirstAncestorOfClass = function()
+				return s.character
+			end,
+		}
+		local noHumanoid = {
+			FindFirstChildOfClass = function()
+				return nil
+			end,
+		}
+		bare.FindFirstAncestorOfClass = function()
+			return noHumanoid
+		end
+		s.Attack.Strike(s.agent, bare :: any, 5, { Health = provider })
+		expect.sequence(log, { 10, 5 }, "no humanoid needed with a provider")
 	end,
 }

@@ -235,4 +235,55 @@ return {
 			"Range must be zero or more"
 		)
 	end,
+
+	["an agent opts out of Slow or Avoid for itself through Data"] = function(expect)
+		local Neighbours = load()
+		local sense = Neighbours.new({ Slow = { Distance = 5 }, Avoid = { Radius = 4 } })
+		local a = agent("A", Vector3.new(0, 0, 0))
+		local b = agent("B", Vector3.new(1, 0, 0))
+		sense:Tick(b, 0.1)
+
+		sense:Tick(a, 0.1)
+		expect.truthy(a.Scale < 1)
+		expect.equal(#a.Mover.Nudges, 1)
+
+		a.Data.Neighbours = { Slow = false }
+		sense:Tick(a, 0.1)
+		expect.equal(a.Scale, 1, "eased back")
+		expect.equal(#a.Mover.Nudges, 2, "the nudge is still applied")
+
+		a.Data.Neighbours = { Avoid = false }
+		sense:Tick(a, 0.1)
+		expect.truthy(a.Scale < 1, "slow is back")
+		expect.equal(a.Mover.Nudges[#a.Mover.Nudges], "nil", "nudge cleared")
+		expect.equal(a.Blackboard.NearestAgent, b, "still sees the group")
+
+		local renamed = Neighbours.new({ Avoid = { Radius = 4 }, Key = "Crowd" })
+		local c = agent("C", Vector3.new(0, 0, 0))
+		local d = agent("D", Vector3.new(1, 0, 0))
+		renamed:Tick(d, 0.1)
+		c.Data.Crowd = { Avoid = false }
+		renamed:Tick(c, 0.1)
+		expect.equal(c.Mover.Nudges[1], "nil")
+	end,
+
+	["Deadband keeps a nudge until it changes by enough"] = function(expect)
+		local Neighbours = load()
+		local sense = Neighbours.new({ Avoid = { Radius = 4, Deadband = 0.5 } })
+		local a = agent("A", Vector3.new(0, 0, 0))
+		local b = agent("B", Vector3.new(2, 0, 0))
+		sense:Tick(b, 0.1)
+
+		sense:Tick(a, 0.1)
+		expect.equal(#a.Mover.Nudges, 1)
+		b.Position = Vector3.new(2.2, 0, 0)
+		sense:Tick(a, 0.1)
+		expect.equal(#a.Mover.Nudges, 1, "a 0.2 stud change is inside the deadband")
+		b.Position = Vector3.new(1, 0, 0)
+		sense:Tick(a, 0.1)
+		expect.equal(#a.Mover.Nudges, 2, "a stud of change goes through")
+		b.Position = Vector3.new(9, 0, 0)
+		sense:Tick(a, 0.1)
+		expect.equal(a.Mover.Nudges[3], "nil", "vanishing always goes through")
+	end,
 }
