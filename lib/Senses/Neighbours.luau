@@ -41,7 +41,7 @@ local ALLOWED_OPTIONS = { "Slow", "Avoid", "Others", "Filter" }
 	@interface NeighboursSlow
 	@within Neighbours
 
-	.Distance number -- Studs from the nearest neighbour at which the ease begins. Further away the speed is untouched.
+	.Distance number -- Studs from the nearest neighbour at which the ease begins. Further away the speed is untouched. `0` turns the ease off.
 	.Min number? -- The speed scale when the neighbour is on top of the agent. Default `0.5`.
 	.Curve Curve? -- Shape of the ease over `[0, 1]` (distance over `Distance`). Default linear.
 ]=]
@@ -55,7 +55,7 @@ export type NeighboursSlow = {
 	@interface NeighboursAvoid
 	@within Neighbours
 
-	.Radius number -- Studs within which a neighbour pushes the agent sideways.
+	.Radius number -- Studs within which a neighbour pushes the agent sideways. `0` turns the nudge off.
 	.Strength number? -- How hard: the nudge is up to `Strength * Radius` studs. Default `1`.
 ]=]
 export type NeighboursAvoid = {
@@ -68,8 +68,8 @@ export type NeighboursAvoid = {
 	@within Neighbours
 
 	.Range number? -- Studs within which another agent counts as nearby. Default `10`.
-	.Slow NeighboursSlow? -- Ease the agent's speed as its nearest neighbour gets close. Off by default.
-	.Avoid NeighboursAvoid? -- Nudge the mover away from neighbours while walking. Off by default; needs a mover with `SetNudge` (both built-ins have it).
+	.Slow NeighboursSlow? -- Ease the agent's speed as its nearest neighbour gets close. Off by default, and off with `Distance = 0`.
+	.Avoid NeighboursAvoid? -- Nudge the mover away from neighbours while walking. Off by default, off with `Radius = 0`; needs a mover with `SetNudge` (both built-ins have it).
 	.Others ((agent: Agent) -> { Agent })? -- Who counts, instead of the agents sharing this instance.
 	.Filter ((agent: Agent, other: Agent) -> boolean)? -- Return `false` to ignore `other` for `agent`: same kind only, say.
 	.Prefix string? -- Prepended to every key this sense writes. Default `""`.
@@ -120,8 +120,10 @@ export type Neighbours = typeof(setmetatable({} :: self, Neighbours))
 	:AddSense(crowd)
 	```
 
-	Enemies that should crowd (a swarm) take the sense without `Slow` and `Avoid`, or leave it
-	out. An enemy that must ignore one kind gives `Filter`.
+	Enemies that should crowd (a swarm) take the sense without `Slow` and `Avoid`, or with
+	`Distance = 0` and `Radius = 0`, or leave it out. An enemy that must ignore one kind gives
+	`Filter`; `Configure` turns either behaviour on or off later.
+	`Configure({ Avoid = { Radius = 0 } })` is the opt-out at runtime.
 ]=]
 
 --[=[
@@ -129,7 +131,7 @@ export type Neighbours = typeof(setmetatable({} :: self, Neighbours))
 	@param options NeighboursOptions?
 	@return Neighbours
 	@error "unknown option"
-	@error string -- `Slow.Distance` or `Avoid.Radius` missing or not above `0`.
+	@error string -- `Slow.Distance` or `Avoid.Radius` missing or below `0`.
 ]=]
 function Neighbours.new(options: NeighboursOptions?): Types.Sense
 	local resolved =
@@ -145,19 +147,19 @@ function Neighbours.new(options: NeighboursOptions?): Types.Sense
 end
 
 --[[
-	The two behaviour tables need a positive distance each.
+	The two behaviour tables need a distance each; zero is the same as leaving the table out.
 ]]
 function Neighbours._check(resolved: ResolvedOptions)
 	if resolved.Range < 0 then
 		FormatMessage.Error("Neighbours: Range must be zero or more", 3)
 	end
 	local slow = resolved.Slow
-	if slow ~= nil and (type(slow.Distance) ~= "number" or slow.Distance <= 0) then
-		FormatMessage.Error("Neighbours: Slow.Distance must be a number above 0", 3)
+	if slow ~= nil and (type(slow.Distance) ~= "number" or slow.Distance < 0) then
+		FormatMessage.Error("Neighbours: Slow.Distance must be a number of 0 or more", 3)
 	end
 	local avoid = resolved.Avoid
-	if avoid ~= nil and (type(avoid.Radius) ~= "number" or avoid.Radius <= 0) then
-		FormatMessage.Error("Neighbours: Avoid.Radius must be a number above 0", 3)
+	if avoid ~= nil and (type(avoid.Radius) ~= "number" or avoid.Radius < 0) then
+		FormatMessage.Error("Neighbours: Avoid.Radius must be a number of 0 or more", 3)
 	end
 end
 
@@ -267,7 +269,7 @@ function Neighbours.Tick(self: Neighbours, agent: Types.Agent, deltaTime: number
 	blackboard.SeparationDirection = if push.Magnitude > 1e-4 then push.Unit else nil
 
 	local slow = options.Slow
-	if slow ~= nil then
+	if slow ~= nil and slow.Distance > 0 then
 		local scale = 1
 		if nearest ~= nil and nearest.Distance < slow.Distance then
 			local t = nearest.Distance / slow.Distance
@@ -279,7 +281,7 @@ function Neighbours.Tick(self: Neighbours, agent: Types.Agent, deltaTime: number
 	end
 
 	local avoid = options.Avoid
-	if avoid ~= nil then
+	if avoid ~= nil and avoid.Radius > 0 then
 		local mover = agent.Mover :: any
 		local setNudge = if mover then mover.SetNudge else nil
 		if type(setNudge) == "function" then
