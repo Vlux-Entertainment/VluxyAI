@@ -124,14 +124,37 @@ export type StepHandler = (agent: Agent, step: Step, index: number) -> (boolean?
 	.Handler StepHandler
 	.Tag string? -- When the step arrives without an `Instance` (a navmesh link or modifier), the nearest instance carrying this `CollectionService` tag within `Radius` of the step is put in `step.Instance` before the handler runs.
 	.Radius number? -- Studs. Default `8`.
+	.Ready ((agent: Agent, step: Step) -> boolean)? -- Asked first, after `Tag` has found the instance. `true` means the step needs nothing (the door is already open), so the agent walks on without stopping and the handler does not run.
 
-	What [Builder:OnStep] stores for a label: the handler, and how to find the door for a step
-	that does not already know it. A plain [Types.StepHandler] is accepted wherever this is.
+	What [Builder:OnStep] stores for a label: the handler, how to find the door for a step that
+	does not already know it, and how to tell that there is nothing to do. A plain
+	[Types.StepHandler] is accepted wherever this is.
 ]=]
 export type StepRegistration = {
 	Handler: StepHandler,
 	Tag: string?,
 	Radius: number?,
+	Ready: ((agent: Agent, step: Step) -> boolean)?,
+}
+
+--[=[
+	@interface DoorDriver
+	@within Types
+
+	.IsOpen (self: any, door: Instance) -> boolean -- Open, or opening: an agent reaching it walks on without stopping.
+	.Open (self: any, door: Instance, agent: Agent) -> () -- Start opening it. Must not yield; the agent waits `OpenTime` after it.
+	.IsLocked ((self: any, door: Instance, agent: Agent) -> boolean)? -- Optional. A locked door is refused and planned around.
+	.OpenTime ((self: any, door: Instance) -> number)? -- Optional. Seconds the door takes to open, which the agent waits after `Open` before walking through. Default: [Doors.Step]'s `OpenTime`.
+
+	How [Doors] opens a door in your game. The package never moves a door itself: your door
+	script does, and the driver is the few lines that connect the two. [Doors.Attributes] is a
+	ready-made driver that talks through attributes, for a door script that listens to them.
+]=]
+export type DoorDriver = {
+	IsOpen: (self: any, door: Instance) -> boolean,
+	Open: (self: any, door: Instance, agent: Agent) -> (),
+	IsLocked: ((self: any, door: Instance, agent: Agent) -> boolean)?,
+	OpenTime: ((self: any, door: Instance) -> number)?,
 }
 
 --[=[
@@ -409,6 +432,13 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Interacting" | "Arriv
 	.MaxPathAge number? -- Seconds a path is followed before it is planned again even though the target has not moved, so the agent keeps up with a changing level. Must be above 0. Default `math.huge` (never).
 	.ArriveDistance number? -- Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default `2.5`.
 	.ArriveHeight number? -- Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.
+	.DirectInterval number? -- With a direct pathfinder ([Builder:UseDirect]): seconds between checks that the way to the target is still clear. Must be above 0. Default `0.15`.
+	.DirectStuckTime number? -- Seconds walking direct without moving a stud before the navigator gives up on it and plans. Must be above 0. Default `1`.
+	.DirectCooldown number? -- Seconds after giving up on a direct walk before trying one again. Default `3`.
+	.Lead number? -- Seconds of a moving target's velocity to plan ahead of it, so a chase heads where the player is going. `0` turns it off. Default `0.5`.
+	.LeadMax number? -- Studs the lead is capped at. Default `8`.
+	.LeadMinDistance number? -- Within this many studs of the target there is no lead, so an agent at attack range does not overshoot. Default `10`.
+	.FailedRetry number? -- Seconds before a target that failed twice in a row is tried again, doubling for each further failure up to 4, instead of every `RepathInterval`. A target that moves is tried again at once. Default `1`.
 
 	Tunes how [Navigator] turns repeated `MoveTo` calls into plans.
 ]=]
@@ -418,6 +448,13 @@ export type NavigationOptions = {
 	MaxPathAge: number?,
 	ArriveDistance: number?,
 	ArriveHeight: number?,
+	DirectInterval: number?,
+	DirectStuckTime: number?,
+	DirectCooldown: number?,
+	Lead: number?,
+	LeadMax: number?,
+	LeadMinDistance: number?,
+	FailedRetry: number?,
 }
 
 --[=[
@@ -432,6 +469,8 @@ export type NavigationOptions = {
 	.StepReached Signal<(number, Step)> -- Forwarded from the mover.
 	.Arrived Signal<boolean> -- Fired when the target is reached (`true`) or given up on (`false`).
 	.PathChanged Signal<Path?> -- Fired with each new path, and with `nil` when there is none.
+	.IsDirect (self: any) -> boolean -- Whether the agent is walking straight at its target rather than following a plan.
+	.GetRemainingDistance (self: any) -> number -- Studs left along the current path, `math.huge` when there is none.
 
 	Owns the pair of a [Types.Pathfinder] and a [Types.Mover]: plans with one, follows with the
 	other, and re-plans when the target moves, the pathfinder reports the path blocked, or the path
@@ -446,6 +485,8 @@ export type Navigator = {
 	StepReached: Signal<(number, Step)>,
 	Arrived: Signal<boolean>,
 	PathChanged: Signal<Path?>,
+	IsDirect: (self: any) -> boolean,
+	GetRemainingDistance: (self: any) -> number,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -466,6 +507,7 @@ export type Navigator = {
 	.Tick number? -- Seconds between ticks. Default `0.1`.
 	.Navigation NavigationOptions? -- Navigator tuning.
 	.Steps { [string]: StepHandler | StepRegistration }? -- What to do at labelled steps, by label. See [Builder:OnStep].
+	.Direct Pathfinder? -- Checks whether the agent can walk straight at its target; while it can, nothing is planned. Must not yield. See [Builder:UseDirect].
 	.StrictBlackboard boolean? -- Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.
 	.Name string? -- Used in messages. Default `Entity.Name`.
 
@@ -483,6 +525,7 @@ export type AgentDefinition = {
 	Tick: number?,
 	Navigation: NavigationOptions?,
 	Steps: { [string]: StepHandler | StepRegistration }?,
+	Direct: Pathfinder?,
 	StrictBlackboard: boolean?,
 	Name: string?,
 }

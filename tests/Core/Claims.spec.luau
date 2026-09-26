@@ -9,7 +9,7 @@ local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local function load()
-	return Harness.Load("lib/Utility/Claims.luau")
+	return Harness.Load("lib/Group/Claims.luau")
 end
 
 --[[

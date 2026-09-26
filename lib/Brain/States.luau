@@ -580,6 +580,7 @@ end
 local ROAM_DEFAULTS = table.freeze({
 	Range = 120,
 	Linger = 1,
+	Stray = 0,
 	Key = "Roam",
 })
 
@@ -590,13 +591,14 @@ local ROAM_ALLOWED =
 	@interface RoamOptions
 	@within States
 
-	.Interest Interest -- The map of points to roam. Required.
+	.Interest Interest | string -- The map of points to roam, or the `agent.Data` key it is under, so a brain written once can roam a map each agent is given (`SetData({ Interest = map })`). Required.
 	.Range number? -- Studs beyond which a point scores nothing for distance. Default `120`.
 	.Tags { string }? -- Only points with one of these tags.
 	.Linger number | { number }? -- Seconds to stand at each point before moving on. Default `1`.
 	.Duration number | { number }? -- Seconds to roam before `Then`. Without it, roams until a transition or until no point scores.
 	.Then string? -- The state to enter when time is up or no point is worth a look.
 	.Considerations { Consideration<InterestPoint> }? -- Extra scoring for [Interest.Best].
+	.Stray number? -- Chance, `0` to `1`, that a pick ignores the clues and goes to a random point it has not looked at lately (still nearer ones more often), so a searcher is not perfectly predictable. Default `0`.
 	.Speed number? -- Set on entry.
 	.Random Random? -- For ranged `Linger` and `Duration`.
 	.Key string? -- Default `"Roam"`.
@@ -631,21 +633,49 @@ export type RoamOptions = {
 ]=]
 function States.Roam(options: RoamOptions): Types.State
 	local resolved = Options.Resolve("States.Roam", ROAM_DEFAULTS, options :: any, ROAM_ALLOWED) :: any
-	local interest = resolved.Interest
-	if type(interest) ~= "table" or type(interest.Best) ~= "function" then
-		FormatMessage.Error("States.Roam: Interest must be an Interest map", 2)
+	local given = resolved.Interest
+	local isMap = type(given) == "table" and type(given.Best) == "function"
+	if not isMap and type(given) ~= "string" then
+		FormatMessage.Error("States.Roam: Interest must be an Interest map or an agent.Data key", 2)
+	end
+
+	-- The map this agent roams: the one given, or the one in its Data under the given key.
+	local function interestOf(agent: Types.Agent): any
+		if isMap then
+			return given
+		end
+		local found = agent.Data[given]
+		if type(found) ~= "table" or type(found.Best) ~= "function" then
+			FormatMessage.Error(`States.Roam: agent.Data.{given} is not an Interest map`, 2)
+		end
+		return found
 	end
 	local key: string = resolved.Key
 	local timer = `States.{key}`
 	local lingerTimer = `States.{key}.Linger`
 
 	local function next(agent: Types.Agent, scratch: { [string]: any }): boolean
-		local point = interest:Best(agent, {
+		local random = randomOf(agent, resolved.Random)
+		-- A stray pick: every point equally interesting, and a random factor per point, so it goes
+		-- somewhere the clues would not have sent it.
+		local stray = resolved.Stray > 0 and random:NextNumber() < resolved.Stray
+		local considerations = resolved.Considerations
+		if stray then
+			considerations = table.clone(considerations or {})
+			table.insert(considerations, {
+				Input = function(): number
+					return random:NextNumber(0.05, 1)
+				end,
+			})
+		end
+		local point = interestOf(agent):Best(agent, {
 			Range = resolved.Range,
 			Tags = resolved.Tags,
 			Exclude = if scratch.Current ~= nil then { scratch.Current } else nil,
-			Considerations = resolved.Considerations,
+			Considerations = considerations,
+			IgnoreStrength = stray,
 		})
+		scratch.Strayed = stray
 		if point == nil then
 			scratch.Current = nil
 			return false
@@ -677,7 +707,7 @@ function States.Roam(options: RoamOptions): Types.State
 		if not scratch.Lingering then
 			scratch.Lingering = true
 			if scratch.Current ~= nil then
-				interest:Visit(agent, scratch.Current)
+				interestOf(agent):Visit(agent, scratch.Current)
 			end
 			agent:StartTimer(lingerTimer, pick(randomOf(agent, resolved.Random), resolved.Linger))
 			return nil
@@ -746,6 +776,176 @@ function States.Wait(options: WaitOptions?): Types.State
 		end
 	end, function(agent: Types.Agent, _deltaTime: number): string?
 		if resolved.Duration ~= nil and resolved.Then ~= nil and agent:TimerDone(timer) then
+			return resolved.Then
+		end
+		return nil
+	end)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+local STARE_DEFAULTS = table.freeze({
+	Key = "Stare",
+	Duration = 4 :: Range,
+	Cooldown = 0,
+	Face = true,
+})
+
+local STARE_ALLOWED = { "Target", "Then", "Speed", "Random", "Transitions", "Enter", "Exit" }
+
+--[=[
+	@interface StareOptions
+	@within States
+
+	.Target string | Vector3 | (agent: Agent) -> Vector3? -- What to look at, read every tick: usually `"SafePosition"` from [SafeWatch].
+	.Duration number | { number }? -- Seconds to stare before `Then`. Default `4`.
+	.Then string? -- The state to enter when the time is up.
+	.Cooldown number? -- Seconds after leaving during which `When.Timer("States.<Key>Cooldown")` is `false`, so a brain does not stare again at once. Default `0`.
+	.Face boolean? -- Turn toward the target while staring. Off for a statue. Default `true`.
+	.Speed number? -- Set on entry.
+	.Random Random? -- For a ranged `Duration`.
+	.Key string? -- Default `"Stare"`.
+	.Transitions { Transition }?
+	.Enter ((agent: Agent) -> ())?
+	.Exit ((agent: Agent) -> ())?
+]=]
+export type StareOptions = {
+	Target: PositionSource?,
+	Duration: Range?,
+	Then: string?,
+	Cooldown: number?,
+	Face: boolean?,
+	Speed: number?,
+	Random: Random?,
+	Key: string?,
+	Transitions: { Types.Transition }?,
+	Enter: ((agent: Types.Agent) -> ())?,
+	Exit: ((agent: Types.Agent) -> ())?,
+}
+
+--[=[
+	@within States
+	@param options StareOptions
+	@return State
+
+	Stops, and stares at something it cannot or will not reach: a player in a safe room, a light
+	it will not step into. After `Duration` it moves on to `Then`; on the way out it starts the
+	`States.<Key>Cooldown` timer for `Cooldown` seconds, which a transition into this state checks
+	with `When.Timer` so the agent walks away instead of turning straight back.
+
+	```lua
+	Stare = VluxyAI.States.Stare({ Target = "SafePosition", Duration = 4, Cooldown = 20, Then = "Patrol" }),
+	-- and, wherever the agent should notice:
+	{ To = "Stare", When = When.All(When.Has("SafeTarget"), When.Timer("States.StareCooldown")) },
+	```
+]=]
+function States.Stare(options: StareOptions): Types.State
+	local resolved = Options.Resolve("States.Stare", STARE_DEFAULTS, options :: any, STARE_ALLOWED) :: any
+	local key: string = resolved.Key
+	local timer = `States.{key}`
+	local cooldown = `States.{key}Cooldown`
+
+	return assemble(resolved, function(agent: Types.Agent)
+		agent:Stop()
+		agent:StartTimer(timer, pick(randomOf(agent, resolved.Random), resolved.Duration))
+	end, function(agent: Types.Agent, _deltaTime: number): string?
+		if resolved.Face then
+			agent:LookAt(positionOf(agent, resolved.Target))
+		end
+		if resolved.Then ~= nil and agent:TimerDone(timer) then
+			return resolved.Then
+		end
+		return nil
+	end, function(agent: Types.Agent)
+		if resolved.Face then
+			agent:LookAt(nil)
+		end
+		if resolved.Cooldown > 0 then
+			agent:StartTimer(cooldown, resolved.Cooldown)
+		end
+	end)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+local BURROW_DEFAULTS = table.freeze({
+	Key = "Burrow",
+	Depth = 7,
+	Time = 1.5,
+	Height = 3,
+})
+
+local BURROW_ALLOWED = { "To", "Then", "Transitions", "Enter", "Exit" }
+
+--[=[
+	@interface BurrowOptions
+	@within States
+
+	.To string | Vector3 | (agent: Agent) -> Vector3? -- Where to come up, as a floor position, read once on entry: usually the `Key` of a [Hideout] sense. Required.
+	.Then string? -- The state to enter once it has risen, or at once when `To` has no position.
+	.Depth number? -- Studs it sinks under the floor. Default `7`.
+	.Time number? -- Seconds to sink, and again to rise. Default `1.5`.
+	.Height number? -- Studs above the floor its body ends up at. Default `3`, a humanoid's root.
+	.Key string? -- Default `"Burrow"`.
+	.Transitions { Transition }?
+	.Enter ((agent: Agent) -> ())?
+	.Exit ((agent: Agent) -> ())?
+]=]
+export type BurrowOptions = {
+	To: PositionSource,
+	Then: string?,
+	Depth: number?,
+	Time: number?,
+	Height: number?,
+	Key: string?,
+	Transitions: { Types.Transition }?,
+	Enter: ((agent: Types.Agent) -> ())?,
+	Exit: ((agent: Types.Agent) -> ())?,
+}
+
+--[=[
+	@within States
+	@param options BurrowOptions
+	@return State
+	@error "To is required"
+
+	Vanishes and comes back somewhere else: stops, sinks `Depth` studs into the floor over `Time`
+	seconds, moves under the `To` position, rises out of the floor there over another `Time`, and
+	enters `Then`. For a statue that burrows, a ghost that fades through the floor, a creature that
+	drops into a vent: pair it with [Hideout] so it only ever comes up where nobody is looking.
+	A voice line or a sound keyed on this state's name covers the whole move.
+]=]
+function States.Burrow(options: BurrowOptions): Types.State
+	local resolved = Options.Resolve("States.Burrow", BURROW_DEFAULTS, options :: any, BURROW_ALLOWED) :: any
+	if resolved.To == nil then
+		FormatMessage.Error("States.Burrow: To is required (where to come up)", 2)
+	end
+	local key: string = resolved.Key
+	local depth: number = resolved.Depth
+	local duration: number = math.max(resolved.Time, 1e-3)
+	local down = Vector3.new(0, depth, 0)
+
+	return assemble(resolved, function(agent: Types.Agent)
+		agent:Stop()
+		local scratch = scratchOf(agent, key)
+		local spot = positionOf(agent, resolved.To)
+		scratch.From = agent:GetPosition()
+		scratch.To = if spot then spot + Vector3.new(0, resolved.Height, 0) else nil
+	end, function(agent: Types.Agent, _deltaTime: number): string?
+		local scratch = scratchOf(agent, key)
+		local from: Vector3? = scratch.From
+		local to: Vector3? = scratch.To
+		if from == nil or to == nil then
+			return resolved.Then
+		end
+
+		local elapsed = agent:TimeInState()
+		if elapsed < duration then
+			agent:Teleport(from - down * (elapsed / duration))
+		elseif elapsed < duration * 2 then
+			agent:Teleport(to - down * (1 - (elapsed - duration) / duration))
+		else
+			agent:Teleport(to)
 			return resolved.Then
 		end
 		return nil

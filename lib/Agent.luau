@@ -129,8 +129,14 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	end)
 
 	if definition.Pathfinder and definition.Mover then
-		local navigator =
-			Navigator.new(definition.Pathfinder, definition.Mover, asContract, definition.Navigation, definition.Steps)
+		local navigator = Navigator.new(
+			definition.Pathfinder,
+			definition.Mover,
+			asContract,
+			definition.Navigation,
+			definition.Steps,
+			definition.Direct
+		)
 		self._navigator = navigator
 		self.Navigator = navigator :: any
 	end

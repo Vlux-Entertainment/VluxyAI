@@ -135,6 +135,23 @@ end
 
 --[=[
 	@within When
+	@param cooldown string? -- The timer a stare leaves behind. Default `"States.StareCooldown"`, the one [States.Stare] starts.
+	@return (agent: Agent) -> boolean -- `true` when [SafeWatch] reports someone in a safe area, and either the agent was just chasing them (`SafeWasChased`) or `cooldown` has run out.
+
+	When to stop at the door of a safe room: someone the agent can see is in one, or the one it
+	was chasing just got in. After a stare, `cooldown` keeps it from staring again at once, except
+	at someone it was chasing.
+]=]
+function When.SafeSighted(cooldown: string?): Predicate
+	local timer = cooldown or "States.StareCooldown"
+	return function(agent: Types.Agent): boolean
+		local blackboard = agent.Blackboard
+		return blackboard.SafeTarget ~= nil and (blackboard.SafeWasChased == true or agent:TimerDone(timer))
+	end
+end
+
+--[=[
+	@within When
 	@param seconds number
 	@return (agent: Agent) -> boolean -- `true` once the agent has been in its current state for `seconds`.
 ]=]

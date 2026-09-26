@@ -464,4 +464,38 @@ return {
 		expect.equal(Perception.CountWalls(from, Vector3.new(0, 0, -1), {}), 0, "too short to have a wall")
 		expect.equal(Perception.CountWalls(from, to, {}, 3, 0), 3, "with no margin the body counts")
 	end,
+
+	["AliveRoots leaves out a player standing in an enabled safe area"] = function(expect)
+		local outside = SenseFakes.Character("Outside", Vector3.new(50, 3, 0))
+		local inside = SenseFakes.Character("Inside", Vector3.new(0, 3, 0))
+		local room = {
+			CFrame = roblox.CFrame.new(0, 3, 0),
+			Size = Vector3.new(15, 6, 15),
+			IsA = function(_self, className: string)
+				return className == "BasePart"
+			end,
+			GetAttribute = function()
+				return nil
+			end,
+		}
+		local Perception = Harness.Load("lib/Senses/Perception.luau", {
+			services = {
+				Players = {
+					GetPlayers = function()
+						return { { Character = outside.Model }, { Character = inside.Model } }
+					end,
+				},
+				CollectionService = {
+					GetTagged = function(_self, tag: string)
+						return if tag == "AI_SAFE" then { room } else {}
+					end,
+				},
+			},
+		})
+
+		local roots = Perception.AliveRoots()
+		expect.equal(#roots, 1)
+		expect.equal(roots[1], outside.Root)
+		expect.equal(#Perception.AllAliveRoots(), 2, "a player in a safe room can still see out")
+	end,
 }

@@ -13,7 +13,7 @@ local Vector3 = roblox.Vector3
 
 local function setup(options: any?)
 	local clock = Harness.ManualClock(100)
-	local Interest = Harness.Load("lib/Interest.luau", { globals = { os = clock.os } })
+	local Interest = Harness.Load("lib/Group/Interest.luau", { globals = { os = clock.os } })
 	return { Interest = Interest, interest = Interest.new(options), clock = clock }
 end
 

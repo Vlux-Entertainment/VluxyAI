@@ -8,12 +8,17 @@
 local Agent = require(script.Agent)
 local Animator = require(script.Animator)
 local Builder = require(script.Builder)
-local Director = require(script.Director)
+local Collision = require(script.World.Collision)
+local Director = require(script.Group.Director)
+local Doors = require(script.World.Doors)
 local Footsteps = require(script.Animator.Footsteps)
-local Interest = require(script.Interest)
+local Interest = require(script.Group.Interest)
 local Locomotion = require(script.Animator.Locomotion)
 local Navigator = require(script.Navigator)
+local PlayerNoise = require(script.World.PlayerNoise)
+local SafeAreas = require(script.World.SafeAreas)
 local Types = require(script.Types)
+local Voice = require(script.Animator.Voice)
 
 local Runner = require(script.Brain.Runner)
 local States = require(script.Brain.States)
@@ -24,6 +29,7 @@ local When = require(script.Brain.When)
 local Attack = require(script.Combat.Attack)
 local Kill = require(script.Combat.Kill)
 
+local GraphVisual = require(script.Debug.GraphVisual)
 local PathVisual = require(script.Debug.PathVisual)
 local Rig = require(script.Debug.Rig)
 local SenseVisual = require(script.Debug.SenseVisual)
@@ -39,12 +45,16 @@ local Navmesh = require(script.Pathfinders.Navmesh)
 local Straight = require(script.Pathfinders.Straight)
 
 local Awareness = require(script.Senses.Awareness)
+local Clues = require(script.Senses.Clues)
 local Hearing = require(script.Senses.Hearing)
+local Hideout = require(script.Senses.Hideout)
 local Neighbours = require(script.Senses.Neighbours)
 local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
+local SafeWatch = require(script.Senses.SafeWatch)
 local Sight = require(script.Senses.Sight)
 local Sounds = require(script.Senses.Sounds)
+local Stamina = require(script.Senses.Stamina)
 local Surroundings = require(script.Senses.Surroundings)
 local Throttle = require(script.Senses.Throttle)
 local Watched = require(script.Senses.Watched)
@@ -53,7 +63,7 @@ local Broadcaster = require(script.Sync.Broadcaster)
 local Look = require(script.Sync.Look)
 local Replica = require(script.Sync.Replica)
 
-local Claims = require(script.Utility.Claims)
+local Claims = require(script.Group.Claims)
 local Cleaner = require(script.Utility.Cleaner)
 local FormatMessage = require(script.Utility.FormatMessage)
 local Signal = require(script.Utility.Signal)
@@ -103,6 +113,13 @@ export type KillHandle = Kill.KillHandle
 export type GraphNode = Graph.GraphNode
 export type GraphLink = Graph.GraphLink
 export type StepHandler = Types.StepHandler
+export type StepRegistration = Types.StepRegistration
+export type DoorDriver = Types.DoorDriver
+export type DoorStepOptions = Doors.DoorStepOptions
+export type DoorOpenerOptions = Doors.DoorOpenerOptions
+export type SafeAreaSetupOptions = SafeAreas.SafeAreaSetupOptions
+export type NoiseBand = PlayerNoise.NoiseBand
+export type VoiceOptions = Voice.VoiceOptions
 export type Director = Director.Director
 export type Interest = Interest.Interest
 export type InterestPoint = Interest.InterestPoint
@@ -249,7 +266,7 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Neighbours: Neighbours, Throttle: Throttle }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Neighbours: Neighbours, Throttle: Throttle, SafeWatch: SafeWatch, Clues: Clues, Hideout: Hideout, Stamina: Stamina }
 
 	The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the
 	tagged `Sound` instances the world is already playing; [Awareness] turns what the others
@@ -266,6 +283,10 @@ VluxyAI.Senses = {
 	Surroundings = Surroundings,
 	Neighbours = Neighbours,
 	Throttle = Throttle,
+	SafeWatch = SafeWatch,
+	Clues = Clues,
+	Hideout = Hideout,
+	Stamina = Stamina,
 }
 
 --[=[
@@ -293,6 +314,48 @@ VluxyAI.Interest = Interest
 	A shared "who is on what" table, so two enemies never chase the same player unless you say so.
 ]=]
 VluxyAI.Claims = Claims
+
+--[=[
+	@within VluxyAI
+	@prop Doors Doors
+
+	Doors agents open: `:OnStep("Door", VluxyAI.Doors.Step())` over your door script, through
+	attributes or a driver of your own.
+]=]
+VluxyAI.Doors = Doors
+
+--[=[
+	@within VluxyAI
+	@prop SafeAreas SafeAreas
+
+	Parts tagged `AI_SAFE` that agents never enter while `AI_SAFE/Enabled` is not `false`. Call
+	`VluxyAI.SafeAreas.Setup()` once on the server.
+]=]
+VluxyAI.SafeAreas = SafeAreas
+
+--[=[
+	@within VluxyAI
+	@prop Collision Collision
+
+	The rig collision group, and parts agents walk through while players still collide with them.
+]=]
+VluxyAI.Collision = Collision
+
+--[=[
+	@within VluxyAI
+	@prop PlayerNoise PlayerNoise
+
+	Players make noise by moving: speed bands turned into noises on your Hearing signal.
+]=]
+VluxyAI.PlayerNoise = PlayerNoise
+
+--[=[
+	@within VluxyAI
+	@prop Voice Voice
+
+	Random voice lines by state, added as a sense: `:AddSense(VluxyAI.Voice.new({ Lines = ... }))`.
+]=]
+VluxyAI.Voice = Voice
 
 --[=[
 	@within VluxyAI
@@ -362,12 +425,13 @@ VluxyAI.Combat = {
 
 --[=[
 	@within VluxyAI
-	@prop Debug { PathVisual: PathVisual, StateLabel: StateLabel, SenseVisual: SenseVisual, Rig: Rig }
+	@prop Debug { PathVisual: PathVisual, GraphVisual: GraphVisual, StateLabel: StateLabel, SenseVisual: SenseVisual, Rig: Rig }
 
 	Opt-in debug views, and a runtime R15 rig for tests and playgrounds.
 ]=]
 VluxyAI.Debug = {
 	PathVisual = PathVisual,
+	GraphVisual = GraphVisual,
 	StateLabel = StateLabel,
 	SenseVisual = SenseVisual,
 	Rig = Rig,
@@ -390,11 +454,14 @@ VluxyAI.Internals = {
 	@within VluxyAI
 
 	.Navmesh NavmeshOptions? -- Options for [Navmesh.new].
-	.Straight StraightOptions? -- Options for [Straight.new], the first rung of the ladder.
+	.Straight StraightOptions? -- Options for [Straight.new], the direct walker.
 	.Mover HumanoidOptions? -- Options for [HumanoidMover.new].
 	.Sight SightOptions? -- Options for [Sight.new].
 	.Proximity ProximityOptions? -- Options for [Proximity.new].
-	.Navigation NavigationOptions? -- Navigator tuning. Default `{ RepathInterval = 0.25 }`.
+	.Navigation NavigationOptions? -- Navigator tuning. Default `{ RepathInterval = 0.25, MaxPathAge = 2 }`.
+	.Graph Pathfinder? -- Authored nodes ([Graph]): routes go over the graph first ([Hybrid] with `Prefer = "Graph"`, `RefineEnds = false`) and the navmesh answers only where the graph has no way. Without it, the navmesh plans everything.
+	.Doors boolean? -- Walk through doors: [Doors.Step] with `WalkThrough` for `"Door"` steps, a [Doors.Opener] sense, and a direct walker that sees past unlocked doors. For doors rigs do not collide with ([Collision.LetRigsThrough]). Default `false`.
+	.SafeWatch boolean? -- Add [SafeWatch], so the agent notices players in safe areas and is moved out of one that switches on around it (to a `Graph` node when given). Default `true`.
 ]=]
 export type HumanoidPresetOptions = {
 	Navmesh: Navmesh.Options?,
@@ -403,18 +470,30 @@ export type HumanoidPresetOptions = {
 	Sight: Sight.SightOptions?,
 	Proximity: Proximity.ProximityOptions?,
 	Navigation: Types.NavigationOptions?,
+	Graph: Types.Pathfinder?,
+	Doors: boolean?,
+	SafeWatch: boolean?,
 }
 
-local PRESET_KEYS = { "Navmesh", "Straight", "Mover", "Sight", "Proximity", "Navigation" }
+local PRESET_KEYS =
+	{ "Navmesh", "Straight", "Mover", "Sight", "Proximity", "Navigation", "Graph", "Doors", "SafeWatch" }
 
 --[=[
 	@within VluxyAI
 	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder }
 
 	Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a
-	[Ladder] of [Straight] then [Navmesh] (a target in plain sight costs no navmesh query), a
-	[HumanoidMover] mover, [Sight] and [Proximity] senses, and a quarter-second repath; add a
-	brain and build. It is what the examples build by hand, opt-in and overridable.
+	[Navmesh] pathfinder (graph-first [Hybrid] when `Graph` is given) with [Straight] as its
+	direct walker, a [HumanoidMover] mover, [Sight], [Proximity] and [SafeWatch] senses, and a
+	quarter-second repath; `Doors = true` adds walking through doors. Add a brain, any senses of
+	your own, and build. It is the stack the examples build by hand, opt-in and overridable.
+
+	```lua
+	local agent = VluxyAI.Presets.Humanoid(rig, { Graph = graph, Doors = true })
+		:UseBrain(Brain)
+		:AddSense(VluxyAI.Senses.Clues.new(interest))
+		:Build()
+	```
 ]=]
 VluxyAI.Presets = {
 	Humanoid = function(model: Model, options: HumanoidPresetOptions?): Builder.Builder
@@ -431,15 +510,32 @@ VluxyAI.Presets = {
 			end
 		end
 
-		return Builder.new(model)
-			:UsePathfinder(Ladder.new({
-				Straight.new(resolved.Straight),
-				Navmesh.new(resolved.Navmesh),
-			}))
+		local graph = resolved.Graph
+		local navmesh = Navmesh.new(resolved.Navmesh)
+		local pathfinder = if graph
+			then Hybrid.new({ Graph = graph, Local = navmesh, Prefer = "Graph", RefineEnds = false })
+			else navmesh
+
+		local straightOptions: any = table.clone(resolved.Straight or {})
+		if resolved.Doors and straightOptions.Ignore == nil then
+			straightOptions.Ignore = Doors.IgnoreUnlocked(Straight.DefaultIgnore)
+		end
+
+		local builder = Builder.new(model)
+			:UsePathfinder(pathfinder)
+			:UseDirect(Straight.new(straightOptions))
 			:UseMover(HumanoidMover.new(model, resolved.Mover))
 			:AddSense(Sight.new(resolved.Sight))
 			:AddSense(Proximity.new(resolved.Proximity))
-			:SetNavigation(resolved.Navigation or { RepathInterval = 0.25 })
+			:SetNavigation(resolved.Navigation or { RepathInterval = 0.25, MaxPathAge = 2 })
+
+		if resolved.SafeWatch ~= false then
+			builder:AddSense(SafeWatch.new({ Spots = graph }))
+		end
+		if resolved.Doors then
+			builder:OnStep("Door", Doors.Step(nil, { WalkThrough = true })):AddSense(Doors.Opener())
+		end
+		return builder
 	end,
 }
 

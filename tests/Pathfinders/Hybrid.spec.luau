@@ -210,4 +210,53 @@ return {
 		s.hybrid:Close({ Position = Vector3.new(), Action = "Custom", Label = "Door" }, 4)
 		expect.sequence(log, { "graph 4", "local 4" })
 	end,
+
+	["Prefer Graph routes over the graph even up close, and never asks the local pathfinder"] = function(expect)
+		local s = setup({ Prefer = "Graph", RefineEnds = false })
+		local path = s.hybrid:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), Fakes.Agent())
+		expect.sequence(labels(path), { "n1", "n2", "goal" })
+		expect.equal(#s.graph.Calls, 1)
+		expect.equal(#s.localPathfinder.Calls, 0, "the navmesh stays out of an ordinary route")
+	end,
+
+	["Prefer Graph asks the local pathfinder once, only when the graph has no route"] = function(expect)
+		local Hybrid = Harness.Load("lib/Pathfinders/Hybrid.luau")
+		local graph = fakePathfinder("Graph", function()
+			return nil, "no node near the target"
+		end)
+		local localPathfinder = fakePathfinder("Local", function(_from, to)
+			return { { Position = to, Action = "Walk", Label = "L" } }
+		end)
+		local hybrid = Hybrid.new({ Graph = graph, Local = localPathfinder, Prefer = "Graph", RefineEnds = false })
+		local path = hybrid:FindPath(Vector3.new(0, 0, 0), Vector3.new(5, 0, 0), Fakes.Agent())
+		expect.sequence(labels(path), { "L" })
+		expect.equal(#localPathfinder.Calls, 1)
+	end,
+
+	["with Prefer Local, a failed local path up close is not asked twice"] = function(expect)
+		local Hybrid = Harness.Load("lib/Pathfinders/Hybrid.luau")
+		local graph = fakePathfinder("Graph", function()
+			return nil, "no route"
+		end)
+		local localPathfinder = fakePathfinder("Local", function()
+			return nil, "no path"
+		end)
+		local hybrid = Hybrid.new({ Graph = graph, Local = localPathfinder, LocalRadius = 40 })
+		local none, reason = hybrid:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), Fakes.Agent())
+		expect.equal(none, nil)
+		expect.equal(#localPathfinder.Calls, 1)
+		expect.equal(reason, "Graph: no route; Local: no path")
+	end,
+
+	["Prefer must be Local or Graph"] = function(expect)
+		local Hybrid = Harness.Load("lib/Pathfinders/Hybrid.luau")
+		local message = expect.errors(function()
+			Hybrid.new({
+				Graph = fakePathfinder("Graph", function() end),
+				Local = fakePathfinder("Local", function() end),
+				Prefer = "Navmesh",
+			} :: any)
+		end)
+		expect.includes(message, "Prefer")
+	end,
 }

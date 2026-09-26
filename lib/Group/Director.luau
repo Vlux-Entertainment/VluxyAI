@@ -11,8 +11,8 @@
 	read, so the director needs no tick of its own and costs nothing between reads.
 ]]
 
-local Options = require(script.Parent.Utility.Options)
-local Types = require(script.Parent.Types)
+local Options = require(script.Parent.Parent.Utility.Options)
+local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 

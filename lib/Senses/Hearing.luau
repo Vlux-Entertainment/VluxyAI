@@ -12,8 +12,10 @@
 	- `HeardAt` number? -- `os.clock()` of that tick.
 	- `HeardLoudness` number? -- Its loudness as heard, after walls. `nil` when nothing is
 	  remembered: it is not a distance, so there is no `math.huge` sentinel.
+	- `HeardKind` string? -- What it was, when the noise was fired with a third argument
+	  (`"Footstep"`, `"Door"`, `"Gunshot"`), so a brain can react to a door differently from a step.
 
-	All three are memory: they stay for `Memory` seconds after the last heard noise, then go
+	All four are memory: they stay for `Memory` seconds after the last heard noise, then go
 	`nil` together. They live on the blackboard, not in the sense, so a state may clear them
 	early.
 
@@ -28,6 +30,7 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local SafeAreas = require(script.Parent.Parent.World.SafeAreas)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
@@ -75,12 +78,13 @@ type ResolvedOptions = {
 type Noise = {
 	Position: Vector3,
 	Loudness: number,
+	Kind: string?,
 }
 
 type self = {
 	_options: ResolvedOptions,
 	_buffers: { [Types.Agent]: { Noise } },
-	_noises: Types.Signal<(Vector3, number?)>,
+	_noises: Types.Signal<(Vector3, number?, string?)>,
 	_connection: Types.Connection?,
 	_destroyed: boolean,
 }
@@ -105,13 +109,13 @@ export type Hearing = typeof(setmetatable({} :: self, Hearing))
 
 --[=[
 	@within Hearing
-	@param noises Signal<(Vector3, number?)> -- Fired with a position and an optional loudness (default `1`).
+	@param noises Signal<(Vector3, number?, string?)> -- Fired with a position, an optional loudness (default `1`) and an optional kind.
 	@param options HearingOptions?
 	@return Hearing
 	@error "unknown option" -- A key not in `HearingOptions`.
 	@error "Range must be zero or more"
 ]=]
-function Hearing.new(noises: Types.Signal<(Vector3, number?)>, options: HearingOptions?): Types.Sense
+function Hearing.new(noises: Types.Signal<(Vector3, number?, string?)>, options: HearingOptions?): Types.Sense
 	local resolved = Options.Resolve("Hearing.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
 	if resolved.Range < 0 then
@@ -141,8 +145,8 @@ function Hearing._connect(self: Hearing)
 		return
 	end
 
-	self._connection = self._noises:Connect(function(position: Vector3, loudness: number?)
-		self:_onNoise(position, loudness)
+	self._connection = self._noises:Connect(function(position: Vector3, loudness: number?, kind: string?)
+		self:_onNoise(position, loudness, kind)
 	end)
 end
 
@@ -152,7 +156,7 @@ end
 	Buffers a noise for every registered agent until its next tick. A bad position is dropped
 	with a warning rather than breaking the tick later.
 ]]
-function Hearing._onNoise(self: Hearing, position: Vector3, loudness: number?)
+function Hearing._onNoise(self: Hearing, position: Vector3, loudness: number?, kind: string?)
 	if typeof(position) ~= "Vector3" then
 		FormatMessage.Warn(`Hearing: a noise was fired with {typeof(position)} instead of a Vector3 position`)
 		return
@@ -164,7 +168,8 @@ function Hearing._onNoise(self: Hearing, position: Vector3, loudness: number?)
 		return
 	end
 
-	local noise: Noise = { Position = position, Loudness = resolvedLoudness }
+	local noise: Noise =
+		{ Position = position, Loudness = resolvedLoudness, Kind = if type(kind) == "string" then kind else nil }
 	for _, buffer in self._buffers do
 		table.insert(buffer, noise)
 		if #buffer > BUFFER_LIMIT then
@@ -207,8 +212,9 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 		local distance = (noise.Position - origin).Magnitude
 		local loudness = noise.Loudness
 
-		-- Only a noise that could be heard through open air is worth the rays.
-		if distance > options.Range * loudness then
+		-- Only a noise that could be heard through open air is worth the rays, and one from inside
+		-- a safe area is not worth going to at all.
+		if distance > options.Range * loudness or SafeAreas.Contains(noise.Position) then
 			continue
 		end
 		if options.Occlusion < 1 then
@@ -234,6 +240,7 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 		blackboard.HeardPosition = heard.Position
 		blackboard.HeardAt = now
 		blackboard.HeardLoudness = heardLoudness
+		blackboard.HeardKind = heard.Kind
 		return
 	end
 
@@ -242,6 +249,7 @@ function Hearing.Tick(self: Hearing, agent: Types.Agent, deltaTime: number)
 		blackboard.HeardPosition = nil
 		blackboard.HeardAt = nil
 		blackboard.HeardLoudness = nil
+		blackboard.HeardKind = nil
 	end
 end
 

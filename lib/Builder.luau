@@ -91,6 +91,31 @@ end
 
 --[=[
 	@within Builder
+	@param pathfinder Pathfinder -- Answers whether the agent can walk straight at its target. Must not yield. [Straight] is made for it.
+	@return Builder
+
+	Walk straight at the target whenever the way is clear, and only plan when it is not. The
+	navigator asks `pathfinder` every `DirectInterval` seconds; while it returns a path, the mover
+	walks that line and nothing is planned. When it fails, or the agent stops making progress for
+	`DirectStuckTime` seconds, the agent plans with the ordinary pathfinder, and after getting
+	stuck it does not try straight again for `DirectCooldown` seconds. Tune those three in
+	[Builder:SetNavigation].
+
+	```lua
+	:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new())
+	:UseDirect(VluxyAI.Pathfinders.Straight.new())
+	```
+
+	Needs a pathfinder and a mover. A labelled step (a door) is never on a direct line: a closed
+	door blocks the check, so the plan that goes through the door takes over.
+]=]
+function Builder.UseDirect(self: Builder, pathfinder: Types.Pathfinder): Builder
+	self._definition.Direct = pathfinder
+	return self
+end
+
+--[=[
+	@within Builder
 	@param sense Sense
 	@return Builder
 
@@ -158,8 +183,8 @@ export type OnStepOptions = {
 --[=[
 	@within Builder
 	@param label string -- The step `Label` this handles: `"Door"`, `"Ladder"`, `"Vault"`.
-	@param handler StepHandler -- Runs when a step with that label is reached; may yield. Return `false` when the step could not be taken.
-	@param options OnStepOptions? -- How to find the instance for a step that lacks one.
+	@param handler StepHandler | StepRegistration -- Runs when a step with that label is reached; may yield. Return `false` when the step could not be taken. A whole registration, such as [Doors.Step] returns, is taken as it is.
+	@param options OnStepOptions? -- How to find the instance for a step that lacks one. Overrides the registration's own `Tag` and `Radius`.
 	@return Builder
 
 	What the agent does at a labelled step. The navigator holds the mover there, reports
@@ -178,11 +203,30 @@ export type OnStepOptions = {
 		return true
 	end, { Tag = "AI_DOOR" })
 	```
+
+	Or let [Doors] do all of that over your door script:
+
+	```lua
+	:OnStep("Door", VluxyAI.Doors.Step())
+	```
 ]=]
-function Builder.OnStep(self: Builder, label: string, handler: Types.StepHandler, options: OnStepOptions?): Builder
+function Builder.OnStep(
+	self: Builder,
+	label: string,
+	handler: Types.StepHandler | Types.StepRegistration,
+	options: OnStepOptions?
+): Builder
 	local steps: { [string]: Types.StepHandler | Types.StepRegistration } = self._definition.Steps or {}
 	self._definition.Steps = steps
-	if options ~= nil then
+
+	if type(handler) == "table" then
+		local registration = table.clone(handler)
+		if options ~= nil then
+			registration.Tag = if options.Tag ~= nil then options.Tag else registration.Tag
+			registration.Radius = if options.Radius ~= nil then options.Radius else registration.Radius
+		end
+		steps[label] = registration
+	elseif options ~= nil then
 		steps[label] = { Handler = handler, Tag = options.Tag, Radius = options.Radius }
 	else
 		steps[label] = handler

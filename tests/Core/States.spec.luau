@@ -355,7 +355,7 @@ return {
 
 	["Roam walks the best interest point, lingers, marks it visited and moves on"] = function(expect)
 		local States = loadStates()
-		local Interest = Harness.Load("lib/Interest.luau")
+		local Interest = Harness.Load("lib/Group/Interest.luau")
 		local interest = Interest.new({ Decay = 0, Visited = 100 })
 		interest:Add("near", { Position = Vector3.new(10, 0, 0) })
 		interest:Add("far", { Position = Vector3.new(30, 0, 0) })
@@ -380,7 +380,7 @@ return {
 
 	["Roam leaves on Duration and needs an Interest"] = function(expect)
 		local States = loadStates()
-		local Interest = Harness.Load("lib/Interest.luau")
+		local Interest = Harness.Load("lib/Group/Interest.luau")
 		local interest = Interest.new()
 		interest:Add("a", { Position = Vector3.new(10, 0, 0) })
 		local s = setup(States.Roam({ Interest = interest, Duration = 5, Then = NEXT }))
@@ -397,6 +397,127 @@ return {
 				States.Roam({ Then = NEXT } :: any)
 			end),
 			"Interest must be an Interest map"
+		)
+	end,
+
+	["Stare stops, faces the target every tick, moves on after Duration and starts its cooldown"] = function(expect)
+		local States = loadStates()
+		local s = setup(
+			States.Stare({ Target = "SafePosition", Duration = 4, Cooldown = 20, Then = NEXT }),
+			nil,
+			{ SafePosition = Vector3.new(5, 0, 5) }
+		)
+		local faced = {}
+		s.mover.Face = function(_self, position)
+			table.insert(faced, position or "none")
+		end
+		s.agent:Start(true)
+		expect.falsy(s.mover.Moving)
+
+		s.agent:Step(0.1)
+		expect.equal(faced[#faced], Vector3.new(5, 0, 5))
+		s.agent.Blackboard.SafePosition = Vector3.new(6, 0, 5)
+		s.agent:Step(0.1)
+		expect.equal(faced[#faced], Vector3.new(6, 0, 5), "follows the target as it moves")
+		expect.equal(s.agent:GetState(), "Test")
+		expect.truthy(s.agent:TimerDone("States.StareCooldown"), "no cooldown while staring")
+
+		s.clock:Advance(4.1)
+		s.agent:Step(0.1)
+		expect.equal(s.agent:GetState(), NEXT)
+		expect.equal(faced[#faced], "none", "stops facing on the way out")
+		expect.falsy(s.agent:TimerDone("States.StareCooldown"), "the cooldown runs after leaving")
+		s.clock:Advance(20.1)
+		expect.truthy(s.agent:TimerDone("States.StareCooldown"))
+	end,
+
+	["Stare with Face off never turns"] = function(expect)
+		local States = loadStates()
+		local s =
+			setup(States.Stare({ Target = "SafePosition", Face = false }), nil, { SafePosition = Vector3.new(5, 0, 5) })
+		local turned = false
+		s.mover.Face = function()
+			turned = true
+		end
+		s.agent:Start(true)
+		s.agent:Step(0.1)
+		expect.falsy(turned)
+	end,
+
+	["Roam with Stray sometimes ignores the clues; without it always follows them"] = function(expect)
+		local States = loadStates()
+		local Interest = Harness.Load("lib/Group/Interest.luau")
+
+		-- The first pick from the origin, with one very hot point among six calm ones.
+		local function firstPick(stray: number, seed: number): any
+			local interest = Interest.new({ Decay = 0, Visited = 100 })
+			interest:Add("hot", { Position = Vector3.new(20, 0, 0), Strength = 10 })
+			for index = 1, 6 do
+				interest:Add(index, { Position = Vector3.new(-10, 0, index * 5), Strength = 1 })
+			end
+			local s = setup(States.Roam({ Interest = interest, Stray = stray, Random = Harness.FakeRandom.new(seed) }))
+			s.agent:Start(true)
+			return s:target()
+		end
+
+		local hot = Vector3.new(20, 0, 0)
+		local strayed = 0
+		for seed = 1, 8 do
+			expect.equal(firstPick(0, seed), hot, "Stray 0 always follows the clues")
+			if firstPick(1, seed) ~= hot then
+				strayed += 1
+			end
+		end
+		expect.truthy(strayed >= 4, `Stray 1 mostly goes elsewhere (went elsewhere {strayed} of 8 times)`)
+	end,
+
+	["Burrow sinks where it stands, comes up at To, rises, then moves on"] = function(expect)
+		local States = loadStates()
+		local s = setup(
+			States.Burrow({ To = "Hideout", Depth = 6, Time = 1, Height = 3, Then = NEXT }),
+			nil,
+			{ Hideout = Vector3.new(50, 0, 0) }
+		)
+		local teleports = {}
+		s.mover.Teleport = function(self, position)
+			self.Position = position
+			table.insert(teleports, position)
+		end
+		s.mover.Position = Vector3.new(0, 3, 0)
+		s.agent:Start(true)
+
+		s.clock:Advance(0.5)
+		s.agent:Step(0.1)
+		expect.near(
+			(teleports[#teleports] - Vector3.new(0, 0, 0)).Magnitude,
+			0,
+			1e-6,
+			"halfway down: 3 of 6 studs under"
+		)
+
+		s.clock:Advance(1)
+		s.agent:Step(0.1)
+		expect.near((teleports[#teleports] - Vector3.new(50, 0, 0)).Magnitude, 0, 1e-6, "halfway up at the new spot")
+		expect.equal(s.agent:GetState(), "Test")
+
+		s.clock:Advance(0.6)
+		s.agent:Step(0.1)
+		expect.equal(teleports[#teleports], Vector3.new(50, 3, 0), "standing at Height above the spot")
+		expect.equal(s.agent:GetState(), NEXT)
+	end,
+
+	["Burrow with nowhere to go moves straight on, and needs To"] = function(expect)
+		local States = loadStates()
+		local s = setup(States.Burrow({ To = "Hideout", Then = NEXT }))
+		s.agent:Start(true)
+		s.agent:Step(0.1)
+		expect.equal(s.agent:GetState(), NEXT)
+
+		expect.includes(
+			expect.errors(function()
+				States.Burrow({ Then = NEXT } :: any)
+			end),
+			"To is required"
 		)
 	end,
 }

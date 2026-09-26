@@ -9,7 +9,7 @@ local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local function load(clock: any)
-	return Harness.Load("lib/Director.luau", { globals = { os = clock.os } })
+	return Harness.Load("lib/Group/Director.luau", { globals = { os = clock.os } })
 end
 
 return {

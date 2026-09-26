@@ -92,10 +92,12 @@ end
 
 	.NearestLimit number? -- Studs; a start or goal further than this from every node has no path. Default `60`.
 	.LineOfSight ((from: Vector3, to: Vector3) -> boolean)? -- When given, the entry and exit nodes are the nearest ones this returns `true` for, so a route never starts through a wall.
+	.Avoid ((position: Vector3) -> boolean)? -- Nodes at positions this returns `true` for are never on a route, and a goal it returns `true` for has no path. Pass [SafeAreas.Contains] to keep agents out of safe areas.
 ]=]
 export type GraphOptions = {
 	NearestLimit: number?,
 	LineOfSight: ((from: Vector3, to: Vector3) -> boolean)?,
+	Avoid: ((position: Vector3) -> boolean)?,
 }
 
 --[=[
@@ -119,6 +121,7 @@ export type GraphBuildOptions = {
 type ResolvedOptions = {
 	NearestLimit: number,
 	LineOfSight: ((from: Vector3, to: Vector3) -> boolean)?,
+	Avoid: ((position: Vector3) -> boolean)?,
 }
 
 type self = {
@@ -165,7 +168,8 @@ Graph.LinkTarget = linkTarget
 	@error string -- No nodes, or a link to an index that does not exist.
 ]=]
 function Graph.new(nodes: { GraphNode }, options: GraphOptions?): Types.Pathfinder
-	local resolved = Options.Resolve("Graph.new", DEFAULT_OPTIONS, options :: any, { "LineOfSight" }) :: ResolvedOptions
+	local resolved =
+		Options.Resolve("Graph.new", DEFAULT_OPTIONS, options :: any, { "LineOfSight", "Avoid" }) :: ResolvedOptions
 
 	if type(nodes) ~= "table" or #nodes == 0 then
 		FormatMessage.Error("Graph.new: needs at least one node", 2)
@@ -379,6 +383,29 @@ function Graph.Trim(
 	return trimmed
 end
 
+-- A node's own attributes, never read as links.
+local NODE_ATTRIBUTES = { Instance = true, Label = true, Action = true }
+
+--[[
+	The instance an attribute value refers to: an Instance attribute reads back as an
+	InstanceHandle, whose `Get` returns it. Anything else refers to nothing.
+]]
+local function referenced(value: any): Instance?
+	if value == nil then
+		return nil
+	end
+	if typeof(value) == "Instance" then
+		return value
+	end
+	local ok, target = pcall(function()
+		return value:Get()
+	end)
+	if ok and target ~= nil then
+		return target
+	end
+	return nil
+end
+
 --[=[
 	@within Graph
 	@param container Instance -- A folder of nodes.
@@ -388,11 +415,23 @@ end
 
 	Reads a graph out of the place. Every `BasePart` or `Attachment` directly under `container`
 	is a node at its position (a part's position is lowered to its bottom face, rotation taken
-	into account). An `ObjectValue` named `Link` under a node whose value is another node is a
-	one-way link; add the reverse for two-way; a value outside the container is warned about and
-	skipped. A `Link` with an `Action` or `Label` attribute, or an `ObjectValue` child named
-	`Instance`, becomes a [Graph.GraphLink]: set `Label = "Door"` and point `Instance` at the door,
-	and the step at that node carries both. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
+	into account).
+
+	Links are one-way; add the reverse for two-way. A node links to another in either of two ways:
+
+	- **An Instance attribute** on the node whose value is another node, under any name
+	  (`Link1`, `North`, `ToKitchen`). The attributes `Instance`, `Label` and `Action` are the
+	  node's own, not links. This is the quick way to author in Studio: add an attribute of type
+	  Instance and pick the other node.
+	- **An `ObjectValue` named `Link`** under the node whose value is another node. A `Link` with
+	  an `Action` or `Label` attribute, or an `ObjectValue` child named `Instance`, becomes a
+	  [Graph.GraphLink] of its own.
+
+	A node with a `Label` string attribute labels every link into it: give a node in a doorway
+	`Label = "Door"` and an Instance attribute `Instance` pointing at the door, and a route through
+	it carries a `"Door"` step with that door (on the node before it, where the [Builder:OnStep]
+	handler runs). `Action` defaults to `"Custom"` there. A link that points outside the
+	container is warned about and skipped. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
 	`CanLink` says so, or, without it, when a ray 1.5 studs up between them is clear. The ray test
 	is a line-of-sight test, not a walkability test: it links across a pit and refuses a staircase,
 	so on anything but flat floors give `CanLink` a real answer.
@@ -441,6 +480,50 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 		end
 	end
 
+	-- What a link into each node carries: a node with a Label (a door node) labels every link in.
+	local arrivals: { [number]: GraphLink } = {}
+	for index, instance in instances do
+		local label = instance:GetAttribute("Label")
+		if type(label) == "string" and label ~= "" then
+			local action = instance:GetAttribute("Action")
+			arrivals[index] = {
+				To = index,
+				Action = if type(action) == "string" then action :: Types.StepAction else "Custom",
+				Label = label,
+				Instance = referenced(instance:GetAttribute("Instance")),
+			}
+		end
+	end
+
+	local function linkInto(from: number, target: number)
+		local arrival = arrivals[target]
+		if arrival then
+			link(from, { To = target, Action = arrival.Action, Label = arrival.Label, Instance = arrival.Instance })
+		else
+			link(from, target)
+		end
+	end
+
+	for index, instance in instances do
+		for name, value in instance:GetAttributes() do
+			if NODE_ATTRIBUTES[name] then
+				continue
+			end
+			local target = referenced(value)
+			if target == nil then
+				continue
+			end
+			local targetIndex = indexOf[target]
+			if targetIndex then
+				linkInto(index, targetIndex)
+			else
+				FormatMessage.Warn(
+					`Graph.FromInstances: the {name} attribute on {instance:GetFullName()} points at {target:GetFullName()}, which is not a node under {container:GetFullName()}`
+				)
+			end
+		end
+	end
+
 	for index, instance in instances do
 		for _, value in instance:GetChildren() do
 			if value:IsA("ObjectValue") and value.Name == "Link" and value.Value ~= nil then
@@ -457,7 +540,7 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 							Instance = if door and door:IsA("ObjectValue") then door.Value else nil,
 						})
 					else
-						link(index, target)
+						linkInto(index, target)
 					end
 				else
 					FormatMessage.Warn(
@@ -505,9 +588,13 @@ end
 ]]
 function Graph._entry(self: GraphClass, position: Vector3): number?
 	local lineOfSight = self._options.LineOfSight
-	local accept = if lineOfSight
+	local avoid = self._options.Avoid
+	local accept = if lineOfSight or avoid
 		then function(node: GraphNode)
-			return lineOfSight(position, node.Position)
+			if avoid and avoid(node.Position) then
+				return false
+			end
+			return lineOfSight == nil or lineOfSight(position, node.Position)
 		end
 		else nil
 
@@ -520,10 +607,15 @@ end
 	@param to Vector3
 	@param agent Agent
 	@return Path? -- The route's node positions as Walk steps, trimmed of nodes already behind the agent or the target, then `to` lowered to the exit node's floor.
-	@return string? -- `no node near <from|to>` or `no route`.
+	@return string? -- `no node near <from|to>`, `no route`, or `<to> is in an avoided area`.
 ]=]
 function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
 	local _ = agent
+
+	local avoidGoal = self._options.Avoid
+	if avoidGoal and avoidGoal(to) then
+		return nil, `{to} is in an avoided area`
+	end
 
 	local start = self:_entry(from)
 	if start == nil then
@@ -534,7 +626,12 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 		return nil, `no node near {to}`
 	end
 
+	local avoid = self._options.Avoid
+	local nodes = self._nodes
 	local route = Graph.AStar(self._nodes, start, goal, function(a: number, b: number): boolean
+		if avoid and avoid(nodes[b].Position) then
+			return true
+		end
 		return self:_isClosed(a, b)
 	end)
 	if route == nil then

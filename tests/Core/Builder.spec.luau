@@ -140,4 +140,41 @@ return {
 		expect.equal(registration.Radius, 6)
 		builder:Validate()
 	end,
+
+	["UseDirect stores the direct pathfinder"] = function(expect)
+		local Builder = load()
+		local direct = Fakes.Pathfinder()
+		local builder = Builder.new(Fakes.Entity())
+			:UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
+			:UsePathfinder(Fakes.Pathfinder())
+			:UseMover(Fakes.Mover())
+		expect.equal(builder:UseDirect(direct), builder)
+		expect.equal(builder:GetDefinition().Direct, direct)
+		builder:Validate()
+	end,
+
+	["OnStep takes a whole registration, copied, with options overriding its Tag and Radius"] = function(expect)
+		local Builder = load()
+		local function open() end
+		local function ready()
+			return true
+		end
+		local registration = { Handler = open, Ready = ready, Tag = "AI_DOOR", Radius = 8 }
+		local builder = Builder.new(Fakes.Entity()):UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
+
+		builder:OnStep("Door", registration)
+		local stored = builder:GetDefinition().Steps.Door
+		expect.equal(stored.Handler, open)
+		expect.equal(stored.Ready, ready)
+		expect.equal(stored.Tag, "AI_DOOR")
+		expect.falsy(stored == registration, "a copy, so one registration can serve two builders")
+
+		builder:OnStep("Gate", registration, { Tag = "GATE", Radius = 4 })
+		local gate = builder:GetDefinition().Steps.Gate
+		expect.equal(gate.Tag, "GATE")
+		expect.equal(gate.Radius, 4)
+		expect.equal(gate.Ready, ready)
+		expect.equal(registration.Tag, "AI_DOOR", "the original is untouched")
+		builder:Validate()
+	end,
 }

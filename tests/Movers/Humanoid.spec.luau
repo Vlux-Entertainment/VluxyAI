@@ -340,7 +340,9 @@ return {
 		expect.truthy(s.mover:IsMoving())
 		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(0, 0, 8))
 		expect.equal(s.heartbeat:Count(), 1, "one stuck check, not two")
+		expect.equal(#s.humanoid.MoveTos, 2, "no cancel between the two: the new MoveTo replaces the old")
 
+		s.root.Position = Vector3.new(0, 0, 8)
 		s.humanoid.MoveToFinished:Fire(true)
 		expect.sequence(s.events, { "arrived false", "step 1 new", "arrived true" })
 	end,
@@ -436,10 +438,12 @@ return {
 		end)
 
 		s.mover:Follow({ step(10, 0, 0, "Walk", "a"), step(20, 0, 0, "Walk", "b") })
+		s.root.Position = Vector3.new(10, 0, 0)
 		s.humanoid.MoveToFinished:Fire(true)
 		expect.sequence(s.events, { "step 1 a", "arrived false" })
 		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(50, 0, 0), "walking the detour, not step b")
 
+		s.root.Position = Vector3.new(50, 0, 0)
 		s.humanoid.MoveToFinished:Fire(true)
 		expect.sequence(s.events, { "step 1 a", "arrived false", "step 1 detour", "arrived true" })
 	end,
@@ -511,10 +515,12 @@ return {
 		local count = #s.humanoid.MoveTos
 		expect.equal(count, 2, "the same nudge is not re-issued")
 
+		s.root.Position = Vector3.new(4, 0, 2)
 		s.humanoid.MoveToFinished:Fire(true)
 		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(8, 0, 0), "the last step is exact")
 
 		s.mover:SetNudge(nil)
+		s.root.Position = Vector3.new(0, 0, 0)
 		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
 		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0), "cleared")
 	end,
@@ -548,5 +554,47 @@ return {
 		expect.near(heard[1][2], 2)
 		s.heartbeat:Fire(0.5)
 		expect.equal(#heard, 2)
+	end,
+
+	["a reached from far from the goal is a stale event: the walk goes on"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0), step(40, 0, 0) })
+		expect.equal(#s.humanoid.MoveTos, 1)
+
+		s.root.Position = Vector3.new(10, 0, 0)
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, {}, "30 studs short is not arrived")
+		expect.truthy(s.mover:IsMoving())
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(40, 0, 0), "re-issued toward the same step")
+
+		s.root.Position = Vector3.new(37, 3, 0)
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, { "step 2", "arrived true" }, "within ReachDistance, height ignored")
+	end,
+
+	["ReachDistance is an option"] = function(expect)
+		local s = setup({ ReachDistance = 1 })
+		s.mover:Follow({ step(4, 0, 0) })
+		s.root.Position = Vector3.new(2, 0, 0)
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, {})
+		s.root.Position = Vector3.new(3.5, 0, 0)
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.sequence(s.events, { "step 1", "arrived true" })
+	end,
+
+	["ChooseStart skips a leading step the rig is already past, so a re-plan never turns it back"] = function(expect)
+		local HumanoidMover = load()
+		-- A path re-planned while walking: it starts 1.5 studs behind the rig.
+		local path = { step(-1.5, 0, 0), step(10, 0, 0), step(20, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(path, Vector3.new(0, 0, 0), 1), 2)
+
+		-- A step ahead of the rig, even a far one, is still walked to.
+		local ahead = { step(3, 0, 0), step(10, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(ahead, Vector3.new(0, 0, 0), 1), 1)
+
+		-- Beside the rig but off the line to the next step: the rig is nearer the next step, so skip.
+		local beside = { step(0, 0, 3), step(10, 0, 0) }
+		expect.equal(HumanoidMover.ChooseStart(beside, Vector3.new(1, 0, 0), 1), 2)
 	end,
 }

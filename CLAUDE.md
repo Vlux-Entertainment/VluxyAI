@@ -46,15 +46,26 @@ lib/
   Types.luau         every exported contract, nothing else
   Builder.luau       fluent builder -> AgentDefinition -> Agent
   Agent.luau         the running AI: tick loop, blackboard, senses, brain runner, navigator
-  Navigator.luau     owns pathfinder + mover; MoveTo every tick, re-plans on a cadence
+  Navigator.luau     owns pathfinder + mover; MoveTo every tick, re-plans on a cadence; with Builder:UseDirect
+                     walks straight while a Straight check passes and plans only when blocked or stuck
   Brain/Runner       runs a Brain table: interrupts, then Enter/Update/Exit and ordered transitions
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
   Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
-  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait); scratch in agent.Data
-  Director.luau      tension meter, difficulty, shared blackboard for a group; director:Sense()
-  Interest.luau      points of interest with strength; Best picks where to look next; States.Roam walks it
-  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Neighbours
+  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait, Roam (Stray), Stare, Burrow);
+                     scratch in agent.Data
+  Group/             what agents share: Director (tension meter, difficulty, shared blackboard; director:Sense()),
+                     Interest (points of interest with strength; Best picks where to look next, States.Roam
+                     walks it; AddAll, and Heard(position, loudness, kind) weighing noise kinds by its Clues
+                     option), Claims (who is on what, for a group)
+  World/             what agents respect in the level: Doors (Doors.Step(driver?), the "Door" step registration:
+                     Ready skips open doors, locked ones refuse; Doors.Attributes drives AI_DOOR/Open, /Locked,
+                     /OpenTime), SafeAreas (parts tagged AI_SAFE, AI_SAFE/Enabled toggles: Navmesh prices them
+                     out, Straight refuses lines across, Graph Avoid, AliveRoots drops players inside, Setup makes
+                     them solid to rigs), Collision (the rig group; AddRig, LetRigsThrough), PlayerNoise
+                     (players' speed bands fired as kinded noises on a Hearing signal)
+  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Neighbours, SafeWatch,
+                     Clues (sightings warm an Interest map), Hideout (unseen spot to reappear), Stamina
                      (a shared instance is a group; optional Slow via the agent's speed scale and Avoid via
                      the mover's SetNudge), Throttle: Tick(agent, dt) writes the blackboard; all take Prefix
                      and have Configure
@@ -63,17 +74,19 @@ lib/
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
                      Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
                      Hybrid (graph for the level, local for geometry)
-  Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
-  Animator/          NPCAnimator (tracks by name), Locomotion (idle/walk from real speed, one-shots) and
-                     Footsteps (client-side step audio from measured movement)
+  Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig), Start (shared first-step choice)
+  Animator/          NPCAnimator (tracks by name), Locomotion (idle/walk from real speed, one-shots, Freeze),
+                     Footsteps (client-side step audio from measured movement) and Voice (random lines by
+                     state, as a sense; played on the server from the rig, announced as "Voice")
   Sync/              Broadcaster (server: state, position samples, events), Replica (client: rig + Visuals),
                      Look (camera direction: Report on the client, Receive on the server, Eye for Watched)
   Combat/            Attack (Strike and the one generic state; Kill = "Scare" for a non-lethal grab; an
                      optional HealthProvider) and Kill (Live, BlackBox and Scare, one shared hold)
-  Debug/             PathVisual (waypoint balls), StateLabel (billboard), SenseVisual (cone, ranges, marks),
-                     Rig (runtime R15); opt-in. Builder:SetStrictBlackboard warns on typo'd key reads
+  Debug/             PathVisual (waypoint balls), GraphVisual (a Graph's nodes and links), StateLabel (billboard),
+                     SenseVisual (cone, ranges, marks), Rig (runtime R15); opt-in. Builder:SetStrictBlackboard
+                     warns on typo'd key reads
   Utility/           Signal (pure), FormatMessage, Tables (incl. Prefixed), Options (option resolver),
-                     Cleaner (cleanup bag), Claims (who is on what, for a group)
+                     Cleaner (cleanup bag)
 ```
 
 Rules that keep it composable and testable:
@@ -121,8 +134,10 @@ Rules that keep it composable and testable:
   `TimeInState` hold while the agent is paused.
 - `agent:SetSpeed` is the base speed a state asks for; `agent:SetSpeedScale` is a multiplier layered
   on it (crowding, stuns, the director) that survives state changes. Movers only ever see the product.
-- Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND`,
-  `AI_LIGHT` and (by convention in the docs) `AI_DOOR`. Prefixed so they do not collide with a project's own.
+- Reserved names a game meets: attributes `AI_HIDDEN`, `AI_SOUND/Multiplier`, `AI_DOOR/Open`, `/Locked`,
+  `/OpenTime` and `AI_SAFE/Enabled`; tags `AI_SOUND`, `AI_LIGHT`, `AI_DOOR` (the default tag of `Doors.Step`)
+  and `AI_SAFE`; the navmesh label `AI_SAFE`; collision group `VluxyAISafe`. Prefixed so they do
+  not collide with a project's own.
 - Doors: a labelled step from a navmesh `PathfindingLink`/modifier or a Graph link, one `OnStep` handler
   for both. A handler returning `false` fails the path and calls the pathfinder's optional `Close`.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.

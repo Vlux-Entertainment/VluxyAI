@@ -59,6 +59,9 @@ turn it into a horror sense.
   finds them, and a lit flashlight gives them away.
 - **Glass.** `SeeThrough = VluxyAI.Perception.Transparent()` lets the ray look past transparent
   parts. Without it a window blocks sight like a wall.
+- **Close range.** `NoticeRadius` is a distance within which a target is seen whichever way the
+  enemy faces and however dark it is, as long as there is a clear line (`NoticeThroughWalls`
+  drops that too). Five studs stops a player from simply walking up behind a monster.
 - **Hiding spots.** Set the `AI_HIDDEN` attribute to `true` on a character while they are in a
   locker or under a bed, and [Perception.AliveRoots](/api/Perception#AliveRoots) leaves them
   out. That is the default target list of every sense, so one flag hides a player from Sight,
@@ -140,16 +143,66 @@ heard in the open.
 
 ## Doors
 
+One line gives every enemy working doors:
+
+```lua
+:OnStep("Door", VluxyAI.Doors.Step())
+```
+
+[Doors.Step](/api/Doors#Step) talks to your door script through three attributes on the door:
+it sets `AI_DOOR/Open` to `true` to open it, waits `AI_DOOR/OpenTime` seconds for the swing, and
+refuses the door while `AI_DOOR/Locked` is `true`. Your door script listens to `AI_DOOR/Open`,
+swings the door, and sets it back to `false` when it closes. Set it yourself when a player opens
+the door, and an enemy that reaches an open door walks through without stopping. An open door
+should turn off `CanQuery` as well as `CanCollide`, or rays still hit it: the enemy would not see
+through the doorway, nor walk straight through it. A door system with its own API gets a
+[DoorDriver](/api/Types#DoorDriver) instead: `IsOpen`, `Open`, and optionally `IsLocked` and
+`OpenTime`, passed as `Doors.Step(driver)`.
+
+### Doors enemies walk through
+
+An enemy stuck on a half-open door is the classic failure, so the playground never lets a door
+touch an enemy: rigs and doors sit in collision groups that pass through each other, and the
+door's `PathfindingModifier` is the only thing that decides where an enemy may go, with
+`PassThrough` on while the door is unlocked and off while it is locked. The enemy then forces a
+door open on its way through rather than stopping at it:
+
+```lua
+:UseDirect(VluxyAI.Pathfinders.Straight.new({
+	Ignore = VluxyAI.Doors.IgnoreUnlocked(VluxyAI.Pathfinders.Straight.DefaultIgnore),
+}))
+:OnStep("Door", VluxyAI.Doors.Step(nil, { WalkThrough = true }))
+:AddSense(VluxyAI.Doors.Opener())
+```
+
+`WalkThrough` opens the door at the labelled step without stopping. [Doors.Opener](/api/Doors#Opener)
+opens a door the enemy walks up to and faces, for a direct walk that has no labelled step, and
+writes `NearDoor`. `IgnoreUnlocked` lets the straight-line check see through doors the enemy can
+open, so a closed door does not force a plan. The door still swings for the players, who still
+collide with it; `examples/Server/DoorScript.luau` is a complete door with a hinge swing and an
+Open/Close prompt.
+
+### Authoring
+
 A door is a labelled step, and there are two ways to author one. Both reach the same handler.
 
 - **Navmesh.** Put a `PathfindingLink` across the doorway (two attachments, one on each side)
   with `Label = "Door"`, or a `PathfindingModifier` with `PassThrough` and the label. Roblox
-  plans through it and marks the crossing waypoint. The step arrives without an `Instance`, so
-  tag the door part `AI_DOOR` and give the handler the tag; the nearest tagged instance is
-  looked up for it. No nodes to author.
+  plans through it and marks the crossing waypoint. A thin door can fall between two
+  waypoints, so also put an invisible, non-colliding, non-queryable part a few studs deep across
+  the doorway with a `PathfindingModifier` labelled `"Door"`: every path through it then has a
+  labelled waypoint. [Navmesh](/api/Navmesh) collapses the run into one step and moves it to the
+  waypoint just before the doorway (`StopBefore`), so the agent stops outside the closed door
+  rather than walking into it. The step arrives without an `Instance`; tag the door `AI_DOOR`
+  (the default `Tag` of `Doors.Step`) and the nearest tagged instance is looked up for it. A
+  door locked for good is better as a modifier without `PassThrough`: the navmesh then plans
+  around it and nobody has to be refused. No nodes to author.
 - **Graph.** A link written as `{ To = 7, Label = "Door", Instance = door }`, or in a place a
-  `Link` ObjectValue with a `Label` attribute and an `Instance` child. The navmesh never crosses
+  node part in the doorway with `Label = "Door"` and an Instance attribute `Instance` pointing
+  at the door, linked to the nodes on either side by Instance attributes. The navmesh never crosses
   the door, so a closed door being solid is simply right, and links can be one-way or closed.
+
+Writing the handler yourself looks like this:
 
 ```lua
 :OnStep("Door", function(agent, step)
@@ -171,6 +224,100 @@ a [Navmesh](/api/Navmesh) refuses paths through that crossing, and a [Ladder](/a
 does what it does on a failed path. A monster that breaks doors is a handler that plays an
 animation, unlocks the door and returns `true`.
 
+## Safe rooms
+
+A safe room is a part tagged `AI_SAFE`, the size of the room. While its `AI_SAFE/Enabled`
+attribute is not `false`, no agent goes in, whatever its brain wants:
+
+- [Navmesh](/api/Navmesh) prices the area at `math.huge`, so it is never planned through.
+- [Straight](/api/Straight) refuses a line that crosses it, so a direct walk never cuts through.
+- [Graph](/api/Graph) skips nodes in it when given `Avoid = VluxyAI.SafeAreas.Contains`.
+- A player standing in it is left out of [Perception.AliveRoots](/api/Perception#AliveRoots), so
+  no sense targets them. A chase stops at the door and the monster goes back to searching.
+- After `VluxyAI.SafeAreas.Setup({ RigGroup = "Monsters" })` on the server, the part is solid to
+  that collision group and to nothing else, so players walk through it and rigs cannot.
+
+Set `AI_SAFE/Enabled` to `false` to switch a room off (a generator failing, a timer running out)
+and back to `true` to make it safe again; every layer follows the attribute. The playground's
+three green rooms have a switch on the wall.
+
+[Sight](/api/Sight) forgets a position remembered inside a safe area and never predicts into one,
+and [Hearing](/api/Hearing) ignores noises made inside one, so nothing follows a player in. For
+the monster to react instead of simply losing interest, add [SafeWatch](/api/SafeWatch): it writes
+`SafeTarget` and `SafePosition` for a player standing in a safe area that it can see, or that it
+was chasing a moment ago (then from anywhere, with `SafeWasChased = true` for a couple of
+seconds, and Sight's memory of them wiped so nothing is left to follow), and
+[States.Stare](/api/States#Stare) is the state that stops and looks at them for a while before
+moving on. SafeWatch also moves its agent out of a room switched on around it, to the nearest of
+the `Spots` you give it (a [Graph](/api/Graph) works) that is outside every safe area.
+
+```lua
+:AddSense(VluxyAI.Senses.SafeWatch.new({ Spots = graph }))
+
+-- in the brain
+Stare = VluxyAI.States.Stare({ Target = "SafePosition", Duration = 4, Cooldown = 20, Then = "Patrol" }),
+{
+	To = "Stare",
+	When = When.All(
+		When.Has("SafeTarget"),
+		When.Any(When.Equals("SafeWasChased", true), When.Timer("States.StareCooldown"))
+	),
+},
+```
+
+## Voice lines
+
+[Voice](/api/Voice) gives a monster random lines by state: groans while it patrols, growls while
+it hunts, a whisper while it creeps up. Add it as a sense; it speaks every `Interval` seconds in
+a state with lines, sometimes as it enters one (`OnEnter`, a chance or a table of chances by
+state), never the same line twice in a row and never over itself.
+
+```lua
+:AddSense(VluxyAI.Voice.new({
+	Lines = {
+		Patrol = { 9113636490, 9113636491 },
+		Hunt = { 105926319962443 },
+		Stare = { 8315677038 }, -- "I see you"
+	},
+	Interval = { 6, 14 },
+	OnEnter = { Stare = 1, Hunt = 0.7, ["*"] = 0.2 },
+}))
+```
+
+The line plays on the server from the rig, so every player hears the same line from the same
+place, and it is announced as a `"Voice"` event for subtitles. Pass `Play` to play it your own
+way instead.
+
+## Hunting for someone they cannot see
+
+An enemy that knows a player is somewhere, but not where, is a shared [Interest](/api/Interest)
+map and three pieces:
+
+```lua
+local clues = VluxyAI.Interest.new({
+	Decay = 0.25, -- clues cool over a minute or so
+	Visited = 40, -- an enemy leaves a spot it just checked alone this long
+	Clues = { -- what each kind of noise is worth; a footstep is not a clue
+		Door = { Radius = 28, Heat = 5 },
+		Running = { Radius = 24, Heat = 1.5 },
+		Footstep = { Radius = 0, Heat = 0 },
+	},
+})
+clues:AddAll(roomCentres, { Skip = VluxyAI.SafeAreas.Contains })
+noises:Connect(function(position, loudness, kind)
+	clues:Heard(position, loudness, kind)
+end)
+
+-- per enemy
+:AddSense(VluxyAI.Senses.Clues.new(clues)) -- a sighting warms the map for everyone
+:SetData({ Interest = clues })
+Search = VluxyAI.States.Roam({ Interest = "Interest", Stray = 0.2 }), -- the warmest spot, now and then any
+```
+
+[PlayerNoise](/api/PlayerNoise) turns how fast players move into those noises, and
+[Hideout](/api/Hideout) with [States.Burrow](/api/States#Burrow) gives an enemy that vanishes
+somewhere to come back: the most suspicious spot nobody can see.
+
 ## Scares that do not kill
 
 `Kill = "Scare"` on the attack state makes every blow a grab: the same hold and animations as a
@@ -180,6 +327,11 @@ your own. A game that keeps health somewhere other than the Humanoid gives the a
 `Health` provider with `Get`, `Damage` and optionally `Kill`.
 
 ## Standing still, staring, vanishing
+
+A statue should not breathe while it is watched: `VluxyAI.Locomotion.Freeze(agent, true)` holds
+every animation in its pose and `false` lets them run again. The playground's Weeping Angel calls
+it every tick from a two-line sense with `IsWatched` from [Watched](/api/Watched).
+
 
 `agent:SetSpeed(speed, seconds)` ramps to a speed over time, so a lunge builds and a stop
 settles instead of snapping.

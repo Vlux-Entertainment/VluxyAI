@@ -362,4 +362,48 @@ return {
 			d.Steps = { Door = { Handler = function() end, Tags = "x" } }
 		end, "Definition.Steps.Door.Tags is not a field VluxyAI knows")
 	end,
+
+	["Direct needs a pathfinder, a mover and a FindPath"] = function(expect)
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Direct = Fakes.Pathfinder()
+		Validate.Definition(definition)
+
+		failsWith(expect, function(d)
+			d.Direct = {}
+		end, "Definition.Direct")
+		failsWith(expect, function(d)
+			d.Pathfinder = nil
+			d.Mover = nil
+			d.Direct = Fakes.Pathfinder()
+		end, "Definition.Direct needs a Pathfinder and a Mover")
+	end,
+
+	["the direct navigation options are checked"] = function(expect)
+		failsWith(expect, function(d)
+			d.Navigation = { DirectInterval = 0 }
+		end, "Definition.Navigation.DirectInterval must be a number above 0, got 0")
+		failsWith(expect, function(d)
+			d.Navigation = { DirectStuckTime = 0 }
+		end, "Definition.Navigation.DirectStuckTime must be a number above 0, got 0")
+		failsWith(expect, function(d)
+			d.Navigation = { DirectCooldown = -1 }
+		end, "Definition.Navigation.DirectCooldown must be a number of 0 or more, got -1")
+
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Navigation = { DirectCooldown = 0 }
+		Validate.Definition(definition)
+	end,
+
+	["a step registration's Ready must be a function"] = function(expect)
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Steps = { Door = { Handler = function() end, Ready = function() end } }
+		Validate.Definition(definition)
+
+		failsWith(expect, function(d)
+			d.Steps = { Door = { Handler = function() end, Ready = true } }
+		end, "Definition.Steps.Door.Ready must be a function")
+	end,
 }
