@@ -33,6 +33,7 @@ classOrder = [
     "Awareness",
     "Watched",
     "Surroundings",
+    "Neighbours",
     "Throttle",
     "Perception",
     "Broadcaster",

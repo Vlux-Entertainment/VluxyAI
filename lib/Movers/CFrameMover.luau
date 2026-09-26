@@ -66,6 +66,7 @@ type self = {
 	_bestDistance: number,
 	_stuckTime: number,
 	_facing: Vector3?,
+	_nudge: Vector3?,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
@@ -248,6 +249,7 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_bestDistance = math.huge,
 		_stuckTime = 0,
 		_facing = nil,
+		_nudge = nil,
 		_destroyed = false,
 
 		_cleaner = cleaner,
@@ -294,6 +296,9 @@ function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
 	end
 
 	local goal = step.Position + Vector3.new(0, self._heightOffset or 0, 0)
+	if self._nudge ~= nil and index < #path then
+		goal += self._nudge
+	end
 	local pivot, reached =
 		CFrameMover.Advance(self._target:GetPivot(), goal, self._speed, self._options.TurnSpeed, deltaTime)
 	self._target:PivotTo(pivot)
@@ -398,6 +403,17 @@ function CFrameMover.Face(self: CFrameMover, position: Vector3?)
 		local turned = CFrameMover.Advance(pivot, goal, 0, self._options.TurnSpeed, deltaTime)
 		self._target:PivotTo(turned)
 	end)
+end
+
+--[=[
+	@within CFrameMover
+	@param offset Vector3? -- Added to every step but the last; `nil` clears.
+
+	A sideways push from a steering sense such as [Neighbours]. Takes effect on the next
+	Heartbeat.
+]=]
+function CFrameMover.SetNudge(self: CFrameMover, offset: Vector3?)
+	self._nudge = offset
 end
 
 --[=[

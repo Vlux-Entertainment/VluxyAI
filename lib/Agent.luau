@@ -46,6 +46,8 @@ type self = {
 	_eventsClosed: boolean,
 	_timers: { [string]: number },
 	_acknowledged: { [string]: any },
+	_baseSpeed: number,
+	_speedScale: number,
 	_stateEnteredAt: number?,
 	_paused: boolean,
 	_pausedAt: number,
@@ -103,6 +105,8 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_eventsClosed = false,
 		_timers = {},
 		_acknowledged = {},
+		_baseSpeed = if definition.Mover then definition.Mover:GetSpeed() else 0,
+		_speedScale = 1,
 		_stateEnteredAt = nil,
 		_paused = false,
 		_pausedAt = 0,
@@ -400,14 +404,50 @@ end
 
 --[=[
 	@within Agent
-	@param speed number -- Studs per second.
+	@param speed number -- Studs per second, before the speed scale.
 
-	Shorthand for `agent.Mover:SetSpeed(speed)`. Does nothing without a mover.
+	The agent's base speed: what a state asks for. The mover gets `speed` times the speed scale
+	([Agent:SetSpeedScale]), so a crowd ease or a slow-motion effect layered on top survives a
+	state changing its own speed. Does nothing without a mover.
 ]=]
 function Agent.SetSpeed(self: Agent, speed: number)
+	self._baseSpeed = speed
 	if self.Mover then
-		self.Mover:SetSpeed(speed)
+		self.Mover:SetSpeed(speed * self._speedScale)
 	end
+end
+
+--[=[
+	@within Agent
+	@param scale number -- A multiplier on the base speed; `1` is none, `0.5` half speed.
+
+	Layered on top of whatever [Agent:SetSpeed] asked for, and kept across state changes. The
+	[Neighbours] sense eases through this; a director or a stun can too.
+]=]
+function Agent.SetSpeedScale(self: Agent, scale: number)
+	if scale == self._speedScale then
+		return
+	end
+	self._speedScale = scale
+	if self.Mover then
+		self.Mover:SetSpeed(self._baseSpeed * scale)
+	end
+end
+
+--[=[
+	@within Agent
+	@return number -- The current speed scale, `1` unless something set it.
+]=]
+function Agent.GetSpeedScale(self: Agent): number
+	return self._speedScale
+end
+
+--[=[
+	@within Agent
+	@return number -- The base speed the last `SetSpeed` asked for, before the scale.
+]=]
+function Agent.GetSpeed(self: Agent): number
+	return self._baseSpeed
 end
 
 --[=[

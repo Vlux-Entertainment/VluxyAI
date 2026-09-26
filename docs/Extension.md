@@ -12,9 +12,10 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
 The built-ins are [Sight](/api/Sight), [Proximity](/api/Proximity), [Hearing](/api/Hearing),
 [Sounds](/api/Sounds) (the tagged `Sound` instances the world is playing, rolled off by distance),
-[Awareness](/api/Awareness) (a detection meter fed by the others), [Watched](/api/Watched) and
+[Awareness](/api/Awareness) (a detection meter fed by the others), [Watched](/api/Watched),
 [Surroundings](/api/Surroundings) (a ring of rays for the nearest obstacle and the most open
-direction), plus [Throttle](/api/Throttle) to run any of them less often; the playground's
+direction) and [Neighbours](/api/Neighbours) (the other agents of a group, with an optional
+speed ease and sideways nudge), plus [Throttle](/api/Throttle) to run any of them less often; the playground's
 Hunter carries a stamina sense written in a dozen lines. Every built-in takes a `Prefix` so two
 of a kind can coexist, and has `Configure` to change its options after construction.
 It writes to `agent.Blackboard` and reads nothing from states. Document the keys you write, use

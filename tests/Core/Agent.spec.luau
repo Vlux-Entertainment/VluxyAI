@@ -603,4 +603,31 @@ return {
 		local bare = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
 		bare:LookAt(Vector3.new(1, 0, 0))
 	end,
+
+	["SetSpeedScale layers on the base speed and survives SetSpeed"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		mover.Speed = 12
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+
+		expect.equal(agent:GetSpeed(), 12, "the base speed starts as the mover's")
+		expect.equal(agent:GetSpeedScale(), 1)
+		agent:SetSpeedScale(0.5)
+		expect.equal(mover.Speed, 6)
+		agent:SetSpeed(20)
+		expect.equal(mover.Speed, 10, "a state's speed is still scaled")
+		expect.equal(agent:GetSpeed(), 20)
+		agent:SetSpeedScale(1)
+		expect.equal(mover.Speed, 20)
+
+		local bare = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:SetSpeedScale(0.5)
+		bare:SetSpeed(3)
+		expect.equal(bare:GetSpeed(), 3, "harmless without a mover")
+	end,
 }

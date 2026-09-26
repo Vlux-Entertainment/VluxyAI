@@ -154,6 +154,25 @@ agent:SetSpeed(director:Scale(BASE_SPEED, 0.5)) -- up to half again at full tens
 Every built-in sense has `Configure`, so the director can widen a cone or shorten a memory
 mid-round without rebuilding the agent.
 
+Bodies are the other half. [Neighbours](/api/Neighbours) is one instance shared by a group:
+every enemy that adds it sees the others as `NearbyAgents`, `NearestAgentDistance`, `Crowding`
+and `SeparationDirection`. Two options turn the knowledge into behaviour, and both are off
+unless asked for, because a swarm should crowd:
+
+```lua
+local crowd = VluxyAI.Senses.Neighbours.new({
+	Range = 10,
+	Slow = { Distance = 5, Min = 0.5 },  -- ease to half speed as the nearest neighbour closes in
+	Avoid = { Radius = 4 },              -- push the mover sideways within four studs
+})
+:AddSense(crowd) -- on each enemy in the group
+```
+
+`Slow` goes through `agent:SetSpeedScale`, a multiplier kept on top of whatever speed a state
+asks for. `Avoid` goes through the mover's `SetNudge`, which aims at every step but the last
+plus the offset. Two groups that should ignore each other use two instances; `Filter` excludes
+one kind from another.
+
 ## Keeping it cheap
 
 Sight costs a ray per target per tick. Wrap it in [Throttle](/api/Throttle) to run it every

@@ -462,4 +462,15 @@ return {
 		expectVector(expect, s.pivot.Pivot.LookVector, look.X, look.Y, look.Z, "facing kept")
 		expect.falsy(s.mover:IsMoving())
 	end,
+
+	["SetNudge offsets every step but the last"] = function(expect)
+		local s = setup({ Speed = 100, HeightOffset = 0 })
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0), step(8, 0, 0) })
+		s.heartbeat:Fire(0.1)
+		s.heartbeat:Fire(0.1)
+		expectVector(expect, s.pivot.Pivot.Position, 4, 0, 2, "the middle step is nudged")
+		s.heartbeat:Fire(0.1)
+		expectVector(expect, s.pivot.Pivot.Position, 8, 0, 0, "the last step is exact")
+	end,
 }

@@ -499,4 +499,23 @@ return {
 		expect.falsy(s.mover:IsMoving())
 		expect.sequence(pivots, { Vector3.new(50, 3, 50) })
 	end,
+
+	["SetNudge aims MoveTo at the step plus the offset, never at the last step"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0), step(8, 0, 0) })
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0))
+
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 2), "re-issued at once")
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		local count = #s.humanoid.MoveTos
+		expect.equal(count, 2, "the same nudge is not re-issued")
+
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(8, 0, 0), "the last step is exact")
+
+		s.mover:SetNudge(nil)
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0), "cleared")
+	end,
 }

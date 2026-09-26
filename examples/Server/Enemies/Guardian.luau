@@ -141,6 +141,7 @@ local function Guardian(model: Model, context: Context.Context): VluxyAI.Agent
 		}))
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = WANDER_SPEED }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 40, FieldOfView = 160, Memory = 2 }))
+		:AddSense(context.Crowd)
 		:SetData({ Home = model:GetPivot().Position, Random = context.Random, Noises = context.Noises })
 		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()

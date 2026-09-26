@@ -54,6 +54,7 @@ type self = {
 	_bestDistance: number,
 	_stuckTime: number,
 	_facing: Vector3?,
+	_nudge: Vector3?,
 	_destroyed: boolean,
 
 	_cleaner: Cleaner.Cleaner,
@@ -188,6 +189,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		_bestDistance = math.huge,
 		_stuckTime = 0,
 		_facing = nil,
+		_nudge = nil,
 		_destroyed = false,
 
 		_cleaner = cleaner,
@@ -222,6 +224,18 @@ function HumanoidMover._finish(self: HumanoidMover, reached: boolean)
 end
 
 --[[
+	Where the rig is told to go for step `index`: the step, nudged sideways unless it is the last.
+]]
+function HumanoidMover._goalOf(self: HumanoidMover, path: Types.Path, index: number): Vector3
+	local position = path[index].Position
+	local nudge = self._nudge
+	if nudge ~= nil and index < #path then
+		return position + nudge
+	end
+	return position
+end
+
+--[[
 	Starts walking toward step `index` of the current path, jumping if the step says so, and
 	restarts the stuck clock.
 ]]
@@ -241,7 +255,7 @@ function HumanoidMover._walkTo(self: HumanoidMover, index: number)
 		self._humanoid.Jump = true
 	end
 
-	self._humanoid:MoveTo(step.Position)
+	self._humanoid:MoveTo(self:_goalOf(path, index))
 end
 
 --[[
@@ -284,7 +298,7 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 		if self:_isStuck() then
 			self:_finish(false)
 		else
-			self._humanoid:MoveTo(path[self._index].Position)
+			self._humanoid:MoveTo(self:_goalOf(path, self._index))
 		end
 		return
 	end
@@ -401,6 +415,25 @@ function HumanoidMover.Face(self: HumanoidMover, position: Vector3?)
 		local yaw = math.atan2(-offset.X, -offset.Z)
 		root.CFrame = CFrame.new(from) * CFrame.Angles(0, yaw, 0)
 	end)
+end
+
+--[=[
+	@within HumanoidMover
+	@param offset Vector3? -- Added to every step but the last; `nil` clears.
+
+	A sideways push from a steering sense such as [Neighbours]. Re-issues the current `MoveTo`
+	when the nudge changes, so the rig turns at once.
+]=]
+function HumanoidMover.SetNudge(self: HumanoidMover, offset: Vector3?)
+	if offset == self._nudge then
+		return
+	end
+	self._nudge = offset
+
+	local path = self._path
+	if path ~= nil and self._index >= 1 and self._index <= #path then
+		self._humanoid:MoveTo(self:_goalOf(path, self._index))
+	end
 end
 
 --[=[

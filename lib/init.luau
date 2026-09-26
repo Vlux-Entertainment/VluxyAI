@@ -37,6 +37,7 @@ local Straight = require(script.Pathfinders.Straight)
 
 local Awareness = require(script.Senses.Awareness)
 local Hearing = require(script.Senses.Hearing)
+local Neighbours = require(script.Senses.Neighbours)
 local Perception = require(script.Senses.Perception)
 local Proximity = require(script.Senses.Proximity)
 local Sight = require(script.Senses.Sight)
@@ -242,11 +243,12 @@ VluxyAI.Movers = {
 
 --[=[
 	@within VluxyAI
-	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Throttle: Throttle }
+	@prop Senses { Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Neighbours: Neighbours, Throttle: Throttle }
 
 	The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the
 	tagged `Sound` instances the world is already playing; [Awareness] turns what the others
-	wrote into a detection meter.
+	wrote into a detection meter; [Neighbours] is the group sense, so enemies sharing a map
+	know about each other and, when asked, keep out of each other's way.
 ]=]
 VluxyAI.Senses = {
 	Sight = Sight,
@@ -256,6 +258,7 @@ VluxyAI.Senses = {
 	Awareness = Awareness,
 	Watched = Watched,
 	Surroundings = Surroundings,
+	Neighbours = Neighbours,
 	Throttle = Throttle,
 }
 

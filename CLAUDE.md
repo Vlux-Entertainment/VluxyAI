@@ -53,8 +53,10 @@ lib/
   Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
   Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait); scratch in agent.Data
   Director.luau      tension meter, difficulty, shared blackboard for a group; director:Sense()
-  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Throttle:
-                     Tick(agent, dt) writes the blackboard; all take Prefix and have Configure
+  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Neighbours
+                     (a shared instance is a group; optional Slow via the agent's speed scale and Avoid via
+                     the mover's SetNudge), Throttle: Tick(agent, dt) writes the blackboard; all take Prefix
+                     and have Configure
   Senses/Perception  public helpers the senses are made of (alive roots minus AI_HIDDEN, cones, line of
                      sight with SeeThrough, LightAt over AI_LIGHT, CountWalls, SeenByAnyone, HumanoidOf)
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
@@ -110,6 +112,8 @@ Rules that keep it composable and testable:
   (`SeenAt`, `HeardAt`) are cleared to `nil` when forgotten.
 - Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`. Timers and
   `TimeInState` hold while the agent is paused.
+- `agent:SetSpeed` is the base speed a state asks for; `agent:SetSpeedScale` is a multiplier layered
+  on it (crowding, stuns, the director) that survives state changes. Movers only ever see the product.
 - Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND` and
   `AI_LIGHT`. Prefixed so they do not collide with a project's own.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.

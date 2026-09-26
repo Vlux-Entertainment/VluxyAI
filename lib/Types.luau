@@ -173,6 +173,7 @@ export type Pathfinder = {
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 	.Face ((self: any, position: Vector3?) -> ())? -- Optional. Turn toward `position` while standing still; `nil` stops. [Agent:LookAt] calls it.
 	.Teleport ((self: any, position: Vector3) -> ())? -- Optional. Put the body at `position` at once, dropping any path. [Agent:Teleport] calls it.
+	.SetNudge ((self: any, offset: Vector3?) -> ())? -- Optional. Aim at each step plus `offset` (never the last step), so a steering sense can push the body sideways; `nil` clears. [Neighbours] calls it.
 
 	Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:
 
@@ -199,6 +200,7 @@ export type Mover = {
 	Destroy: ((self: any) -> ())?,
 	Face: ((self: any, position: Vector3?) -> ())?,
 	Teleport: ((self: any, position: Vector3) -> ())?,
+	SetNudge: ((self: any, offset: Vector3?) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -227,8 +229,8 @@ export type Blackboard = { [string]: any }
 	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
 	the blackboard, so one instance may serve many agents and a state may clear a memory early by
 	setting the key to `nil`. Distances are `math.huge` when there is nothing to measure.
-	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Awareness`, `Watched` and
-	`Surroundings`; your own is any table with `Tick`.
+	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Awareness`, `Watched`,
+	`Surroundings` and `Neighbours`; your own is any table with `Tick`.
 ]=]
 export type Sense = {
 	Tick: (self: any, agent: Agent, deltaTime: number) -> (),
@@ -482,7 +484,10 @@ export type AgentDefinition = {
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
 	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
-	.SetSpeed (self: Agent, speed: number) -> () -- Shorthand for `Mover:SetSpeed`. No-op without a mover.
+	.SetSpeed (self: Agent, speed: number) -> () -- The base speed; the mover gets it times the speed scale. No-op without a mover.
+	.SetSpeedScale (self: Agent, scale: number) -> () -- A multiplier layered on the base speed, kept across states. `1` is none.
+	.GetSpeedScale (self: Agent) -> number
+	.GetSpeed (self: Agent) -> number -- The base speed, before the scale.
 	.StartTimer (self: Agent, name: string, seconds: number) -> () -- Starts a named timer.
 	.TimerDone (self: Agent, name: string) -> boolean -- `true` once the timer ran out, or if it was never started.
 	.TimerLeft (self: Agent, name: string) -> number -- Seconds left on the timer, `0` when done.
@@ -525,6 +530,9 @@ export type Agent = {
 	HasArrived: (self: Agent) -> boolean,
 	GetPathStatus: (self: Agent) -> PathStatus,
 	SetSpeed: (self: Agent, speed: number) -> (),
+	SetSpeedScale: (self: Agent, scale: number) -> (),
+	GetSpeedScale: (self: Agent) -> number,
+	GetSpeed: (self: Agent) -> number,
 	StartTimer: (self: Agent, name: string, seconds: number) -> (),
 	TimerDone: (self: Agent, name: string) -> boolean,
 	TimerLeft: (self: Agent, name: string) -> number,

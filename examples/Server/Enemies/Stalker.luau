@@ -98,6 +98,7 @@ local function Stalker(model: Model, context: Context.Context): VluxyAI.Agent
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = PATROL_SPEED }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 45, FieldOfView = 120, Memory = 4 }))
 		:AddSense(VluxyAI.Senses.Hearing.new(context.Noises, { Range = 40, Memory = 6 }))
+		:AddSense(context.Crowd)
 		:SetData({ Nodes = context.Map.PatrolNodes, Random = context.Random })
 		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
