@@ -14,13 +14,17 @@
 ]]
 
 local Options = require(script.Parent.Parent.Utility.Options)
+local SafeAreas = require(script.Parent.Parent.World.SafeAreas)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 -- Two unit directions this close together count as the same line.
-local COLLINEAR_DOT = 0.999
+-- The default turn, in degrees, below which a waypoint is shaved off. Eight degrees is what the
+-- original VluxyAI pathfinding used after a lot of play-testing: fine enough to keep every real
+-- corner, coarse enough that a curve of 2-stud waypoints becomes a few long legs.
+local DEFAULT_SIMPLIFY_ANGLE = 8
 -- Below this, a segment has no direction; a step that close to its neighbour is a duplicate.
 local ZERO_LENGTH = 1e-4
 
@@ -32,7 +36,10 @@ local DEFAULT_OPTIONS = table.freeze({
 	WaypointSpacing = 2,
 	Costs = {} :: { [string]: number },
 	Simplify = true,
+	SimplifyAngle = DEFAULT_SIMPLIFY_ANGLE,
 	CollapseLabels = true,
+	StopBefore = 3,
+	Closest = 4,
 })
 
 --[=[
@@ -44,9 +51,12 @@ local DEFAULT_OPTIONS = table.freeze({
 	.AgentCanJump boolean? -- Passed to `CreatePath`. Default `false`.
 	.AgentCanClimb boolean? -- Passed to `CreatePath`. Default `false`.
 	.WaypointSpacing number? -- Passed to `CreatePath`. Default `2`.
-	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`.
+	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`. The `AI_SAFE` label of a [SafeAreas] area is always added at `math.huge` unless you set it yourself.
 	.Simplify boolean? -- Run [Navmesh.Simplify] over every path. Default `true`.
+	.SimplifyAngle number? -- Degrees: a waypoint whose turn is smaller than this is shaved off by [Navmesh.Simplify]. Default `8`.
 	.CollapseLabels boolean? -- Run [Navmesh.CollapseLabels] over every path, so a `PathfindingModifier` volume that labels several waypoints in a row yields one labelled step, like a link. Default `true`.
+	.StopBefore number? -- Run [Navmesh.StopBefore] with this many studs, so the agent stops at the waypoint before a doorway instead of inside the closed door. `0` turns it off. Default `3`.
+	.Closest number? -- Accept a `ClosestNoPath` result whose last waypoint is within this many horizontal studs of the goal, such as a player standing closer to a wall than the agent's radius. `0` turns it off. Default `4`.
 ]=]
 export type Options = {
 	AgentRadius: number?,
@@ -56,7 +66,10 @@ export type Options = {
 	WaypointSpacing: number?,
 	Costs: { [string]: number }?,
 	Simplify: boolean?,
+	SimplifyAngle: number?,
 	CollapseLabels: boolean?,
+	StopBefore: number?,
+	Closest: number?,
 }
 
 type ResolvedOptions = {
@@ -67,7 +80,10 @@ type ResolvedOptions = {
 	WaypointSpacing: number,
 	Costs: { [string]: number },
 	Simplify: boolean,
+	SimplifyAngle: number,
 	CollapseLabels: boolean,
+	StopBefore: number,
+	Closest: number,
 }
 
 type Closure = {
@@ -126,7 +142,7 @@ function Navmesh.new(options: Options?): Types.Pathfinder
 		AgentCanJump = resolved.AgentCanJump,
 		AgentCanClimb = resolved.AgentCanClimb,
 		WaypointSpacing = resolved.WaypointSpacing,
-		Costs = resolved.Costs,
+		Costs = Navmesh.WithSafeAreas(resolved.Costs),
 	})
 
 	local blocked = Signal.new()
@@ -153,7 +169,7 @@ end
 	Is `middle` on the straight line from `before` to `after`, close enough to be dropped? A step
 	on top of either neighbour is a duplicate and counts as on the line.
 ]]
-local function isCollinear(before: Vector3, middle: Vector3, after: Vector3): boolean
+local function isCollinear(before: Vector3, middle: Vector3, after: Vector3, minimumDot: number): boolean
 	local into = middle - before
 	local out = after - middle
 
@@ -161,22 +177,25 @@ local function isCollinear(before: Vector3, middle: Vector3, after: Vector3): bo
 		return true
 	end
 
-	return into.Unit:Dot(out.Unit) > COLLINEAR_DOT
+	return into.Unit:Dot(out.Unit) > minimumDot
 end
 
 --[=[
 	@within Navmesh
 	@param path Path
+	@param angle number? -- Degrees; a step turning less than this is dropped. Default `8`.
 	@return Path -- A new path; the input is not modified.
 
-	Removes interior Walk steps that lie on the straight line between the last kept step and the
-	next one, so a mover walks one long segment instead of many short collinear ones. Pure.
+	Shaves off interior Walk steps that turn less than `angle` from the line through the last kept
+	step, so a mover walks a few long legs instead of stopping to turn at every 2-stud waypoint of
+	a gentle curve. Pure.
 
 	Always kept: the first and last step, every Jump or Custom step, every step with a Label, and
 	the step immediately before a Jump (the jump origin matters). A path of two or fewer steps
 	comes back as a copy.
 ]=]
-function Navmesh.Simplify(path: Types.Path): Types.Path
+function Navmesh.Simplify(path: Types.Path, angle: number?): Types.Path
+	local minimumDot = math.cos(math.rad(angle or DEFAULT_SIMPLIFY_ANGLE))
 	local count = #path
 	if count <= 2 then
 		return table.clone(path)
@@ -190,7 +209,7 @@ function Navmesh.Simplify(path: Types.Path): Types.Path
 		local nextStep = path[index + 1]
 
 		local removable = step.Action == "Walk" and step.Label == nil and nextStep.Action ~= "Jump"
-		if removable and isCollinear(lastKept.Position, step.Position, nextStep.Position) then
+		if removable and isCollinear(lastKept.Position, step.Position, nextStep.Position, minimumDot) then
 			continue
 		end
 
@@ -231,21 +250,118 @@ end
 
 --[=[
 	@within Navmesh
+	@param costs { [string]: number }
+	@return { [string]: number } -- A copy with the [SafeAreas] label at `math.huge`, unless `costs` already prices it.
+
+	Why a navmesh never plans into an enabled safe area. Pure.
+]=]
+function Navmesh.WithSafeAreas(costs: { [string]: number }): { [string]: number }
+	local merged = table.clone(costs)
+	if merged[SafeAreas.LABEL] == nil then
+		merged[SafeAreas.LABEL] = math.huge
+	end
+	return merged
+end
+
+--[=[
+	@within Navmesh
+	@param path Path
+	@param distance number -- Studs. The step before must be at most this far from the labelled one.
+	@return Path -- A new path; the input is not modified.
+
+	Moves each label back onto the plain `Walk` step before it, when that step is within
+	`distance`, so the agent stops outside a doorway rather than walking into the closed door to
+	reach a waypoint inside it. The labelled step it came from becomes a plain `Walk`, kept so
+	the agent still walks through. A step after a `Jump`, a labelled one, or one too far away
+	keeps its label. Run it before [Navmesh.Simplify], whose dropped waypoints would otherwise be
+	the ones to stop at. Pure.
+]=]
+function Navmesh.StopBefore(path: Types.Path, distance: number): Types.Path
+	local moved: Types.Path = table.create(#path)
+	for index, step in path do
+		moved[index] = table.clone(step)
+	end
+
+	for index = 2, #moved do
+		local step = moved[index]
+		local before = moved[index - 1]
+		local canMove = step.Label ~= nil
+			and before.Label == nil
+			and before.Action == "Walk"
+			and (step.Position - before.Position).Magnitude <= distance
+		if canMove then
+			before.Label = step.Label
+			before.Instance = step.Instance
+			before.Action = step.Action
+			step.Label = nil
+			step.Instance = nil
+			step.Action = "Walk"
+		end
+	end
+
+	return moved
+end
+
+--[=[
+	@within Navmesh
+	@param path Path
+	@param goal Vector3
+	@param distance number -- Horizontal studs.
+	@return boolean -- `true` when the path's last step is within `distance` of `goal`, ignoring height.
+
+	Whether a partial path gets close enough to count. Pure.
+]=]
+function Navmesh.EndsNear(path: Types.Path, goal: Vector3, distance: number): boolean
+	local last = path[#path]
+	if last == nil then
+		return false
+	end
+	local offset = last.Position - goal
+	return Vector3.new(offset.X, 0, offset.Z).Magnitude <= distance
+end
+
+-- Material names, the label Roblox gives a waypoint nothing else labelled. Built on first use.
+local materialNames: { [string]: boolean }? = nil
+
+--[[
+	Is `label` just the name of an `Enum.Material`?
+]]
+local function isMaterialName(label: string): boolean
+	local names = materialNames
+	if names == nil then
+		local built: { [string]: boolean } = {}
+		for _, item in Enum.Material:GetEnumItems() do
+			built[item.Name] = true
+		end
+		materialNames = built
+		names = built
+	end
+	return (names :: { [string]: boolean })[label] == true
+end
+
+--[=[
+	@within Navmesh
 	@param waypoints { PathWaypoint }
 	@return Path
 
-	Converts `Path:GetWaypoints()` output to Steps: `Action` is the waypoint action's name and an
-	empty `Label` becomes `nil`. Pure; any table shaped like a waypoint works.
+	Converts `Path:GetWaypoints()` output to Steps: `Action` is the waypoint action's name, and an
+	empty `Label` or one that is only the floor's material name becomes `nil`. Roblox labels every
+	waypoint with the material under it (`"Plastic"`, `"Grass"`) when no modifier or link labels
+	it; kept, every step of an ordinary path would share a label and [Navmesh.CollapseLabels]
+	would merge the whole path into its first step. A modifier label that happens to be a material
+	name is dropped with them, so name modifier regions something else. Pure; any table shaped
+	like a waypoint works.
 ]=]
 function Navmesh.FromWaypoints(waypoints: { PathWaypoint }): Types.Path
 	local path: Types.Path = table.create(#waypoints)
 
 	for index, waypoint in waypoints do
 		local label = waypoint.Label
+		local meaningful = label ~= nil and label ~= "" and not isMaterialName(label)
 		path[index] = {
 			Position = waypoint.Position,
 			Action = waypoint.Action.Name :: Types.StepAction,
-			Label = if label ~= nil and label ~= "" then label else nil,
+			Label = if meaningful then label else nil,
 		}
 	end
 
@@ -278,16 +394,28 @@ function Navmesh.FindPath(self: Navmesh, from: Vector3, to: Vector3, agent: Type
 		return nil, tostring(err)
 	end
 
-	if path.Status ~= Enum.PathStatus.Success then
+	local steps: Types.Path
+	if path.Status == Enum.PathStatus.Success then
+		steps = Navmesh.FromWaypoints(path:GetWaypoints())
+	elseif path.Status == Enum.PathStatus.ClosestNoPath and self._options.Closest > 0 then
+		-- The goal is off the mesh (a player hugging a wall); the path to the nearest point is
+		-- good enough when that point is close.
+		steps = Navmesh.FromWaypoints(path:GetWaypoints())
+		if not Navmesh.EndsNear(steps, to, self._options.Closest) then
+			return nil, path.Status.Name
+		end
+	else
 		return nil, path.Status.Name
 	end
 
-	local steps = Navmesh.FromWaypoints(path:GetWaypoints())
 	if self._options.CollapseLabels then
 		steps = Navmesh.CollapseLabels(steps)
 	end
+	if self._options.StopBefore > 0 then
+		steps = Navmesh.StopBefore(steps, self._options.StopBefore)
+	end
 	if self._options.Simplify then
-		steps = Navmesh.Simplify(steps)
+		steps = Navmesh.Simplify(steps, self._options.SimplifyAngle)
 	end
 
 	local closed = self:_closedStep(steps)

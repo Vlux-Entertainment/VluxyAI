@@ -8,8 +8,8 @@
 	leash distance from home, and walks back when the intruder gets away.
 
 	Shows: a brain built around a place (Data.Home), a leash implemented as two transitions,
-	an agent producing a noise for others' Hearing, and Sight with a shorter Memory so it gives
-	up chasing quickly.
+	an agent producing a noise for others' Hearing, and a chase that follows where the intruder was
+	heading until the leash pulls it home.
 
 	Blackboard (from Sight): SeenTarget, SeenDistance, SeenPosition. Data: Home, Random, Noises.
 	Timers: Attack, Alert, Wander.
@@ -21,17 +21,27 @@ local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 local WANDER_SPEED = 8
-local CHASE_SPEED = 14
+-- Above a walking player (16), so an intruder has to run; the leash keeps it fair.
+local CHASE_SPEED = 18
 local ZONE_RADIUS = 20
+-- The maze's cell size (Map.luau) and the cells a wander may end in, as offsets from home.
+local CELL = 16
+local WANDER_CELLS = {
+	Vector3.new(0, 0, 0),
+	Vector3.new(1, 0, 0),
+	Vector3.new(-1, 0, 0),
+	Vector3.new(0, 0, 1),
+	Vector3.new(0, 0, -1),
+}
 local LEASH_RADIUS = 34
 local ATTACK_RANGE = 4
+-- A player this close is noticed whichever way it faces, so creeping up behind it does not work.
+local NOTICE_RADIUS = 10
 -- Hearing hears a noise within Range * loudness; the Stalker's Range is 40, so 3 reaches 120
 -- studs, most of the maze.
 local ALARM_LOUDNESS = 3
 
-local function flat(a: Vector3, b: Vector3): number
-	return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
-end
+local flat = VluxyAI.Tables.FlatDistance
 
 local function intruder(agent: VluxyAI.Agent): boolean
 	local seen = agent.Blackboard.SeenPosition
@@ -41,6 +51,17 @@ end
 local function beyondLeash(agent: VluxyAI.Agent): boolean
 	local seen = agent.Blackboard.SeenPosition
 	return seen == nil or flat(seen, agent.Data.Home) > LEASH_RADIUS
+end
+
+-- The one it was chasing just got into a safe room, or it sees someone in one and has not just
+-- stood and stared at them.
+local safeSighted = VluxyAI.When.SafeSighted()
+
+-- A noise inside its zone that it has not already gone to look at.
+local heardNew = VluxyAI.When.New("HeardAt")
+local function heardInZone(agent: VluxyAI.Agent): boolean
+	local heard = agent.Blackboard.HeardPosition
+	return heard ~= nil and flat(heard, agent.Data.Home) <= LEASH_RADIUS and heardNew(agent)
 end
 
 local function inReach(agent: VluxyAI.Agent): boolean
@@ -63,6 +84,7 @@ local Brain: VluxyAI.Brain = {
 			end,
 			Transitions = {
 				{ To = "Alert", When = intruder },
+				{ To = "Investigate", When = heardInZone },
 				-- Re-enter to wait again once a wander ends.
 				{
 					To = "Guard",
@@ -73,12 +95,11 @@ local Brain: VluxyAI.Brain = {
 			},
 			Update = function(agent: VluxyAI.Agent)
 				if agent:GetPathStatus() == "Idle" and agent:TimerDone("Wander") then
+					-- Its own cell or a neighbour's, near the middle: always open floor, never a wall.
 					local random = agent.Data.Random :: Random
-					local angle = random:NextNumber(0, math.pi * 2)
-					local distance = random:NextNumber(4, ZONE_RADIUS)
-					agent:MoveTo(
-						agent.Data.Home + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
-					)
+					local cell = WANDER_CELLS[random:NextInteger(1, #WANDER_CELLS)]
+					local jitter = Vector3.new(random:NextNumber(-4, 4), 0, random:NextNumber(-4, 4))
+					agent:MoveTo(agent.Data.Home + cell * CELL + jitter)
 				end
 				return nil
 			end,
@@ -90,7 +111,7 @@ local Brain: VluxyAI.Brain = {
 				agent:StartTimer("Alert", 0.8)
 				VluxyAI.Locomotion.Play(agent, "Attack")
 				-- The alarm is a loud noise at the guardian's position; whoever listens, listens.
-				agent.Data.Noises:Fire(agent:GetPosition(), ALARM_LOUDNESS)
+				agent.Data.Noises:Fire(agent:GetPosition(), ALARM_LOUDNESS, "Alarm")
 			end,
 			Transitions = {
 				{
@@ -108,10 +129,21 @@ local Brain: VluxyAI.Brain = {
 			end,
 			Transitions = {
 				{ To = "Attack", When = inReach },
+				{ To = "Stare", When = safeSighted },
 				{ To = "Return", When = beyondLeash },
+				-- Reached where they were heading and nobody is there: go home.
+				{
+					To = "Return",
+					When = function(agent: VluxyAI.Agent)
+						return agent.Blackboard.SeenTarget == nil and arrivedOrFailed(agent)
+					end,
+				},
 			},
 			Update = function(agent: VluxyAI.Agent)
-				agent:MoveTo(agent.Blackboard.SeenPosition)
+				local heading = agent.Blackboard.PredictedPosition or agent.Blackboard.SeenPosition
+				if heading then
+					agent:MoveTo(heading)
+				end
 				return nil
 			end,
 		},
@@ -127,23 +159,58 @@ local Brain: VluxyAI.Brain = {
 			},
 		},
 
+		-- Something moved on its ground: go and look, then back to guarding.
+		Investigate = VluxyAI.States.Investigate({
+			Target = "HeardPosition",
+			Speed = WANDER_SPEED + 2,
+			Then = "Return",
+			Transitions = { { To = "Alert", When = intruder } },
+		}),
+
+		-- The intruder reached a safe room: glare at them a moment, then back to guarding as normal,
+		-- unless they step back out onto its ground where it can see them.
+		Stare = VluxyAI.States.Stare({
+			Target = "SafePosition",
+			Duration = 4,
+			Cooldown = 20,
+			Then = "Guard",
+			Transitions = { { To = "Chase", When = intruder } },
+		}),
+
 		Attack = VluxyAI.Combat.Attack.State({ Damage = 20, Cooldown = 1.2, TargetKey = "SeenTarget", Then = "Chase" }),
 	},
 }
 
 local function Guardian(model: Model, context: Context.Context): VluxyAI.Agent
-	return VluxyAI.new(model)
+	return VluxyAI
+		.Presets
+		.Humanoid(model, {
+			Graph = context.Graph,
+			Doors = true,
+			Mover = { Speed = WANDER_SPEED },
+			Sight = { Range = 40, FieldOfView = 160, Memory = 5, Predict = 2, NoticeRadius = NOTICE_RADIUS },
+		})
 		:SetName("Guardian")
 		:UseBrain(Brain)
-		:UsePathfinder(VluxyAI.Pathfinders.Ladder.new({
-			VluxyAI.Pathfinders.Straight.new(),
-			VluxyAI.Pathfinders.Navmesh.new(),
-		}))
-		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = WANDER_SPEED }))
-		:AddSense(VluxyAI.Senses.Sight.new({ Range = 40, FieldOfView = 160, Memory = 2 }))
+		-- It hears footsteps on its ground too.
+		:AddSense(
+			VluxyAI.Senses.Hearing.new(context.Noises, { Range = 40, Memory = 4 })
+		)
+		-- Mostly quiet on guard; a growl as it chases, a laugh at the intruder who made it to safety.
+		:AddSense(
+			VluxyAI.Voice.new({
+				Lines = {
+					Guard = { 9113636681 },
+					Chase = { 105926319962443, 129294628821291 },
+					Stare = { 89425134113608 },
+				},
+				Interval = { 10, 20 },
+				OnEnter = { Chase = 0.8, Stare = 1, ["*"] = 0 },
+				Volume = 0.56,
+			})
+		)
 		:AddSense(context.Crowd)
 		:SetData({ Home = model:GetPivot().Position, Random = context.Random, Noises = context.Noises })
-		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
 end
 

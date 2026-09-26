@@ -13,10 +13,10 @@
 	"already looked there".
 ]]
 
-local FormatMessage = require(script.Parent.Utility.FormatMessage)
-local Options = require(script.Parent.Utility.Options)
-local Types = require(script.Parent.Types)
-local Utility = require(script.Parent.Brain.Utility)
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Options = require(script.Parent.Parent.Utility.Options)
+local Types = require(script.Parent.Parent.Types)
+local Utility = require(script.Parent.Parent.Brain.Utility)
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -24,6 +24,9 @@ local DEFAULT_OPTIONS = table.freeze({
 	Decay = 0.1,
 	Visited = 30,
 	Key = "Interest",
+	NoiseRadius = 24,
+	NoiseHeat = 2,
+	Clues = {} :: { [string]: Clue },
 })
 
 --[=[
@@ -33,17 +36,38 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Decay number? -- Strength drifts back toward a point's base at this much per second. Default `0.1`.
 	.Visited number? -- Seconds a point stays uninteresting to an agent that just looked there. Default `30`.
 	.Key string? -- The `agent.Data` key visits are remembered under. Default `"Interest"`.
+	.NoiseRadius number? -- How far [Interest:Heard] spreads a noise whose kind has no entry in `Clues`. Default `24`.
+	.NoiseHeat number? -- How much such a noise raises the points at its centre, per unit of loudness. Default `2`.
+	.Clues { [string]: Clue }? -- How each kind of noise counts, by the kind passed to [Interest:Heard]: a door or an alarm is a big clue, a footstep none at all. Default `{}`.
 ]=]
 export type InterestOptions = {
 	Decay: number?,
 	Visited: number?,
 	Key: string?,
+	NoiseRadius: number?,
+	NoiseHeat: number?,
+	Clues: { [string]: Clue }?,
+}
+
+--[=[
+	@interface Clue
+	@within Interest
+
+	.Radius number -- Studs the clue spreads; points further away are not raised. `0` makes the kind no clue at all.
+	.Heat number -- How much it raises a point at its centre, less with distance, whatever the noise's loudness.
+]=]
+export type Clue = {
+	Radius: number,
+	Heat: number,
 }
 
 type ResolvedOptions = {
 	Decay: number,
 	Visited: number,
 	Key: string,
+	NoiseRadius: number,
+	NoiseHeat: number,
+	Clues: { [string]: Clue },
 }
 
 --[=[
@@ -86,12 +110,14 @@ export type InterestPointOptions = {
 	.Tags { string }? -- Only points carrying one of these tags.
 	.Exclude { any }? -- Point ids to leave out (the one the agent is standing at, say).
 	.Considerations { Consideration<InterestPoint> }? -- Extra scoring, multiplied in.
+	.IgnoreStrength boolean? -- Score every point as if equally interesting, so only nearness, visits and `Considerations` count: a pick that does not follow the clues. Default `false`.
 ]=]
 export type BestOptions = {
 	Range: number?,
 	Tags: { string }?,
 	Exclude: { any }?,
 	Considerations: { Types.Consideration<InterestPoint> }?,
+	IgnoreStrength: boolean?,
 }
 
 type Entry = {
@@ -284,6 +310,56 @@ end
 
 --[=[
 	@within Interest
+	@param position Vector3 -- Where the noise was.
+	@param loudness number? -- Default `1`; only used for a kind with no entry in `Clues`.
+	@param kind string? -- What it was: `"Door"`, `"Running"`, `"Alarm"`, `"Footstep"`.
+	@return number -- How many points it raised.
+
+	A noise as a clue: raises the points near it by what kind of noise it was (the `Clues` option),
+	or by its loudness when the kind has no entry. Connect it to the signal your [Hearing] senses
+	listen to, and every noise the players make becomes somewhere worth a look, weighted the way
+	your game decides: a door opening counts, a footstep does not.
+]=]
+function Interest.Heard(self: Interest, position: Vector3, loudness: number?, kind: string?): number
+	local options = self._options
+	local clue = if kind ~= nil then options.Clues[kind] else nil
+	local radius = if clue then clue.Radius else options.NoiseRadius
+	local heat = if clue then clue.Heat else options.NoiseHeat * (loudness or 1)
+	if radius <= 0 or heat <= 0 then
+		return 0
+	end
+	return self:BumpNear(position, radius, heat)
+end
+
+--[=[
+	@within Interest
+	@param positions { Vector3 } -- Floor positions, such as every room or every cell of a maze.
+	@param options { Strength: number?, Tags: { string }?, Skip: ((position: Vector3) -> boolean)? }?
+	@return number -- How many points were added. Their ids are their indices in `positions`.
+
+	Adds a point at each position, all with the same base strength and tags, leaving out any
+	`Skip` returns `true` for (a safe room, say: `Skip = VluxyAI.SafeAreas.Contains`).
+]=]
+function Interest.AddAll(
+	self: Interest,
+	positions: { Vector3 },
+	options: { Strength: number?, Tags: { string }?, Skip: ((position: Vector3) -> boolean)? }?
+): number
+	local resolved: { Strength: number?, Tags: { string }?, Skip: ((position: Vector3) -> boolean)? } = options
+		or {} :: any
+	local added = 0
+	for index, position in positions do
+		if resolved.Skip ~= nil and resolved.Skip(position) then
+			continue
+		end
+		self:Add(index, { Position = position, Strength = resolved.Strength, Tags = resolved.Tags })
+		added += 1
+	end
+	return added
+end
+
+--[=[
+	@within Interest
 	@param id any
 	@param strength number -- Sets both the current strength and the base.
 ]=]
@@ -378,10 +454,11 @@ function Interest.Best(self: Interest, agent: Types.Agent, options: BestOptions?
 	local origin = agent:GetPosition()
 	local visited = math.max(self._options.Visited, 1e-3)
 	range = math.max(range, 1e-3)
+	local ignoreStrength = resolved.IgnoreStrength == true
 	local considerations: { Types.Consideration<InterestPoint> } = {
 		{
 			Input = function(_agent: Types.Agent, point: InterestPoint): number
-				return point.Strength
+				return if ignoreStrength then strongest else point.Strength
 			end,
 			Max = strongest,
 		},

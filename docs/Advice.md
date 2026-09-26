@@ -13,6 +13,43 @@ The [Navigator](/api/Navigator) decides when that turns into a plan; you do not.
 in `Enter` works for a fixed point, and the navigator still retries if the mover gets stuck, but a
 moving target needs the fresh position.
 
+## Plan only when it is not obvious
+
+A chase that plans every step is always a little behind: each plan is a query, and the navigator
+only re-plans on its cadence. [Builder:UseDirect](/api/Builder#UseDirect) with a
+[Straight](/api/Straight) walks straight at a target in a clear line and refreshes that line as
+the target moves; the navmesh is asked only when the line is blocked, and again whenever walking
+straight stops making progress for `DirectStuckTime`. `agent.Navigator:IsDirect()` says which
+it is doing. The check runs a sweep and a floor ray every couple of studs each `DirectInterval`,
+so a long clear corridor costs more than a short one; raise the interval for a crowd.
+
+## Let the graph do the routing
+
+Roblox's navmesh re-plans to slightly different waypoints every time, which is fine for one
+walk and jittery for a chase that re-plans four times a second. With authored nodes, route with
+the graph and keep the navmesh as the fallback:
+
+```lua
+:UsePathfinder(VluxyAI.Pathfinders.Hybrid.new({
+	Graph = graph,
+	Local = VluxyAI.Pathfinders.Navmesh.new(),
+	Prefer = "Graph",   -- the graph for every route; the navmesh only when the graph has none
+	RefineEnds = false, -- end legs walked straight: the graph picks its end nodes on a clear line
+}))
+:UseDirect(VluxyAI.Pathfinders.Straight.new()) -- and a target in plain view is walked at straight
+```
+
+## Lead a moving target
+
+A chase that plans to where the player is arrives where the player was. The
+[Navigator](/api/Navigator) measures how fast the `MoveTo` target moves and plans `Lead` seconds
+ahead of it (half a second by default, capped at `LeadMax` studs, and not within
+`LeadMinDistance` so an agent at arms' length does not overshoot); a point ahead that cannot be
+reached falls back to the target itself. [Navmesh](/api/Navmesh) shaves off waypoints that turn
+less than `SimplifyAngle` degrees (8 by default), so a curve becomes a few long legs instead of a
+stop at every 2-stud waypoint. Both come from the original VluxyAI pathfinding, where they were
+tuned by play-testing. `agent.Navigator:GetRemainingDistance()` is the walk left along the path.
+
 ## Transitions before Update
 
 Transitions are checked first, in order, and the first true one wins. `Update` only runs when none

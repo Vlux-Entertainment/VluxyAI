@@ -53,11 +53,16 @@ local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 local agent = VluxyAI.new(rig)
 	:UseBrain(Stalker)
 	:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2, AgentHeight = 5 }))
+	:UseDirect(VluxyAI.Pathfinders.Straight.new({ AgentRadius = 2, AgentHeight = 5 }))
 	:UseMover(VluxyAI.Movers.Humanoid.new(rig, { Speed = 14 }))
 	:AddSense(VluxyAI.Senses.Sight.new({ Range = 40, FieldOfView = 120, Memory = 3 }))
 	:Build()
 	:Start()
 ```
+
+`UseDirect` is optional: with it, the agent walks straight at a target it has a clear line to
+and only asks the navmesh when it has not, or when walking straight got it stuck. A chase then
+reacts to every step the player takes instead of every re-plan.
 
 `Build()` validates everything and errors with the path of the first bad field. `Start()` enters
 the initial state and begins ticking on `Heartbeat`, every `0.1` seconds by default

@@ -38,6 +38,7 @@ local DEFINITION_FIELDS = {
 	Tick = true,
 	Navigation = true,
 	Steps = true,
+	Direct = true,
 	StrictBlackboard = true,
 	Name = true,
 }
@@ -49,6 +50,13 @@ local NAVIGATION_FIELDS = {
 	MaxPathAge = true,
 	ArriveDistance = false,
 	ArriveHeight = false,
+	DirectInterval = true,
+	DirectStuckTime = true,
+	DirectCooldown = false,
+	Lead = false,
+	LeadMax = false,
+	LeadMinDistance = false,
+	FailedRetry = false,
 }
 
 local MOVER_METHODS = { "Follow", "Stop", "GetPosition", "GetSpeed", "SetSpeed", "IsMoving" }
@@ -327,6 +335,13 @@ function Validate.Definition(definition: any)
 		expectSignals(definition.Mover, MOVER_SIGNALS, `{root}.Mover`)
 	end
 
+	if definition.Direct ~= nil then
+		if not hasPathfinder then
+			fail(`{root}.Direct`, "needs a Pathfinder and a Mover; it only decides when planning can be skipped")
+		end
+		expectMethods(definition.Direct, { "FindPath" }, `{root}.Direct`)
+	end
+
 	if definition.Senses ~= nil then
 		expectTable(definition.Senses, `{root}.Senses`)
 		local seen: { [any]: number } = {}
@@ -362,13 +377,20 @@ function Validate.Definition(definition: any)
 				fail(`{stepsPath}[{describe(label)}]`, "must be keyed by the step's Label")
 			end
 			if type(handler) == "table" then
-				expectKnownFields(handler, { Handler = true, Tag = true, Radius = true }, `{stepsPath}.{label}`)
+				expectKnownFields(
+					handler,
+					{ Handler = true, Tag = true, Radius = true, Ready = true },
+					`{stepsPath}.{label}`
+				)
 				expectFunction(handler.Handler, `{stepsPath}.{label}.Handler`)
 				if handler.Tag ~= nil then
 					expectString(handler.Tag, `{stepsPath}.{label}.Tag`)
 				end
 				if handler.Radius ~= nil then
 					expectPositiveNumber(handler.Radius, `{stepsPath}.{label}.Radius`)
+				end
+				if handler.Ready ~= nil then
+					expectFunction(handler.Ready, `{stepsPath}.{label}.Ready`)
 				end
 			else
 				expectFunction(handler, `{stepsPath}.{label}`)

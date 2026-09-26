@@ -2,7 +2,8 @@
 
 --[[
 	What the playground hands every example enemy: the package, the map, a shared noise signal,
-	the group's Neighbours sense and a seeded Random. Kept in one place so the enemy modules read
+	the group's Neighbours sense, the maze's node graph (one Graph shared by every enemy, since it
+	keeps no per-agent state) and a seeded Random. Kept in one place so the enemy modules read
 	the same.
 ]]
 
@@ -13,8 +14,13 @@ local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
 export type Context = {
 	Map: Map.BuiltMap,
-	Noises: VluxyAI.Signal<(Vector3, number?)>,
+	-- A noise: where, how loud, and what it was ("Running", "Door", "Alarm", "Jump", "Pad",
+	-- "Footstep"). Hearing uses the first two; the clue map weighs each kind (Clues.luau).
+	Noises: VluxyAI.Signal<(Vector3, number?, string?)>,
 	Crowd: VluxyAI.Sense,
+	Graph: VluxyAI.Pathfinder,
+	-- Where a player might be: every cell, warmed by noises and sightings (see Playground).
+	Interest: VluxyAI.Interest,
 	Random: Random,
 }
 

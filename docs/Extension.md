@@ -114,8 +114,8 @@ local graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph)
 }))
 ```
 
-A door is a `Custom` step on a graph link: the game listens to `agent.Navigator.StepReached`,
-stops the agent, opens the door, and calls `MoveTo` again.
+A door is a labelled step on a graph link, handled like any other door: see
+[Doors and other scripted steps](#doors-and-other-scripted-steps).
 
 ## A mover
 
@@ -161,8 +161,27 @@ taken: the path is `Failed` and the pathfinder's optional `Close(step, seconds)`
 the next plan avoids it. A navmesh step has no `Instance`; pass `{ Tag = "AI_DOOR" }` as the
 third argument of `OnStep` and the nearest tagged instance is filled in first.
 
-In a place, a `Link` ObjectValue under a graph node takes `Action` and `Label` attributes and an
-`Instance` ObjectValue child pointing at the door, and `Graph.FromInstances` reads them.
+In a place, the graph is a folder of parts (or attachments), one per node, read with
+`Graph.FromInstances`. A node links to another through an attribute of type Instance, under any
+name (`Link1`, `North`): add the attribute in Studio and pick the other node. For a door, put a
+node in the doorway with `Label = "Door"` and an Instance attribute `Instance` pointing at the
+door; every link into that node then carries the door step. A `Link` ObjectValue under a node,
+with `Action` and `Label` attributes and an `Instance` ObjectValue child, still works too.
+
+```text
+NavGraph (Folder)
+  Hall      Link1 = Doorway
+  Doorway   Label = "Door", Instance = FrontDoor, Link1 = Hall, Link2 = Kitchen
+  Kitchen   Link1 = Doorway
+```
+
+[GraphVisual](/api/GraphVisual) draws a graph's nodes and links, to check it by eye.
+
+For doors, [Doors.Step](/api/Doors#Step) is this handler already written: it walks through an
+open door without stopping, refuses a locked one, and opens a closed one through a
+[DoorDriver](/api/Types#DoorDriver). `OnStep` also takes a registration table of your own, with a
+`Ready(agent, step)` that returns `true` when there is nothing to do at the step, so the agent
+does not stop at all.
 
 ## Content modules
 

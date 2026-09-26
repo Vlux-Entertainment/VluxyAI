@@ -43,6 +43,52 @@ local function setup(options: { plan: any?, navigation: any?, warnings: { string
 	}
 end
 
+--[[
+	A navigator with a direct pathfinder whose answer the spec switches with `clear`.
+]]
+local function setupDirect(options: { navigation: any?, warnings: { string }?, yields: boolean? }?)
+	local resolved = options or {}
+	local clock = Harness.ManualClock(100)
+	local Navigator = Harness.Load("lib/Navigator.luau", {
+		globals = { os = clock.os },
+		warn = function(message)
+			if resolved.warnings then
+				table.insert(resolved.warnings, tostring(message))
+			end
+		end,
+	})
+
+	local state = { clear = true }
+	local direct = Fakes.Pathfinder(function(from, to)
+		if resolved.yields then
+			task.wait(0.01)
+		end
+		if not state.clear then
+			return nil, "blocked"
+		end
+		return { { Position = from, Action = "Walk" }, { Position = to, Action = "Walk" } }, nil
+	end)
+	local pathfinder = Fakes.Pathfinder(function(from, to)
+		return {
+			{ Position = from, Action = "Walk" },
+			{ Position = Vector3.new(5, 0, 5), Action = "Walk" },
+			{ Position = to, Action = "Walk" },
+		},
+			nil
+	end)
+	local mover = Fakes.Mover(Vector3.new(0, 0, 0))
+	local navigator = Navigator.new(pathfinder, mover, Fakes.Agent(), resolved.navigation, nil, direct)
+
+	return {
+		navigator = navigator,
+		pathfinder = pathfinder,
+		direct = direct,
+		mover = mover,
+		clock = clock,
+		state = state,
+	}
+end
+
 return {
 	["a new target plans at once and follows the path"] = function(expect)
 		local s = setup()
@@ -152,7 +198,7 @@ return {
 	end,
 
 	["a target that moved past RepathDistance re-plans only after RepathInterval"] = function(expect)
-		local s = setup({ navigation = { RepathDistance = 2, RepathInterval = 0.5 } })
+		local s = setup({ navigation = { RepathDistance = 2, RepathInterval = 0.5, Lead = 0 } })
 
 		s.navigator:MoveTo(Vector3.new(10, 0, 0))
 		s.clock:Advance(0.2)
@@ -166,7 +212,7 @@ return {
 		expect.equal(#s.mover.Followed, 2, "the new path replaced the old one")
 	end,
 
-	["a failed plan reports Failed and Arrived(false) with a warning"] = function(expect)
+	["a failed plan reports Failed and Arrived(false), and warns when it fails again"] = function(expect)
 		local warnings = {}
 		local s = setup({
 			plan = function()
@@ -179,9 +225,33 @@ return {
 		expect.equal(s.navigator:GetStatus(), "Failed")
 		expect.equal(#s.mover.Followed, 0)
 		expect.sequence(s.arrivals, { false })
-		expect.equal(#warnings, 1)
-		expect.includes(warnings[1], "no floor")
+		expect.equal(#warnings, 0, "one failure can be expected, such as a search point inside a wall")
 		expect.equal(s.navigator:GetPath(), nil)
+
+		s.clock:Advance(1)
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(#warnings, 1, "the same target failing again is worth a warning")
+		expect.includes(warnings[1], "no floor")
+	end,
+
+	["a target that fails once and then plans never warns"] = function(expect)
+		local warnings = {}
+		local calls = 0
+		local s = setup({
+			plan = function(from, to)
+				calls += 1
+				if calls == 1 then
+					return nil, "not baked yet"
+				end
+				return { { Position = from, Action = "Walk" }, { Position = to, Action = "Walk" } }, nil
+			end,
+			warnings = warnings,
+		})
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.clock:Advance(1)
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(s.navigator:GetStatus(), "Moving")
+		expect.equal(#warnings, 0)
 	end,
 
 	["a failure warns once per target, not once per retry"] = function(expect)
@@ -191,7 +261,7 @@ return {
 				return nil, "blocked"
 			end,
 			warnings = warnings,
-			navigation = { RepathInterval = 0.5 },
+			navigation = { RepathInterval = 0.5, FailedRetry = 0 },
 		})
 		local target = Vector3.new(10, 0, 0)
 
@@ -205,7 +275,9 @@ return {
 
 		s.clock:Advance(1)
 		s.navigator:MoveTo(Vector3.new(50, 0, 0))
-		expect.equal(#warnings, 2, "a different target warns again")
+		s.clock:Advance(1)
+		s.navigator:MoveTo(Vector3.new(50, 0, 0))
+		expect.equal(#warnings, 2, "a different target warns again once it fails twice")
 	end,
 
 	["an empty path counts as a failure"] = function(expect)
@@ -228,7 +300,7 @@ return {
 				end
 				return { { Position = to, Action = "Walk" } }
 			end,
-			navigation = { RepathInterval = 0.5 },
+			navigation = { RepathInterval = 0.5, FailedRetry = 0 },
 		})
 		local target = Vector3.new(10, 0, 0)
 
@@ -947,5 +1019,301 @@ return {
 		s.mover.StepReached:Fire(2, s.mover.Followed[2][2])
 		expect.equal(closed[2].seconds, 10, "the default closure")
 		navigator:Destroy()
+	end,
+
+	["a direct pathfinder walks straight at a clear target and never plans"] = function(expect)
+		local s = setupDirect()
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		expect.equal(#s.direct.Calls, 1)
+		expect.equal(#s.pathfinder.Calls, 0, "nothing planned")
+		expect.truthy(s.navigator:IsDirect())
+		expect.equal(s.navigator:GetStatus(), "Moving")
+		expect.equal(#s.mover.Followed, 1)
+		expect.equal(s.mover.Followed[1][2].Position, target)
+
+		s.navigator:MoveTo(Vector3.new(10.3, 0, 0))
+		expect.equal(#s.direct.Calls, 1, "no check before DirectInterval")
+
+		s.clock:Advance(0.2)
+		s.navigator:MoveTo(Vector3.new(13, 0, 0))
+		expect.equal(#s.direct.Calls, 2)
+		expect.equal(#s.mover.Followed, 2, "a target that moved gets a fresh line")
+		expect.equal(s.mover.Followed[2][2].Position, Vector3.new(13, 0, 0))
+
+		s.clock:Advance(0.2)
+		s.navigator:MoveTo(Vector3.new(13.2, 0, 0))
+		expect.equal(#s.direct.Calls, 3)
+		expect.equal(#s.mover.Followed, 2, "a target that barely moved keeps the line it has")
+		expect.equal(#s.pathfinder.Calls, 0)
+
+		s.mover.Position = Vector3.new(13, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+	end,
+
+	["a blocked line plans instead, and a clear one takes over again"] = function(expect)
+		local s = setupDirect()
+		s.state.clear = false
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		expect.equal(#s.direct.Calls, 1)
+		expect.equal(#s.pathfinder.Calls, 1, "planned when the line is blocked")
+		expect.falsy(s.navigator:IsDirect())
+		expect.equal(#s.mover.Followed[1], 3, "following the plan")
+
+		s.state.clear = true
+		s.clock:Advance(0.2)
+		s.navigator:Step(0.1)
+		expect.truthy(s.navigator:IsDirect(), "the line cleared: walk it")
+		expect.equal(#s.mover.Followed, 2)
+		expect.equal(#s.mover.Followed[2], 2)
+		expect.equal(s.navigator:GetPath(), s.mover.Followed[2])
+
+		s.state.clear = false
+		s.clock:Advance(0.2)
+		s.navigator:Step(0.1)
+		expect.falsy(s.navigator:IsDirect())
+		expect.equal(#s.pathfinder.Calls, 2, "planned at once on losing the line, not on the cadence")
+		expect.equal(#s.mover.Followed[3], 3)
+	end,
+
+	["a direct walk that makes no progress gives up, plans, and waits DirectCooldown"] = function(expect)
+		local s = setupDirect({ navigation = { DirectStuckTime = 1, DirectCooldown = 3 } })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		expect.truthy(s.navigator:IsDirect())
+
+		s.clock:Advance(0.5)
+		s.mover.Position = Vector3.new(2, 0, 0)
+		s.navigator:Step(0.5)
+		s.clock:Advance(0.5)
+		s.navigator:Step(0.5)
+		expect.truthy(s.navigator:IsDirect(), "moving a stud or more is progress")
+
+		s.clock:Advance(0.5)
+		s.navigator:Step(0.5)
+		s.clock:Advance(0.5)
+		s.navigator:Step(0.5)
+		expect.falsy(s.navigator:IsDirect(), "a second without progress is stuck")
+		expect.equal(#s.pathfinder.Calls, 1, "planned instead")
+
+		local checks = #s.direct.Calls
+		s.clock:Advance(1)
+		s.navigator:Step(0.1)
+		expect.equal(#s.direct.Calls, checks, "no straight walk during the cooldown")
+
+		s.clock:Advance(2.5)
+		s.navigator:Step(0.1)
+		expect.equal(#s.direct.Calls, checks + 1)
+		expect.truthy(s.navigator:IsDirect(), "tried again after the cooldown")
+	end,
+
+	["a paused agent is not stuck: stillness counts ticks, not the clock"] = function(expect)
+		local s = setupDirect({ navigation = { DirectStuckTime = 1 } })
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+
+		s.clock:Advance(30)
+		s.navigator:Step(0.1)
+		expect.truthy(s.navigator:IsDirect())
+	end,
+
+	["Stop forgets the direct walk"] = function(expect)
+		local s = setupDirect()
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.navigator:Stop()
+		expect.falsy(s.navigator:IsDirect())
+		expect.equal(s.navigator:GetStatus(), "Idle")
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(#s.direct.Calls, 2, "a new target checks at once")
+	end,
+
+	["a direct pathfinder that yields is refused, with one warning"] = function(expect)
+		local warnings = {}
+		local s = setupDirect({ yields = true, warnings = warnings })
+
+		s.navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.falsy(s.navigator:IsDirect())
+		expect.equal(#s.pathfinder.Calls, 1, "planned instead")
+		s.clock:Advance(0.2)
+		s.navigator:Step(0.1)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "yielded")
+		task.wait(0.05)
+	end,
+
+	["a registration whose Ready says true walks on without stopping or handling"] = function(expect)
+		local handled = 0
+		local open = true
+		local door = { Name = "Door" }
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(5, 0, 0), Action = "Custom", Label = "Door", Instance = door },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+		})
+		local navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+			.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+				Door = {
+					Handler = function()
+						handled += 1
+					end,
+					Ready = function(_agent, step)
+						expect.equal(step.Instance, door)
+						return open
+					end,
+				},
+			})
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		local path = s.mover.Followed[1]
+		s.mover.StepReached:Fire(2, path[2])
+		expect.equal(handled, 0)
+		expect.truthy(s.mover.Moving, "not stopped at an open door")
+		expect.equal(navigator:GetStatus(), "Moving")
+
+		open = false
+		navigator:Stop()
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.StepReached:Fire(2, s.mover.Followed[2][2])
+		expect.equal(handled, 1, "a closed door is handled")
+		navigator:Destroy()
+	end,
+
+	["a mover that reports the end far from the path's last step re-plans without a warning"] = function(expect)
+		local warnings = {}
+		local s = setup({ warnings = warnings, navigation = { RepathInterval = 0.25 } })
+		local target = Vector3.new(120, 0, 104)
+
+		s.navigator:MoveTo(target)
+		s.mover.Position = Vector3.new(80, 0, 90)
+		s.mover:Finish(true)
+		expect.equal(#warnings, 0, "the mover was wrong, the plan is not short")
+		expect.equal(s.navigator:GetStatus(), "Moving")
+
+		s.clock:Advance(0.3)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "planned again")
+	end,
+
+	["a path that really ends short still fails with one warning"] = function(expect)
+		local warnings = {}
+		local s = setup({
+			warnings = warnings,
+			plan = function(from)
+				return { { Position = from, Action = "Walk" }, { Position = Vector3.new(60, 0, 0), Action = "Walk" } }
+			end,
+		})
+
+		s.navigator:MoveTo(Vector3.new(100, 0, 0))
+		s.mover.Position = Vector3.new(60, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Failed")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "ends 40 studs short")
+	end,
+
+	["a moving target is led: the plan aims Lead seconds ahead, capped, and not up close"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5, Lead = 0.5, LeadMax = 8, LeadMinDistance = 10 } })
+
+		s.navigator:MoveTo(Vector3.new(40, 0, 0))
+		expect.equal(s.pathfinder.Calls[1].To, Vector3.new(40, 0, 0), "nothing to lead on the first sighting")
+
+		-- 10 studs a second along +X, sampled every half second.
+		for step = 1, 4 do
+			s.clock:Advance(0.5)
+			s.navigator:MoveTo(Vector3.new(40 + step * 5, 0, 0))
+		end
+		local last = s.pathfinder.Calls[#s.pathfinder.Calls].To
+		expect.truthy(last.X > 60, "aimed ahead of the target at 60")
+		expect.truthy(last.X <= 60 + 8 + 1e-6, "by no more than LeadMax")
+		expect.equal(last.Z, 0)
+	end,
+
+	["no lead within LeadMinDistance, and a led point with no path falls back to the target"] = function(expect)
+		local tried = {}
+		local s = setup({
+			navigation = { RepathInterval = 0.5, Lead = 0.5, LeadMinDistance = 10 },
+			plan = function(from, to)
+				table.insert(tried, to)
+				if to.X > 60 then
+					return nil, "inside a wall"
+				end
+				return { { Position = from, Action = "Walk" }, { Position = to, Action = "Walk" } }
+			end,
+		})
+		for step = 0, 4 do
+			s.navigator:MoveTo(Vector3.new(40 + step * 5, 0, 0))
+			s.clock:Advance(0.5)
+		end
+		expect.equal(s.navigator:GetStatus(), "Moving", "planned to the target itself instead")
+		expect.equal(tried[#tried], Vector3.new(60, 0, 0))
+
+		local close = setup({ navigation = { RepathInterval = 0.5, Lead = 0.5, LeadMinDistance = 10 } })
+		for step = 0, 2 do
+			close.navigator:MoveTo(Vector3.new(1 + step * 3, 0, 3))
+			close.clock:Advance(0.5)
+		end
+		local calls = close.pathfinder.Calls
+		expect.equal(#calls, 3)
+		expect.equal(calls[3].To, Vector3.new(7, 0, 3), "a target this close is not led")
+	end,
+
+	["GetRemainingDistance is the walk left along the path"] = function(expect)
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(10, 0, 0), Action = "Walk" },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+		})
+		expect.equal(s.navigator:GetRemainingDistance(), math.huge, "no path yet")
+		s.navigator:MoveTo(Vector3.new(10, 0, 10))
+		expect.near(s.navigator:GetRemainingDistance(), 20, 1e-6, "10 along, then 10 round the corner")
+		s.mover.Position = Vector3.new(10, 0, 2)
+		expect.near(s.navigator:GetRemainingDistance(), 8, 1e-6, "past the corner, 8 to go")
+	end,
+
+	["a target that keeps failing is retried after FailedRetry, doubling, not every RepathInterval"] = function(expect)
+		local s = setup({
+			plan = function()
+				return nil, "no path"
+			end,
+			navigation = { RepathInterval = 0.25, FailedRetry = 1, Lead = 0 },
+		})
+		local target = Vector3.new(30, 0, 0)
+
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 1)
+		s.clock:Advance(0.5)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 2, "the first retry comes on the cadence")
+
+		s.clock:Advance(0.5)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 2, "a second failure waits FailedRetry")
+		s.clock:Advance(0.6)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 3)
+
+		s.clock:Advance(1.5)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 3, "then twice that")
+		s.clock:Advance(0.6)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 4)
+
+		s.clock:Advance(0.3)
+		s.navigator:MoveTo(Vector3.new(60, 0, 0))
+		expect.equal(#s.pathfinder.Calls, 5, "a target that moved is tried at once")
 	end,
 }

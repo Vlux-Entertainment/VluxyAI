@@ -26,6 +26,9 @@ local DEFAULT_OPTIONS = table.freeze({
 	LocalRadius = 40,
 	-- Refine the first and last legs with the local pathfinder.
 	RefineEnds = true,
+	-- "Local": the local pathfinder first within LocalRadius. "Graph": the graph always, the
+	-- local pathfinder only when the graph has no route.
+	Prefer = "Local",
 })
 
 --[=[
@@ -36,17 +39,20 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Local Pathfinder -- The short-range one, usually a [Navmesh] or a [Ladder] of Straight and Navmesh.
 	.LocalRadius number? -- Studs within which the local pathfinder is tried first. Default `40`.
 	.RefineEnds boolean? -- Plan the first and last legs locally. Default `true`.
+	.Prefer ("Local" | "Graph")? -- `"Local"`: the local pathfinder first within `LocalRadius`, the graph beyond. `"Graph"`: the graph for every route, and the local pathfinder only when the graph has no route (no node in reach, or no chain of links); `LocalRadius` is not used. Pair `"Graph"` with `RefineEnds = false` to keep the local pathfinder out of ordinary routes altogether: the graph's entry and exit nodes are chosen on a clear line (its `LineOfSight` option), so the end legs are walked straight. Default `"Local"`.
 ]=]
 export type HybridOptions = {
 	Graph: Types.Pathfinder,
 	Local: Types.Pathfinder,
 	LocalRadius: number?,
 	RefineEnds: boolean?,
+	Prefer: ("Local" | "Graph")?,
 }
 
 type ResolvedOptions = {
 	LocalRadius: number,
 	RefineEnds: boolean,
+	Prefer: "Local" | "Graph",
 }
 
 type self = {
@@ -66,7 +72,12 @@ type HybridClass = typeof(setmetatable({} :: self, Hybrid))
 	@class Hybrid
 
 	A [Types.Pathfinder] that composes a [Graph] for the level and a local pathfinder for the
-	geometry, the way the design plan lays it out. `Name` is `"Hybrid"`. `Blocked` is the local
+	geometry, the way the design plan lays it out. `Name` is `"Hybrid"`.
+
+	With `Prefer = "Graph"` and `RefineEnds = false` the graph plans everything it can, and the
+	local pathfinder (Roblox's navmesh, usually) only answers when the graph has no way there.
+	Add a direct walker ([Builder:UseDirect]) and a target in plain view is walked at straight,
+	so the navmesh is left for the odd place the graph does not reach. `Blocked` is the local
 	pathfinder's `Blocked` when it has one, so a blocked local leg re-plans the whole route.
 ]=]
 
@@ -92,7 +103,10 @@ function Hybrid.new(options: HybridOptions): Types.Pathfinder
 	local given = table.clone(options :: any) :: { [string]: any }
 	given.Graph = nil
 	given.Local = nil
-	local resolved = Options.Resolve("Hybrid.new", DEFAULT_OPTIONS, given) :: ResolvedOptions
+	local resolved = Options.Resolve("Hybrid.new", DEFAULT_OPTIONS :: any, given) :: ResolvedOptions
+	if resolved.Prefer ~= "Local" and resolved.Prefer ~= "Graph" then
+		FormatMessage.Error(`Hybrid.new: Prefer must be "Local" or "Graph", got {tostring(resolved.Prefer)}`, 2)
+	end
 
 	local self: self = {
 		Name = "Hybrid",
@@ -126,23 +140,28 @@ end
 ]=]
 function Hybrid.FindPath(self: HybridClass, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
 	local localReason: string? = nil
+	local triedLocal = false
 
-	if Tables.FlatDistance(from, to) <= self._options.LocalRadius then
+	if self._options.Prefer == "Local" and Tables.FlatDistance(from, to) <= self._options.LocalRadius then
 		local path, reason = self._local:FindPath(from, to, agent)
 		if path ~= nil and #path > 0 then
 			return path, nil
 		end
 		localReason = reason
+		triedLocal = true
 	end
 
 	local route, graphReason = self._graph:FindPath(from, to, agent)
 	if route == nil or #route == 0 then
-		-- No route through the graph: the local pathfinder is the last word.
-		local path, reason = self._local:FindPath(from, to, agent)
-		if path ~= nil and #path > 0 then
-			return path, nil
+		-- No route through the graph: the local pathfinder is the last word (once is enough).
+		if not triedLocal then
+			local path, reason = self._local:FindPath(from, to, agent)
+			if path ~= nil and #path > 0 then
+				return path, nil
+			end
+			localReason = reason
 		end
-		return nil, `Graph: {graphReason or "no route"}; Local: {reason or localReason or "no path"}`
+		return nil, `Graph: {graphReason or "no route"}; Local: {localReason or "no path"}`
 	end
 
 	if not self._options.RefineEnds or #route < 2 then

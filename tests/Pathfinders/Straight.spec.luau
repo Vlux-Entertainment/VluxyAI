@@ -39,6 +39,7 @@ end
 ]]
 local function fakeWorld(options: {
 	sweepHit: any?,
+	lineHit: any?,
 	floorAt: ((point: any) -> boolean)?,
 	floorHeight: ((point: any) -> number)?,
 })
@@ -54,6 +55,9 @@ local function fakeWorld(options: {
 
 	function world.Raycast(_self, origin, direction, params)
 		table.insert(world.Rays, { Origin = origin, Direction = direction, Params = params })
+		if direction.Y == 0 then
+			return options.lineHit
+		end
 		local floorAt = options.floorAt
 		if floorAt ~= nil and not floorAt(origin) then
 			return nil
@@ -73,6 +77,7 @@ end
 
 local function setup(options: {
 	sweepHit: any?,
+	lineHit: any?,
 	floorAt: ((point: any) -> boolean)?,
 	floorHeight: ((point: any) -> number)?,
 	straight: any?,
@@ -82,6 +87,7 @@ local function setup(options: {
 	local resolved = options or {}
 	local world = fakeWorld({
 		sweepHit = resolved.sweepHit,
+		lineHit = resolved.lineHit,
 		floorAt = resolved.floorAt,
 		floorHeight = resolved.floorHeight,
 	})
@@ -183,7 +189,7 @@ return {
 		expect.includes(err, "[VluxyAI]")
 		expect.includes(
 			err,
-			'Straight.new: unknown option "Radiu"; expected one of AgentHeight, AgentRadius, FloorCheck, FloorSpacing, Ignore, MaxDrop'
+			'Straight.new: unknown option "Radiu"; expected one of AgentHeight, AgentRadius, AvoidSafeAreas, FloorCheck, FloorSpacing, Ignore, MaxDrop'
 		)
 
 		Straight.new({ AgentRadius = 2.5 })
@@ -215,7 +221,7 @@ return {
 		expect.equal(#s.world.Sweeps, 1)
 		expect.equal(s.world.Sweeps[1].Origin, Vector3.new(0, 2.5, 0), "lifted by AgentHeight / 2 above the floor")
 		expect.equal(s.world.Sweeps[1].Radius, 2)
-		expect.equal(s.world.Sweeps[1].Direction, Vector3.new(10, 0, 0))
+		expect.equal(s.world.Sweeps[1].Direction, Vector3.new(8, 0, 0), "stops AgentRadius short of the target")
 	end,
 
 	["FindPath projects root-height positions onto the floor"] = function(expect)
@@ -225,7 +231,7 @@ return {
 		expect.equal(path[1].Position, Vector3.new(0, 0, 0), "the mover's root projects to the floor")
 		expect.equal(path[2].Position, Vector3.new(10, 0, 0), "a player's root projects to the floor")
 		expect.equal(s.world.Sweeps[1].Origin, Vector3.new(0, 2.5, 0), "the sweep sits at body height regardless")
-		expect.equal(s.world.Sweeps[1].Direction, Vector3.new(10, 0, 0))
+		expect.equal(s.world.Sweeps[1].Direction, Vector3.new(8, 0, 0))
 		expect.equal(s.world.Rays[1].Origin, Vector3.new(0, 5, 0), "the floor ray starts half a body above the input")
 	end,
 
@@ -280,7 +286,37 @@ return {
 		expect.equal(#s.world.Sweeps, 0)
 		expect.equal(#s.world.Overlaps, 1)
 		expect.equal(s.world.Overlaps[1].Position, Vector3.new(0, 2.5, 0), "checked at the body centre")
-		expect.near(s.world.Overlaps[1].Radius, 1.8, 1e-6, "a little inside the body radius")
+		expect.near(s.world.Overlaps[1].Radius, 1, 1e-6, "half the body radius: a real overlap, not a brush")
+	end,
+
+	["a target against a wall is reachable: the sweep stops short and the centre line decides"] = function(expect)
+		local s = setup()
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(reason, nil)
+		expect.equal(#path, 2)
+		local line = s.world.Rays[#s.world.Rays]
+		expect.equal(line.Origin, Vector3.new(0, 2.5, 0), "from the body centre")
+		expect.equal(line.Direction, Vector3.new(10, 0, 0), "all the way to the target's centre")
+
+		s = setup()
+		s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(1.5, 0, 0), s.agent)
+		expect.equal(#s.world.Sweeps, 0, "a target closer than AgentRadius needs no sweep")
+	end,
+
+	["a wall on the centre line blocks after the floor is checked"] = function(expect)
+		local s = setup({
+			lineHit = {
+				Instance = {
+					GetFullName = function()
+						return "Workspace.Map.Pillar"
+					end,
+				},
+			},
+		})
+
+		local path, reason = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
+		expect.equal(path, nil)
+		expect.equal(reason, "blocked by Workspace.Map.Pillar")
 	end,
 
 	["FindPath reports what the sweep hit"] = function(expect)
@@ -304,7 +340,7 @@ return {
 		local s = setup({ straight = { FloorSpacing = 4, AgentRadius = 2, MaxDrop = 6, AgentHeight = 5 } })
 
 		s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
-		expect.equal(#s.world.Rays, 6)
+		expect.equal(#s.world.Rays, 7, "two endpoints, four samples, then the centre line")
 		expect.equal(s.world.Rays[1].Origin, Vector3.new(0, 2.5, 0), "from first")
 		expect.equal(s.world.Rays[2].Origin, Vector3.new(10, 2.5, 0), "then to")
 		expect.equal(s.world.Rays[3].Origin, Vector3.new(2, 2.5, 0), "then the samples between, every AgentRadius")
@@ -326,7 +362,7 @@ return {
 
 		s = setup({ straight = { FloorSpacing = 1, AgentRadius = 2 } })
 		s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(4, 0, 0), s.agent)
-		expect.equal(#s.world.Rays, 5, "a FloorSpacing below AgentRadius is used as given: from, to, 1, 2, 3")
+		expect.equal(#s.world.Rays, 6, "a FloorSpacing below AgentRadius is used as given: from, to, 1, 2, 3, line")
 		expect.equal(s.world.Rays[3].Origin, Vector3.new(1, 2.5, 0))
 	end,
 
@@ -419,7 +455,8 @@ return {
 
 		local path = s.straight:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), s.agent)
 		expect.equal(#path, 2)
-		expect.equal(#s.world.Rays, 0)
+		expect.equal(#s.world.Rays, 1, "no floor rays, only the centre line")
+		expect.equal(s.world.Rays[1].Direction, Vector3.new(10, 0, 0))
 	end,
 
 	["FindPath to the same position skips the sweep but still wants floor"] = function(expect)
@@ -440,5 +477,72 @@ return {
 		s.straight:Destroy()
 		s.straight:Destroy()
 		expect.equal(s.straight.Name, "Straight")
+	end,
+
+	["a line that crosses an enabled safe area is refused"] = function(expect)
+		local room = {
+			CFrame = roblox.CFrame.new(10, 3, 0),
+			Size = Vector3.new(4, 6, 4),
+			IsA = function(_self, className: string)
+				return className == "BasePart"
+			end,
+			GetAttribute = function()
+				return nil
+			end,
+		}
+		local world = {
+			Spherecast = function()
+				return nil
+			end,
+			Raycast = function(_self, origin, direction)
+				if direction.Y == 0 then
+					return nil
+				end
+				return { Instance = { Name = "Floor" }, Position = Vector3.new(origin.X, 0, origin.Z) }
+			end,
+			GetPartBoundsInRadius = function()
+				return {}
+			end,
+		}
+		local Straight = Harness.Load("lib/Pathfinders/Straight.luau", {
+			globals = {
+				workspace = world,
+				RaycastParams = {
+					new = function()
+						return {}
+					end,
+				},
+				OverlapParams = {
+					new = function()
+						return {}
+					end,
+				},
+			},
+			services = {
+				Players = {
+					GetPlayers = function()
+						return {}
+					end,
+				},
+				CollectionService = {
+					GetTagged = function(_self, tag)
+						return if tag == "AI_SAFE" then { room } else {}
+					end,
+				},
+			},
+		})
+		local agent = Fakes.Agent()
+		agent.Entity = Fakes.Entity("Rig")
+
+		local path, reason = Straight.new():FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), agent)
+		expect.equal(path, nil)
+		expect.includes(reason, "safe area")
+
+		local allowed = Straight.new({ AvoidSafeAreas = false })
+			:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), agent)
+		expect.equal(#allowed, 2, "AvoidSafeAreas = false walks straight through")
+
+		local beside = Straight.new():FindPath(Vector3.new(0, 0, 10), Vector3.new(20, 0, 10), agent)
+		expect.equal(#beside, 2, "a line that passes the room is fine")
 	end,
 }

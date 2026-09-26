@@ -17,6 +17,9 @@ local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
+-- Animators whose tracks are held still by Freeze. Weak, so a destroyed one is not kept.
+local frozen: { [any]: boolean? } = setmetatable({}, { __mode = "k" }) :: any
+
 -- Roblox's own R15 animations, so a rig animates with no uploaded asset at all.
 local DEFAULT_ANIMATIONS: { [string]: Animator.AnimationInfo } = {
 	Idle = { Id = 507766666, Weighted = true, Priority = Enum.AnimationPriority.Idle },
@@ -120,6 +123,11 @@ function Locomotion.Attach(agent: Types.Agent, options: LocomotionOptions?): Ani
 		local offset = position - lastPosition
 		lastPosition = position
 
+		-- Frozen: every track holds its pose until Freeze(agent, false).
+		if frozen[animator] then
+			return
+		end
+
 		local speed = Vector3.new(offset.X, 0, offset.Z).Magnitude / math.max(deltaTime, 1e-4)
 		local moving = speed > resolved.MovingThreshold
 
@@ -132,11 +140,45 @@ function Locomotion.Attach(agent: Types.Agent, options: LocomotionOptions?): Ani
 
 	agent.Destroyed:Once(function()
 		connection:Disconnect()
+		frozen[animator] = nil
 		animator:Destroy()
 		agent.Data[DATA_KEY] = nil
 	end)
 
 	return animator
+end
+
+--[=[
+	@within Locomotion
+	@param agent Agent
+	@param isFrozen boolean
+	@return boolean -- `false` when nothing is attached.
+
+	Holds every animation on the rig in its current pose (`true`), or lets them run again
+	(`false`): the statue that stops mid-step the moment it is looked at. While frozen the idle and
+	walk blend is left alone, so the pose does not drift. Calling it with the state it is already
+	in does nothing, so a sense may call it every tick.
+]=]
+function Locomotion.Freeze(agent: Types.Agent, isFrozen: boolean): boolean
+	local animator = agent.Data[DATA_KEY] :: Animator.NPCAnimator?
+	if animator == nil then
+		return false
+	end
+	if (frozen[animator] == true) == isFrozen then
+		return true
+	end
+	if isFrozen then
+		frozen[animator] = true
+	else
+		frozen[animator] = nil
+	end
+	for name in animator:GetAnimations() do
+		local track = animator:GetTrack(name)
+		if track.IsPlaying then
+			track:AdjustSpeed(if isFrozen then 0 else 1)
+		end
+	end
+	return true
 end
 
 --[=[

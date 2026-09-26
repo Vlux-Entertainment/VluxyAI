@@ -16,6 +16,7 @@
 	passes a `BasePart`.
 ]]
 
+local SafeAreas = require(script.Parent.Parent.World.SafeAreas)
 local Types = require(script.Parent.Parent.Types)
 
 --[=[
@@ -87,7 +88,11 @@ local function aliveRoots(includeHidden: boolean): { BasePart }
 			continue
 		end
 
-		if not includeHidden and Perception.IsHidden(root :: BasePart) then
+		-- Hidden, or standing in a safe area: no sense targets them.
+		if
+			not includeHidden
+			and (Perception.IsHidden(root :: BasePart) or SafeAreas.Contains((root :: BasePart).Position))
+		then
 			continue
 		end
 
@@ -102,7 +107,8 @@ end
 	@return { BasePart } -- The `HumanoidRootPart` of every player whose character is alive and not hidden.
 
 	Every player character with a Humanoid whose Health is above zero, by its root, minus the
-	ones hidden with [Perception.HIDDEN_ATTRIBUTE]. The default `Targets` of every sense, so
+	ones hidden with [Perception.HIDDEN_ATTRIBUTE] and the ones standing in an enabled
+	[SafeAreas] area. The default `Targets` of every sense, so
 	hiding a player once hides them from Sight, Proximity and Watched together. Takes no
 	arguments, so it can be a `Targets` function as it is.
 ]=]

@@ -2,7 +2,8 @@
 
 --[[
 	The client half of the playground. One Replica per enemy rig, in mirror mode: the rig is the
-	server's own and replicates by itself, so this only runs the visuals and presents kills. The
+	server's own and replicates by itself, so this only runs the visuals, the sounds and presents
+	kills. The
 	messages come over the VluxyAISync RemoteEvent the server made, in the shape Playground
 	sends: Snapshot, State and Event, each carrying the rig as its Id.
 ]]
@@ -10,6 +11,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Kills = require(script.Parent.Kills)
+local Sounds = require(script.Parent.Sounds)
 local Visuals = require(script.Parent.Visuals)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 
@@ -31,12 +33,21 @@ local function replicaFor(model: Model, name: string): VluxyAI.Replica
 		Visuals = (Visuals :: any)[name],
 	})
 	replica:On("Kill", function(payload)
+		if payload.Victim == game:GetService("Players").LocalPlayer.Character then
+			Sounds.Killed()
+		end
 		Kills.Present(replica, payload)
+	end)
+	replica:On("Scare", function(payload)
+		if payload.Victim == game:GetService("Players").LocalPlayer.Character then
+			Sounds.Killed()
+		end
 	end)
 	replica:On("KillCancelled", function(payload)
 		Kills.Cancel(payload)
 	end)
 	replicas[model] = replica
+	Sounds.Attach(replica, name)
 
 	model.Destroying:Once(function()
 		replica:Destroy()
@@ -45,6 +56,8 @@ local function replicaFor(model: Model, name: string): VluxyAI.Replica
 
 	return replica
 end
+
+Sounds.Player(replicas)
 
 sync.OnClientEvent:Connect(function(message: any)
 	local model = message.Id :: Model?
@@ -64,3 +77,6 @@ sync.OnClientEvent:Connect(function(message: any)
 		replica:Receive(message.Event, message.Payload)
 	end
 end)
+
+-- Listening now: ask for every enemy's current state, including ones that will not change soon.
+sync:FireServer("Ready")

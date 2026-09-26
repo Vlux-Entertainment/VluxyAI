@@ -21,10 +21,14 @@ local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
+local Start = require(script.Parent.Start)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
+
+-- Studs within which a leading step counts as under the pivot already.
+local SKIP_DISTANCE = 1
 
 local DEFAULT_OPTIONS = table.freeze({
 	Speed = 8,
@@ -96,12 +100,12 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	@interface MoverNoise
 	@within CFrameMover
 
-	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Signal Signal<(Vector3, number?, string?)> -- The noise signal a [Hearing] sense listens to.
 	.Interval number? -- Seconds between noises while moving. Default `0.5`.
 	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
 ]=]
 export type MoverNoise = {
-	Signal: Types.Signal<(Vector3, number?)>,
+	Signal: Types.Signal<(Vector3, number?, string?)>,
 	Interval: number?,
 	Loudness: (number | (speed: number) -> number)?,
 }
@@ -401,7 +405,9 @@ function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	end
 
 	self._path = path
-	self._index = 1
+	-- Skip the steps under it and the ones it is already past, as every mover does, so a path
+	-- re-planned mid-walk never turns it back.
+	self._index = if #path > 0 then Start.Choose(path, self._target:GetPivot().Position, SKIP_DISTANCE) else 1
 
 	local RunService = game:GetService("RunService")
 	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)

@@ -9,6 +9,15 @@
 	Cells are 16 studs wide with 1-stud walls between them, so there is room to move and to be
 	seen. There is no floor part and no border: the place's baseplate at y = 0 is the floor, and
 	the maze stands on it. Every position the map hands out is at floor height.
+
+	Three cells are safe rooms: the player's spawn and two far corners. Each is one part tagged
+	AI_SAFE filling the cell, green and see-through, with a glowing floor, a sign and a switch on
+	the wall; VluxyAI.SafeAreas keeps every enemy out while it is on. Enemies, patrol points and
+	the noise pad are never placed in one.
+
+	A few standing walls get a doorway: a door part tagged AI_DOOR with a PassThrough
+	PathfindingModifier (off while locked), inside an invisible zone labelled "Door" so a
+	waypoint always lands in the doorway. Doors are picked with their own Random, so adding them moved nothing else.
 ]]
 
 local CELL = 16
@@ -23,13 +32,24 @@ local DEFAULT_OPTIONS = {
 	Rows = 9,
 	-- Fraction of the interior walls left by the maze that the second pass removes.
 	Openness = 0.3,
+	-- Standing walls that get a door, and how many of those start locked.
+	Doors = 6,
+	LockedDoors = 1,
 }
+
+local SAFE_COLOR = Color3.fromRGB(70, 220, 120) -- green, drawn half see-through
+local NODE_SIZE = 1.2
+local NODE_COLOR = Color3.fromRGB(170, 90, 255) -- purple, drawn half see-through
+local DOOR_WIDTH = 6 -- wide enough for a navmesh agent of radius 2
+local DOOR_ZONE_DEPTH = 4
 
 export type MapOptions = {
 	Seed: number?,
 	Columns: number?,
 	Rows: number?,
 	Openness: number?,
+	Doors: number?,
+	LockedDoors: number?,
 }
 
 export type BuiltMap = {
@@ -38,11 +58,21 @@ export type BuiltMap = {
 	Spawns: { [string]: Vector3 },
 	PatrolNodes: { Vector3 },
 	NoisePads: { BasePart },
+	-- The safe rooms' zone parts (tagged AI_SAFE), each with a SafeSwitch part beside it.
+	SafeRooms: { SafeRoom },
+	Doors: { BasePart },
+	-- The A* node map as parts, for VluxyAI's Graph.FromInstances: nodes linked by Instance
+	-- attributes, doorway nodes labelled "Door".
+	NavGraph: Folder,
+	-- Every cell centre, for anything that wants open floor to stand on.
+	CellCentres: { Vector3 },
 	PlayerSpawn: SpawnLocation,
 	Bounds: { Min: Vector3, Max: Vector3 },
 }
 
 type Cell = { Column: number, Row: number }
+
+export type SafeRoom = { Zone: BasePart, Floor: BasePart, Switch: BasePart, Sign: TextLabel }
 
 local Map = {}
 
@@ -64,6 +94,109 @@ local function makePart(name: string, size: Vector3, position: Vector3, color: C
 	part.Parent = parent
 
 	return part
+end
+
+--[[
+	A doorway in place of a wall: two wall segments, the door between them, and an invisible zone
+	across the doorway that labels its waypoints "Door". `along` is the axis the wall runs along.
+]]
+local function makeDoorway(center: Vector3, along: Vector3, locked: boolean, color: Color3, parent: Instance): Part
+	local across = Vector3.new(along.Z, 0, along.X)
+	local length = CELL + WALL
+	local segment = (length - DOOR_WIDTH) / 2
+	local function sized(alongSize: number, acrossSize: number, height: number): Vector3
+		return along * alongSize + across * acrossSize + Vector3.new(0, height, 0)
+	end
+
+	local offset = DOOR_WIDTH / 2 + segment / 2
+	makePart("Wall", sized(segment, WALL, WALL_HEIGHT), center + along * offset, color, parent)
+	makePart("Wall", sized(segment, WALL, WALL_HEIGHT), center - along * offset, color, parent)
+
+	local door = makePart(
+		"Door",
+		sized(DOOR_WIDTH, WALL * 0.6, WALL_HEIGHT - 0.5),
+		center - Vector3.new(0, 0.25, 0),
+		if locked then Color3.fromRGB(150, 40, 40) else Color3.fromRGB(150, 100, 60),
+		parent
+	)
+	door.Material = Enum.Material.Wood
+	door:SetAttribute("AI_DOOR/Open", false)
+	door:SetAttribute("AI_DOOR/Locked", locked)
+	door:SetAttribute("AI_DOOR/OpenTime", 0.4)
+	game:GetService("CollectionService"):AddTag(door, "AI_DOOR")
+
+	-- The only thing that says whether an enemy may go through: passable while unlocked, a wall
+	-- while locked (DoorScript keeps it in step with the attribute). No label, because the door
+	-- swings and a label would move with it; the zone below does the labelling.
+	local passThrough = Instance.new("PathfindingModifier")
+	passThrough.PassThrough = not locked
+	passThrough.Parent = door
+
+	local zone =
+		makePart("DoorZone", sized(DOOR_WIDTH, DOOR_ZONE_DEPTH, WALL_HEIGHT), center, Color3.new(1, 1, 1), parent)
+	zone.Transparency = 1
+	zone.CanCollide = false
+	zone.CanQuery = false
+	zone.CanTouch = false
+	local label = Instance.new("PathfindingModifier")
+	label.Label = "Door"
+	label.Parent = zone
+
+	return door
+end
+
+--[[
+	A safe room filling the cell at `center`: the zone part tagged AI_SAFE (green, see-through,
+	reaching half a stud under the floor so a floor position inside counts), a glowing floor, a
+	"SAFE ROOM" sign above and a switch on one side. The zone never blocks a ray; VluxyAI's
+	SafeAreas makes it solid to enemy rigs only.
+]]
+local function makeSafeRoom(center: Vector3, parent: Instance): SafeRoom
+	local inner = CELL - WALL - 0.2
+	local zone = makePart(
+		"SafeRoom",
+		Vector3.new(inner, WALL_HEIGHT + 1, inner),
+		center + Vector3.new(0, (WALL_HEIGHT + 1) / 2 - 0.5, 0),
+		SAFE_COLOR,
+		parent
+	)
+	zone.Transparency = 0.8
+	zone.Material = Enum.Material.SmoothPlastic
+	zone.CanQuery = false
+	zone.CanTouch = false
+	zone.CastShadow = false
+	zone:SetAttribute("AI_SAFE/Enabled", true)
+	game:GetService("CollectionService"):AddTag(zone, "AI_SAFE")
+
+	local floor =
+		makePart("SafeFloor", Vector3.new(inner, 0.1, inner), center + Vector3.new(0, 0.05, 0), SAFE_COLOR, parent)
+	floor.Material = Enum.Material.Neon
+	floor.Transparency = 0.5
+	floor.CanCollide = false
+	floor.CanQuery = false
+	floor.CanTouch = false
+
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.fromOffset(180, 44)
+	sign.StudsOffsetWorldSpace = Vector3.new(0, WALL_HEIGHT + 2, 0)
+	sign.MaxDistance = 90
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextScaled = true
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = SAFE_COLOR
+	label.TextStrokeTransparency = 0.4
+	label.Text = "SAFE ROOM"
+	label.Parent = sign
+	sign.Parent = zone
+
+	local switch =
+		makePart("SafeSwitch", Vector3.new(1, 1.4, 1), center + Vector3.new(inner / 2 - 1, 3, 0), SAFE_COLOR, parent)
+	switch.Material = Enum.Material.Neon
+	switch.CanCollide = false
+
+	return { Zone = zone, Floor = floor, Switch = switch, Sign = label }
 end
 
 --[[
@@ -259,26 +392,120 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 
 	local wallY = FLOOR_TOP + WALL_HEIGHT / 2
 
+	-- Which standing walls become doorways, from a Random of their own.
+	local standing: { string } = {}
+	for row = 1, rows do
+		for column = 1, columns do
+			if column < columns and east[row][column] then
+				table.insert(standing, `e{row}:{column}`)
+			end
+			if row < rows and south[row][column] then
+				table.insert(standing, `s{row}:{column}`)
+			end
+		end
+	end
+	local doorRandom = Random.new(resolved.Seed + 1)
+	local doorways: { [string]: boolean } = {}
+	for index = 1, math.min(resolved.Doors, #standing) do
+		local pick = doorRandom:NextInteger(index, #standing)
+		standing[index], standing[pick] = standing[pick], standing[index]
+		doorways[standing[index]] = index <= resolved.LockedDoors
+	end
+
+	local doors: { BasePart } = {}
+	local doorAt: { [string]: BasePart } = {}
+
 	-- Interior walls still standing after both passes.
 	for row = 1, rows do
 		for column = 1, columns do
 			if column < columns and east[row][column] then
-				makePart(
-					"Wall",
-					Vector3.new(WALL, WALL_HEIGHT, CELL + WALL),
-					ORIGIN + Vector3.new(column * CELL, wallY, (row - 0.5) * CELL),
-					wallColor,
-					folder
-				)
+				local center = ORIGIN + Vector3.new(column * CELL, wallY, (row - 0.5) * CELL)
+				local locked = doorways[`e{row}:{column}`]
+				if locked ~= nil then
+					local door = makeDoorway(center, Vector3.zAxis, locked, wallColor, folder)
+					table.insert(doors, door)
+					doorAt[`e{row}:{column}`] = door
+				else
+					makePart("Wall", Vector3.new(WALL, WALL_HEIGHT, CELL + WALL), center, wallColor, folder)
+				end
 			end
 			if row < rows and south[row][column] then
-				makePart(
-					"Wall",
-					Vector3.new(CELL + WALL, WALL_HEIGHT, WALL),
-					ORIGIN + Vector3.new((column - 0.5) * CELL, wallY, row * CELL),
-					wallColor,
-					folder
-				)
+				local center = ORIGIN + Vector3.new((column - 0.5) * CELL, wallY, row * CELL)
+				local locked = doorways[`s{row}:{column}`]
+				if locked ~= nil then
+					local door = makeDoorway(center, Vector3.xAxis, locked, wallColor, folder)
+					table.insert(doors, door)
+					doorAt[`s{row}:{column}`] = door
+				else
+					makePart("Wall", Vector3.new(CELL + WALL, WALL_HEIGHT, WALL), center, wallColor, folder)
+				end
+			end
+		end
+	end
+
+	-- The A* node map, as parts a level designer could have placed by hand: a node at every cell
+	-- centre, linked to each open neighbour by an Instance attribute, and a node in every unlocked
+	-- doorway labelled "Door" whose Instance attribute is the door, so a route through it carries a
+	-- Door step. A door locked when the map is built gets no doorway node; one locked later is
+	-- refused and closed on the graph for a while. VluxyAI's Graph.FromInstances reads it back.
+	local navGraph = Instance.new("Folder")
+	navGraph.Name = "NavGraph"
+	navGraph.Parent = folder
+
+	local cellNodes: { { BasePart } } = {}
+	local cellCentres: { Vector3 } = {}
+	local function makeNode(name: string, floor: Vector3): BasePart
+		local node =
+			makePart(name, Vector3.one * NODE_SIZE, floor + Vector3.new(0, NODE_SIZE / 2, 0), NODE_COLOR, navGraph)
+		node.Shape = Enum.PartType.Ball
+		node.Material = Enum.Material.Neon
+		node.Transparency = 0.5
+		node.CanCollide = false
+		node.CanQuery = false
+		node.CanTouch = false
+		node.CastShadow = false
+		return node
+	end
+	for row = 1, rows do
+		cellNodes[row] = {}
+		for column = 1, columns do
+			cellNodes[row][column] = makeNode(`Cell_{row}_{column}`, cellCenter(column, row))
+			table.insert(cellCentres, cellCenter(column, row))
+		end
+	end
+
+	local function link(from: BasePart, to: BasePart)
+		local count = 1
+		while from:GetAttribute(`Link{count}`) ~= nil do
+			count += 1
+		end
+		from:SetAttribute(`Link{count}`, to)
+	end
+	local function join(a: BasePart, b: BasePart, wallKey: string, walled: boolean)
+		if not walled then
+			link(a, b)
+			link(b, a)
+			return
+		end
+		local door: BasePart? = doorAt[wallKey]
+		if not door or doorways[wallKey] == true then
+			return
+		end
+		local doorway = makeNode(`Doorway_{wallKey}`, (a.Position + b.Position) / 2 - Vector3.new(0, NODE_SIZE / 2, 0))
+		doorway:SetAttribute("Label", "Door")
+		doorway:SetAttribute("Instance", door)
+		link(a, doorway)
+		link(doorway, a)
+		link(b, doorway)
+		link(doorway, b)
+	end
+	for row = 1, rows do
+		for column = 1, columns do
+			if column < columns then
+				join(cellNodes[row][column], cellNodes[row][column + 1], `e{row}:{column}`, east[row][column])
+			end
+			if row < rows then
+				join(cellNodes[row][column], cellNodes[row + 1][column], `s{row}:{column}`, south[row][column])
 			end
 		end
 	end
@@ -286,7 +513,22 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 	-- Placements: the player in the first cell, the four enemies spread out, a patrol node per
 	-- quadrant, the noise pad somewhere near the middle.
 	local playerCell: Cell = { Column = 1, Row = 1 }
-	local enemyCells = pickSpread(columns, rows, 4, 4, { playerCell }, random)
+	local safeCells: { Cell } = { playerCell, { Column = columns, Row = rows }, { Column = columns, Row = 1 } }
+	local function isSafe(column: number, row: number): boolean
+		for _, cell in safeCells do
+			if cell.Column == column and cell.Row == row then
+				return true
+			end
+		end
+		return false
+	end
+
+	local safeRooms: { SafeRoom } = {}
+	for _, cell in safeCells do
+		table.insert(safeRooms, makeSafeRoom(cellCenter(cell.Column, cell.Row), folder))
+	end
+
+	local enemyCells = pickSpread(columns, rows, 4, 4, safeCells, random)
 
 	local spawns: { [string]: Vector3 } = {}
 	for index, cell in enemyCells do
@@ -305,6 +547,13 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 	for index, quadrant in quadrants do
 		local column = random:NextInteger(quadrant[1], math.max(quadrant[1], quadrant[2]))
 		local row = random:NextInteger(quadrant[3], math.max(quadrant[3], quadrant[4]))
+		for _ = 1, 20 do
+			if not isSafe(column, row) then
+				break
+			end
+			column = random:NextInteger(quadrant[1], math.max(quadrant[1], quadrant[2]))
+			row = random:NextInteger(quadrant[3], math.max(quadrant[3], quadrant[4]))
+		end
 		local node = cellCenter(column, row)
 		table.insert(patrolNodes, node)
 
@@ -351,6 +600,10 @@ function Map.Build(parent: Instance, options: MapOptions?): BuiltMap
 		Spawns = spawns,
 		PatrolNodes = patrolNodes,
 		NoisePads = { pad },
+		SafeRooms = safeRooms,
+		Doors = doors,
+		NavGraph = navGraph,
+		CellCentres = cellCentres,
 		PlayerSpawn = playerSpawn,
 		Bounds = {
 			Min = ORIGIN + Vector3.new(WALL, FLOOR_TOP, WALL),

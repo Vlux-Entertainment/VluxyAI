@@ -132,4 +132,17 @@ return {
 		expect.truthy(When.Not(When.Missing("A"))(a))
 		expect.falsy(When.Not(When.Has("A"))(a))
 	end,
+
+	["SafeSighted wants a SafeTarget, and a chased one or a spent cooldown"] = function(expect)
+		local When = load()
+		local sighted = When.SafeSighted()
+		local a = agent({})
+		expect.falsy(sighted(a), "nobody in a safe room")
+		a.Blackboard.SafeTarget = "someone"
+		expect.truthy(sighted(a), "a timer never started counts as spent")
+		a.Timers["States.StareCooldown"] = false
+		expect.falsy(sighted(a), "cooling down after a stare")
+		a.Blackboard.SafeWasChased = true
+		expect.truthy(sighted(a), "unless it was chasing them")
+	end,
 }

@@ -37,6 +37,7 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local SafeAreas = require(script.Parent.Parent.World.SafeAreas)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
@@ -50,6 +51,9 @@ local DEFAULT_OPTIONS = table.freeze({
 	Memory = 3,
 	PerTarget = false,
 	Predict = 2,
+	PredictMax = 16,
+	NoticeRadius = 0,
+	NoticeThroughWalls = false,
 })
 
 --[=[
@@ -66,6 +70,9 @@ local DEFAULT_OPTIONS = table.freeze({
 	.SeeThrough ((part: BasePart) -> boolean)? -- Parts the sight ray looks past, such as [Perception.Transparent]. Default: everything blocks.
 	.PerTarget boolean? -- Also write `SeenMemory`, the last position and time of every target seen within `Memory` seconds, so an enemy remembers where each of several players went. Default `false`.
 	.Predict number? -- Seconds of the target's last velocity to carry `PredictedPosition` forward after losing sight, capped. `0` turns prediction off. Default `2`.
+	.PredictMax number? -- Studs the prediction may run past the last sighting at most. It also stops short of the first wall. Default `16`.
+	.NoticeRadius number? -- Studs within which a target is noticed even outside the cone or in the dark, like someone brushing past. It still needs a clear line unless `NoticeThroughWalls`; a player hidden with `AI_HIDDEN` stays hidden. `0` turns it off. Default `0`.
+	.NoticeThroughWalls boolean? -- Let `NoticeRadius` work through walls too, for a creature that senses rather than sees. Default `false`.
 	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SightOptions = {
@@ -80,6 +87,9 @@ export type SightOptions = {
 	SeeThrough: ((part: BasePart) -> boolean)?,
 	PerTarget: boolean?,
 	Predict: number?,
+	PredictMax: number?,
+	NoticeRadius: number?,
+	NoticeThroughWalls: boolean?,
 }
 
 type ResolvedOptions = {
@@ -94,6 +104,9 @@ type ResolvedOptions = {
 	SeeThrough: ((part: BasePart) -> boolean)?,
 	PerTarget: boolean,
 	Predict: number,
+	PredictMax: number,
+	NoticeRadius: number,
+	NoticeThroughWalls: boolean,
 }
 
 type self = {
@@ -121,6 +134,13 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 	For a horror game: `Visibility` scales the range per target, so darkness and a lit flashlight
 	are one function ([Perception.LightAt] is the ready-made one); `SeeThrough` lets the ray pass
 	glass ([Perception.Transparent]); and a player hidden with `AI_HIDDEN` is not a target at all.
+
+	A position remembered inside an enabled [SafeAreas] area is forgotten at once, and a
+	prediction never carries into one, so no chase follows a player into a safe room.
+
+	`NoticeRadius` is the close-range sense every enemy wants: a player that close is seen
+	whichever way the agent faces and however dark it is, so sneaking right behind an enemy
+	does not work.
 ]=]
 
 --[=[
@@ -142,6 +162,9 @@ function Sight.new(options: SightOptions?): Types.Sense
 
 	if resolved.Range < 0 then
 		FormatMessage.Error("Sight: Range must be zero or more", 3)
+	end
+	if resolved.NoticeRadius < 0 then
+		FormatMessage.Error("Sight: NoticeRadius must be zero or more", 3)
 	end
 
 	local self: self = {
@@ -169,26 +192,32 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	local visible: { BasePart } = {}
 	local visibilities: { [BasePart]: number } = {}
 	for _, target in options.Targets(agent) do
+		-- Close enough to notice: no cone, no darkness, and walls only when they count.
+		local noticed = options.NoticeRadius > 0 and (target.Position - eye.Position).Magnitude <= options.NoticeRadius
+
 		local visibility = 1
-		if options.Visibility ~= nil then
-			visibility = options.Visibility(agent, target)
-			if type(visibility) ~= "number" or visibility <= 0 then
+		if not noticed then
+			if options.Visibility ~= nil then
+				visibility = options.Visibility(agent, target)
+				if type(visibility) ~= "number" or visibility <= 0 then
+					continue
+				end
+			end
+
+			local inCone = Perception.InCone(eye, target.Position, options.FieldOfView, options.Range * visibility)
+			if not inCone then
 				continue
 			end
 		end
 
-		local inCone = Perception.InCone(eye, target.Position, options.FieldOfView, options.Range * visibility)
-		if not inCone then
-			continue
-		end
-
-		local clear = Perception.LineOfSight(
-			eye.Position,
-			target.Position,
-			ignore,
-			Perception.ModelOf(target),
-			options.SeeThrough
-		)
+		local clear = (noticed and options.NoticeThroughWalls)
+			or Perception.LineOfSight(
+				eye.Position,
+				target.Position,
+				ignore,
+				Perception.ModelOf(target),
+				options.SeeThrough
+			)
 		if clear then
 			table.insert(visible, target)
 			visibilities[target] = visibility
@@ -212,7 +241,7 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 			memory[target] = { Position = target.Position, At = now }
 		end
 		for target, entry in memory do
-			if now - entry.At > options.Memory then
+			if now - entry.At > options.Memory or SafeAreas.Contains(entry.Position) then
 				memory[target] = nil
 			end
 		end
@@ -237,6 +266,14 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 		blackboard.SeenPosition = nil
 	end
 
+	-- Someone last seen inside a safe area is gone as far as the chase is concerned: nothing may
+	-- follow them in, so the memory would only walk the agent into the door.
+	local remembered = blackboard.SeenPosition
+	if typeof(remembered) == "Vector3" and SafeAreas.Contains(remembered) then
+		blackboard.SeenPosition = nil
+		blackboard.SeenAt = nil
+	end
+
 	local seenAt = blackboard.SeenAt
 	if type(seenAt) == "number" and now - seenAt > options.Memory then
 		blackboard.SeenPosition = nil
@@ -249,10 +286,82 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 		blackboard.SeenVelocity = nil
 		blackboard.PredictedPosition = nil
 	elseif typeof(velocity) == "Vector3" and options.Predict > 0 then
-		blackboard.PredictedPosition = position + velocity * math.min(now - seenAt, options.Predict)
+		blackboard.PredictedPosition = Sight.Predict(position, velocity, now - seenAt, options, agent)
 	else
 		blackboard.PredictedPosition = position
 	end
+end
+
+--[=[
+	@within Sight
+	@param blackboard Blackboard -- The agent's blackboard.
+	@param prefix string? -- The sense's `Prefix`. Default `""`.
+
+	Forgets the last sighting at once: `SeenPosition`, `SeenAt`, `PredictedPosition`,
+	`SeenVelocity` and `SeenMemory`. For a state or another sense that knows the chase is over (the
+	target reached a safe room, got away through a door that locked) and wants nothing left to
+	follow. The next sighting writes them again.
+]=]
+function Sight.Forget(blackboard: Types.Blackboard, prefix: string?)
+	local keys = Tables.Prefixed(blackboard, prefix or "")
+	keys.SeenPosition = nil
+	keys.SeenAt = nil
+	keys.PredictedPosition = nil
+	keys.SeenVelocity = nil
+	keys.SeenMemory = nil
+end
+
+-- Studs a prediction stops short of the wall it would run into, about a body's radius.
+local WALL_MARGIN = 2
+
+--[=[
+	@within Sight
+	@param position Vector3 -- Where the target was last seen.
+	@param velocity Vector3 -- How it was moving, flat.
+	@param elapsed number -- Seconds since then.
+	@param options SightOptions -- `Predict` and `PredictMax` are read.
+	@param agent Agent? -- For the wall ray's ignore list; without it no ray is cast.
+	@return Vector3 -- Where the target probably is: carried along `velocity` for up to `Predict` seconds and `PredictMax` studs, stopped `2` studs short of the first wall in the way, and never inside a safe area.
+
+	A prediction that ran through walls would send a chase to a point the target never went
+	near, and often one no path reaches, so the agent would walk at it again and again.
+]=]
+function Sight.Predict(
+	position: Vector3,
+	velocity: Vector3,
+	elapsed: number,
+	options: any,
+	agent: Types.Agent?
+): Vector3
+	local offset = velocity * math.min(elapsed, options.Predict)
+	local limit = options.PredictMax or math.huge
+	if offset.Magnitude > limit then
+		offset = offset.Unit * limit
+	end
+	if offset.Magnitude < 1e-3 then
+		return position
+	end
+
+	if agent ~= nil then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		-- The ray passes the agent and the targets themselves: only the level stops a prediction.
+		local ignore = Perception.IgnoreList(agent)
+		local targets = if options.Targets then options.Targets(agent) else {}
+		for _, root in targets do
+			table.insert(ignore, Perception.ModelOf(root) or root)
+		end
+		params.FilterDescendantsInstances = ignore
+		local hit = workspace:Raycast(position, offset, params)
+		if hit then
+			local travel = math.max((hit.Position - position).Magnitude - WALL_MARGIN, 0)
+			offset = offset.Unit * travel
+		end
+	end
+
+	local predicted = position + offset
+	-- Prediction stops at a safe area's edge rather than carrying the chase inside.
+	return if SafeAreas.Contains(predicted) then position else predicted
 end
 
 --[=[
@@ -281,6 +390,9 @@ function Sight.Configure(self: Sight, patch: SightOptions)
 	) :: ResolvedOptions
 	if self._options.Range < 0 then
 		FormatMessage.Error("Sight: Range must be zero or more", 3)
+	end
+	if self._options.NoticeRadius < 0 then
+		FormatMessage.Error("Sight: NoticeRadius must be zero or more", 3)
 	end
 end
 

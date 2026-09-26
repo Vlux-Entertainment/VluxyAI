@@ -13,7 +13,7 @@ them to you, because every game shapes its remotes differently.
 **[Broadcaster](/api/Broadcaster)** watches an agent on the server. It fires `StateChanged` on
 every state change, `EventSent` for everything the agent [emits](/api/Agent#Emit), and, at a rate
 you choose, `PositionChanged` with the rig's pivot position and a yaw. `Snapshot()` is for a
-player who just joined. Make the broadcaster before `agent:Start()` so the first state is relayed.
+player who just joined (see [Snapshots for a player who joins](#snapshots-for-a-player-who-joins)). Make the broadcaster before `agent:Start()` so the first state is relayed.
 
 **[Replica](/api/Replica)** lives on the client with a rig and a table of client states, the
 **Visuals**. `SetState(name)` runs the old state's `Exit` and the new one's `Enter`;
@@ -50,6 +50,30 @@ syncRemote.OnClientEvent:Connect(function(message)
 	end
 end)
 ```
+
+## Snapshots for a player who joins
+
+A client that joins mid-game needs every agent's current state, and an agent that is not
+changing state (a statue waiting for someone to look away) will never send one on its own. Do
+not send snapshots from `Players.PlayerAdded`: that can fire before the player's client script
+has connected to the remote, and the message is lost. Let the client ask once it is listening:
+
+```lua
+-- server
+syncRemote.OnServerEvent:Connect(function(player, message)
+	if message == "Ready" then
+		for model, broadcaster in broadcasters do
+			syncRemote:FireClient(player, { Kind = "Snapshot", Id = model, Snapshot = broadcaster:Snapshot() })
+		end
+	end
+end)
+
+-- client, after connecting OnClientEvent
+syncRemote:FireServer("Ready")
+```
+
+`replica:ApplySnapshot(message.Snapshot)` puts the replica in that state. The playground does
+exactly this.
 
 ## Ids over the wire
 

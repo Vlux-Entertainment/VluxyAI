@@ -9,7 +9,9 @@
 	a target is often a player's root, a node is on the floor), so with `FloorCheck` on both are
 	projected onto the floor by a downward ray that may go a body's height plus `MaxDrop` below
 	them, and the path holds those floor positions, which is what a [Types.Step] promises. The
-	sweep then runs between the two body centres, `AgentHeight / 2` above the floor points. The
+	sweep then runs between the two body centres, `AgentHeight / 2` above the floor points, and
+	stops `AgentRadius` short of `to` so a target against a wall is still reachable; a thin ray
+	covers the whole centre line, including that last stretch. The
 	samples between sit on the projected floor line, so their rays only go `MaxDrop` below them,
 	every `AgentRadius` studs at most so no gap the body could fall through slips between two
 	samples, and each floor hit may be at most `MaxDrop` below the previous one. With `FloorCheck`
@@ -19,12 +21,17 @@
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
+local SafeAreas = require(script.Parent.Parent.World.SafeAreas)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 -- A segment shorter than this is not swept; the floor is still checked at `to`.
 local ZERO_LENGTH = 1e-4
+-- Fraction of AgentRadius around the start that must be free of parts: a real overlap, not a brush.
+local START_OVERLAP = 0.5
+-- Studs between the points checked against safe areas.
+local SAFE_SPACING = 2
 
 local DEFAULT_OPTIONS = table.freeze({
 	AgentRadius = 2,
@@ -32,6 +39,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	FloorCheck = true,
 	FloorSpacing = 4,
 	MaxDrop = 6,
+	AvoidSafeAreas = true,
 	Ignore = nil :: ((agent: Types.Agent) -> { Instance })?,
 })
 
@@ -47,6 +55,7 @@ local OPTIONAL_KEYS = { "Ignore" }
 	.FloorCheck boolean? -- Require floor under the segment and project the endpoints onto it. Default `true`.
 	.FloorSpacing number? -- Studs between floor samples along the segment, capped at `AgentRadius` so a gap the body could fall through is always sampled. Default `4`, which with the default radius means a ray every 2 studs; a long straight leg costs that many rays per plan.
 	.MaxDrop number? -- Studs the floor may be below a sample, and below the previous sample's floor. Default `6`.
+	.AvoidSafeAreas boolean? -- Refuse a line with any point inside an enabled [SafeAreas] area, checked every couple of studs a stud above the floor. Default `true`.
 	.Ignore ((agent: Agent) -> { Instance })? -- Instances the casts pass through. Default: [Straight.DefaultIgnore], the agent's entity and every player's character.
 ]=]
 export type Options = {
@@ -55,6 +64,7 @@ export type Options = {
 	FloorCheck: boolean?,
 	FloorSpacing: number?,
 	MaxDrop: number?,
+	AvoidSafeAreas: boolean?,
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
 }
 
@@ -64,6 +74,7 @@ type ResolvedOptions = {
 	FloorCheck: boolean,
 	FloorSpacing: number,
 	MaxDrop: number,
+	AvoidSafeAreas: boolean,
 	Ignore: ((agent: Types.Agent) -> { Instance })?,
 }
 
@@ -219,23 +230,39 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 		floorTo = underTo
 	end
 
+	if options.AvoidSafeAreas then
+		local up = Vector3.new(0, 1, 0)
+		for _, point in Straight.Sample(floorFrom, floorTo, SAFE_SPACING) do
+			if SafeAreas.Contains(point + up) then
+				return nil, `crosses a safe area at {point}`
+			end
+		end
+	end
+
 	local start = floorFrom + lift
 	local offset = (floorTo + lift) - start
 
-	if offset.Magnitude > ZERO_LENGTH then
-		-- A sweep ignores what its sphere already overlaps, so a body pressed against a wall would
-		-- sweep straight through it. Check the start on its own first.
+	local length = offset.Magnitude
+	if length > ZERO_LENGTH then
+		-- A sweep ignores what its sphere already overlaps, so a body sunk into a wall would sweep
+		-- straight through it. Only a real overlap counts: a body brushing a wall is normal, and
+		-- the centre ray below catches a wall between the two.
 		local overlap = OverlapParams.new()
 		overlap.FilterType = Enum.RaycastFilterType.Exclude
 		overlap.FilterDescendantsInstances = ignore
-		local touching = workspace:GetPartBoundsInRadius(start, options.AgentRadius * 0.9, overlap)
+		local touching = workspace:GetPartBoundsInRadius(start, options.AgentRadius * START_OVERLAP, overlap)
 		if #touching > 0 then
 			return nil, `blocked by {touching[1]:GetFullName()} at the start`
 		end
 
-		local hit = workspace:Spherecast(start, options.AgentRadius, offset, params)
-		if hit then
-			return nil, `blocked by {hit.Instance:GetFullName()}`
+		-- The body sweep stops a body's radius short of `to`: a target standing against a wall
+		-- fits there, but a sphere as wide as the agent at its exact spot would touch the wall.
+		local sweepLength = length - options.AgentRadius
+		if sweepLength > ZERO_LENGTH then
+			local hit = workspace:Spherecast(start, options.AgentRadius, offset.Unit * sweepLength, params)
+			if hit then
+				return nil, `blocked by {hit.Instance:GetFullName()}`
+			end
 		end
 	end
 
@@ -258,6 +285,15 @@ function Straight.FindPath(self: Straight, from: Vector3, to: Vector3, agent: Ty
 				return nil, `floor drops {drop} at {sample}`
 			end
 			previous = floor
+		end
+	end
+
+	if length > ZERO_LENGTH then
+		-- The centre line, all the way: covers the end the sweep leaves out, and a wall the body
+		-- was brushing at the start.
+		local hit = workspace:Raycast(start, offset, params)
+		if hit then
+			return nil, `blocked by {hit.Instance:GetFullName()}`
 		end
 	end
 

@@ -306,12 +306,10 @@ return {
 
 		s.mover:Follow({ step(0, 0, 0), step(5, 0, 0), step(10, 1, 0) })
 		s.heartbeat:Fire(1)
-		expectVector(expect, s.pivot.Pivot.Position, 0, 2.5, 0, "the body does not sink to the floor step under it")
-		s.heartbeat:Fire(1)
-		expectVector(expect, s.pivot.Pivot.Position, 5, 2.5, 0, "2.5 above the second step")
+		expectVector(expect, s.pivot.Pivot.Position, 5, 2.5, 0, "2.5 above the second step: it never sank to the floor")
 		s.heartbeat:Fire(1)
 		expectVector(expect, s.pivot.Pivot.Position, 10, 3.5, 0, "2.5 above the last step")
-		expect.sequence(s.events, { "step 1", "step 2", "step 3", "arrived true" })
+		expect.sequence(s.events, { "step 2", "step 3", "arrived true" }, "the step under it is skipped")
 
 		s.pivot.Pivot = CFrame.new(10, 9, 0)
 		s.mover:Follow({ step(20, 0, 0) })
@@ -457,7 +455,7 @@ return {
 		local look = s.pivot.Pivot.LookVector
 
 		s.mover:Teleport(Vector3.new(20, 5, 20))
-		expect.sequence(s.events, { "step 1", "arrived false" })
+		expect.sequence(s.events, { "arrived false" }, "the step under the pivot was skipped, not reported")
 		expectVector(expect, s.pivot.Pivot.Position, 20, 5, 20, "position")
 		expectVector(expect, s.pivot.Pivot.LookVector, look.X, look.Y, look.Z, "facing kept")
 		expect.falsy(s.mover:IsMoving())
@@ -467,7 +465,7 @@ return {
 		local s = setup({ Speed = 100, HeightOffset = 0 })
 		s.mover:SetNudge(Vector3.new(0, 0, 2))
 		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0), step(8, 0, 0) })
-		s.heartbeat:Fire(0.1)
+		-- The step under the pivot is skipped, as every mover does.
 		s.heartbeat:Fire(0.1)
 		expectVector(expect, s.pivot.Pivot.Position, 4, 0, 2, "the middle step is nudged")
 		s.heartbeat:Fire(0.1)
@@ -490,5 +488,12 @@ return {
 		expect.sequence(heard, { 1 }, "the default loudness")
 		s.heartbeat:Fire(0.2)
 		expect.equal(#heard, 2)
+	end,
+
+	["a path re-planned mid-walk that starts behind the pivot does not turn it back"] = function(expect)
+		local s = setup({ Speed = 10, HeightOffset = 0 }, Vector3.new(5, 0, 0))
+		s.mover:Follow({ step(3, 0, 0), step(20, 0, 0) })
+		s.heartbeat:Fire(0.1)
+		expect.truthy(s.pivot.Pivot.Position.X > 5, "moved on toward 20, not back to 3")
 	end,
 }

@@ -262,6 +262,12 @@ return {
 			function instance.GetFullName(_self)
 				return `Workspace.NavGraph.{name}`
 			end
+			function instance.GetAttribute(_self, _attribute: string)
+				return nil
+			end
+			function instance.GetAttributes(_self)
+				return {}
+			end
 			table.insert(nodes, instance)
 			return instance
 		end
@@ -354,5 +360,137 @@ return {
 			end) :: any,
 			"AStar takes a blocked predicate"
 		)
+	end,
+
+	["FromInstances reads Instance attributes as links, and a labelled node labels every link into it"] = function(
+		expect
+	)
+		local warnings = {}
+		local Graph = Harness.Load("lib/Pathfinders/Graph.luau", {
+			warn = function(message)
+				table.insert(warnings, tostring(message))
+			end,
+		})
+		local door = { Name = "Door" }
+		local stray = {
+			Name = "Stray",
+			GetFullName = function()
+				return "Workspace.Stray"
+			end,
+		}
+		-- An Instance attribute reads back as a handle whose Get returns the instance.
+		local function handle(target)
+			return {
+				Get = function()
+					return target
+				end,
+			}
+		end
+		local nodes = {}
+		local function node(name: string, x: number)
+			local instance = {
+				Name = name,
+				Position = Vector3.new(x, 1, 0),
+				CFrame = CFrame.new(Vector3.new(x, 1, 0)),
+				Size = Vector3.new(2, 2, 2),
+				Attributes = {} :: { [string]: any },
+			}
+			function instance.IsA(_self, className: string)
+				return className == "BasePart"
+			end
+			function instance.GetChildren(_self)
+				return {}
+			end
+			function instance.GetFullName(_self)
+				return `Workspace.NavGraph.{name}`
+			end
+			function instance.GetAttribute(self, attribute: string)
+				return self.Attributes[attribute]
+			end
+			function instance.GetAttributes(self)
+				return self.Attributes
+			end
+			table.insert(nodes, instance)
+			return instance
+		end
+
+		local a = node("A", 0)
+		local doorway = node("Doorway", 8)
+		local b = node("B", 16)
+		a.Attributes.Link1 = handle(doorway)
+		doorway.Attributes.West = handle(a)
+		doorway.Attributes.East = handle(b)
+		b.Attributes.Link1 = handle(doorway)
+		b.Attributes.Oops = handle(stray)
+		b.Attributes.Colour = "red"
+		doorway.Attributes.Label = "Door"
+		doorway.Attributes.Instance = handle(door)
+
+		local container = {
+			GetChildren = function()
+				return nodes
+			end,
+			GetFullName = function()
+				return "Workspace.NavGraph"
+			end,
+		}
+		local graph = Graph.FromInstances(container, { AutoLink = false })
+		local built = graph:GetNodes()
+
+		expect.equal(#built[1].Links, 1)
+		expect.equal(built[1].Links[1].To, 2, "A links into the doorway node")
+		expect.equal(built[1].Links[1].Label, "Door", "the doorway's Label is on every link into it")
+		expect.equal(built[1].Links[1].Action, "Custom")
+		expect.equal(built[1].Links[1].Instance, door, "and its Instance attribute is the door")
+		expect.equal(#built[2].Links, 2, "Label and Instance are the node's own, not links")
+		for _, link in built[2].Links do
+			expect.equal(type(link), "number", "links out of the doorway are plain")
+		end
+		expect.equal(#built[3].Links, 1, "a text attribute is not a link")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "Oops")
+		expect.includes(warnings[1], "Workspace.Stray")
+
+		local path = graph:FindPath(Vector3.new(0, 0, 0), Vector3.new(16, 0, 0), Fakes.Agent())
+		local labelled = nil
+		for _, step in path do
+			if step.Label == "Door" then
+				labelled = step
+			end
+		end
+		expect.truthy(labelled, "a route through the doorway carries a Door step")
+		expect.equal(labelled.Instance, door)
+		expect.equal(labelled.Position, Vector3.new(0, 0, 0), "on the node before the doorway")
+	end,
+
+	["Avoid keeps a route out of avoided nodes, and an avoided goal has no path"] = function(expect)
+		local Graph = load()
+		-- A square: 1-2-3 along the top, 1-4-3 along the bottom. Node 2 is in a safe room.
+		local nodes = {
+			{ Position = Vector3.new(0, 0, 0), Links = { 2, 4 } },
+			{ Position = Vector3.new(10, 0, 0), Links = { 1, 3 } },
+			{ Position = Vector3.new(20, 0, 0), Links = { 2, 4 } },
+			{ Position = Vector3.new(10, 0, 30), Links = { 1, 3 } },
+		}
+		local function inRoom(position)
+			return (position - Vector3.new(10, 0, 0)).Magnitude < 3
+		end
+		local graph = Graph.new(nodes, { Avoid = inRoom })
+
+		local path = graph:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), Fakes.Agent())
+		for _, step in path do
+			expect.falsy(inRoom(step.Position), "never through the safe room")
+		end
+		local detoured = false
+		for _, step in path do
+			if step.Position == Vector3.new(10, 0, 30) then
+				detoured = true
+			end
+		end
+		expect.truthy(detoured, "the long way round")
+
+		local none, reason = graph:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 1), Fakes.Agent())
+		expect.equal(none, nil)
+		expect.includes(reason, "avoided")
 	end,
 }

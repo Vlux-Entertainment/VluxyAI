@@ -18,6 +18,7 @@ local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
+local Start = require(script.Parent.Start)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
@@ -28,6 +29,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	StuckTimeout = 3,
 	StuckDistance = 0.5,
 	SkipDistance = 1,
+	ReachDistance = 4,
 	ServerOwned = true,
 })
 
@@ -37,6 +39,7 @@ type ResolvedOptions = {
 	StuckTimeout: number,
 	StuckDistance: number,
 	SkipDistance: number,
+	ReachDistance: number,
 	ServerOwned: boolean,
 }
 
@@ -77,6 +80,7 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 	.StuckTimeout number? -- Seconds without moving `StuckDistance` before giving up. Default `3`.
 	.StuckDistance number? -- Studs the root must move within `StuckTimeout` to count as progress. Default `0.5`.
 	.SkipDistance number? -- Leading plain Walk steps within this horizontal distance of the rig are skipped. Default `1`.
+	.ReachDistance number? -- `MoveToFinished(true)` only counts when the root is within this horizontal distance of the step it is walking to; a "reached" from farther away is a late event from a walk this path did not start, and the walk goes on. Default `4`.
 	.ServerOwned boolean? -- Set the root's network owner to the server in `new`. Default `true`.
 	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
 ]=]
@@ -84,12 +88,12 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 	@interface MoverNoise
 	@within HumanoidMover
 
-	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Signal Signal<(Vector3, number?, string?)> -- The noise signal a [Hearing] sense listens to.
 	.Interval number? -- Seconds between noises while moving. Default `0.5`.
 	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
 ]=]
 export type MoverNoise = {
-	Signal: Types.Signal<(Vector3, number?)>,
+	Signal: Types.Signal<(Vector3, number?, string?)>,
 	Interval: number?,
 	Loudness: (number | (speed: number) -> number)?,
 }
@@ -124,30 +128,15 @@ export type HumanoidOptions = {
 
 --[=[
 	@within HumanoidMover
+	@function ChooseStart
 	@param path Path
 	@param position Vector3 -- Where the rig is.
-	@param skipDistance number -- Horizontal distance within which a leading step is already reached.
-	@return number -- The index of the first step to walk toward; `#path + 1` only when the path is empty.
+	@param skipDistance number
+	@return number
 
-	Skips the run of leading plain `Walk` steps that sit within `skipDistance` of `position`,
-	because a navmesh path starts where the agent already stands. A labelled, `Jump` or `Custom`
-	step is never skipped, even one under the agent: it carries meaning (a door at the agent's
-	feet) that `StepReached` must report. The last step is never skipped either, so there is
-	always something to walk toward and arrival is always reported from `MoveToFinished`.
+	[MoverStart.Choose], kept here under its old name.
 ]=]
-function HumanoidMover.ChooseStart(path: Types.Path, position: Vector3, skipDistance: number): number
-	local index = 1
-	while index < #path do
-		local step = path[index]
-		local plain = step.Action == "Walk" and step.Label == nil
-		if not plain or Tables.FlatDistance(step.Position, position) > skipDistance then
-			break
-		end
-		index += 1
-	end
-
-	return index
-end
+HumanoidMover.ChooseStart = Start.Choose
 
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -227,7 +216,7 @@ end
 	the rig got there on its own, and fires Arrived. Nothing may touch self after the fire, because
 	a handler is free to call Follow again.
 ]]
-function HumanoidMover._finish(self: HumanoidMover, reached: boolean)
+function HumanoidMover._finish(self: HumanoidMover, reached: boolean, replacing: boolean?)
 	if self._path == nil then
 		return
 	end
@@ -236,7 +225,9 @@ function HumanoidMover._finish(self: HumanoidMover, reached: boolean)
 	self._index = 0
 	self._moveCleaner:Clean()
 
-	if not reached then
+	-- A path being replaced needs no cancel: the new path's MoveTo overrides it, and a cancel
+	-- (a walk to where the rig stands) would report "reached" late, to the new path.
+	if not reached and not replacing then
 		self._humanoid:MoveTo(self._root.Position)
 	end
 
@@ -324,6 +315,13 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 	end
 
 	local index = self._index
+	local goal = self:_goalOf(path, index)
+	if Tables.FlatDistance(self._root.Position, goal) > self._options.ReachDistance then
+		-- Not here: a late "reached" from a walk this path did not issue. Keep walking.
+		self._humanoid:MoveTo(goal)
+		return
+	end
+
 	local step = path[index]
 	self.StepReached:Fire(index, step)
 
@@ -391,7 +389,7 @@ function HumanoidMover.Follow(self: HumanoidMover, path: Types.Path)
 		return
 	end
 
-	self:_finish(false)
+	self:_finish(false, true)
 
 	self._path = path
 

@@ -491,4 +491,160 @@ return {
 		expect.equal(off.blackboard.SeenVelocity, nil, "a part with no velocity")
 		expect.equal(off.blackboard.PredictedPosition, Vector3.new(0, 0, -10))
 	end,
+
+	["NoticeRadius sees a close target behind the agent or in the dark, but not through a wall"] = function(expect)
+		local behind = SenseFakes.Part(Vector3.new(0, 0, 4))
+		local s = setup({
+			sight = {
+				NoticeRadius = 5,
+				Targets = SenseFakes.Targets({ behind }),
+				Visibility = function()
+					return 0
+				end,
+			},
+		})
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, behind, "behind and in the dark, but within 5 studs")
+		expect.equal(s.blackboard.SeenVisibility, 1)
+
+		local far = SenseFakes.Part(Vector3.new(0, 0, 6))
+		local f = setup({ sight = { NoticeRadius = 5, Targets = SenseFakes.Targets({ far }) } })
+		f.sight:Tick(f.agent, 0.1)
+		expect.equal(f.blackboard.SeenTarget, nil, "6 studs behind is outside the radius")
+
+		local walled = setup({
+			sight = { NoticeRadius = 5, Targets = SenseFakes.Targets({ behind }) },
+			hit = function()
+				return SenseFakes.Hit(nil)
+			end,
+		})
+		walled.sight:Tick(walled.agent, 0.1)
+		expect.equal(walled.blackboard.SeenTarget, nil, "a wall between still hides them")
+
+		local sensed = setup({
+			sight = { NoticeRadius = 5, NoticeThroughWalls = true, Targets = SenseFakes.Targets({ behind }) },
+			hit = function()
+				return SenseFakes.Hit(nil)
+			end,
+		})
+		sensed.sight:Tick(sensed.agent, 0.1)
+		expect.equal(sensed.blackboard.SeenTarget, behind, "NoticeThroughWalls ignores the wall")
+	end,
+
+	["NoticeRadius is off by default and refuses a negative value"] = function(expect)
+		local s = setup({ sight = { Targets = SenseFakes.Targets({ SenseFakes.Part(Vector3.new(0, 0, 1)) }) } })
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, nil, "one stud behind is unseen without NoticeRadius")
+
+		local Sight = Harness.Load("lib/Senses/Sight.luau", { globals = SenseFakes.Globals() })
+		local message = expect.errors(function()
+			Sight.new({ NoticeRadius = -1 })
+		end)
+		expect.includes(message, "NoticeRadius")
+	end,
+
+	["a sighting remembered inside a safe area is forgotten, and prediction stops at its edge"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local room = {
+			CFrame = roblox.CFrame.new(0, 0, -30),
+			Size = Vector3.new(10, 6, 10),
+			IsA = function(_self, className: string)
+				return className == "BasePart"
+			end,
+			GetAttribute = function()
+				return nil
+			end,
+		}
+		local target = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local visible = { target }
+		local Sight = Harness.Load("lib/Senses/Sight.luau", {
+			globals = SenseFakes.Globals({ clock = clock }),
+			services = {
+				CollectionService = {
+					GetTagged = function(_self, tag: string)
+						return if tag == "AI_SAFE" then { room } else {}
+					end,
+				},
+			},
+		})
+		local agent = SenseFakes.Agent(Vector3.new(0, 0, 0), Vector3.new(0, 0, -1))
+		local sight = Sight.new({
+			Memory = 8,
+			Predict = 3,
+			Targets = function()
+				return visible
+			end,
+		})
+
+		-- Seen running toward the room: the prediction would carry them inside it.
+		target.AssemblyLinearVelocity = Vector3.new(0, 0, -10)
+		sight:Tick(agent, 0.1)
+		visible = {}
+		clock:Advance(2)
+		sight:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.SeenPosition, Vector3.new(0, 0, -10), "still remembered outside")
+		expect.equal(agent.Blackboard.PredictedPosition, Vector3.new(0, 0, -10), "prediction held at the edge")
+
+		-- Seen again, now inside the room, then lost: nothing to chase.
+		target.Position = Vector3.new(0, 0, -30)
+		visible = { target }
+		sight:Tick(agent, 0.1)
+		visible = {}
+		clock:Advance(0.5)
+		sight:Tick(agent, 0.1)
+		expect.equal(agent.Blackboard.SeenPosition, nil)
+		expect.equal(agent.Blackboard.PredictedPosition, nil)
+	end,
+
+	["Predict stops short of the first wall and never runs past PredictMax"] = function(expect)
+		local hitAt: any = nil
+		local Sight = Harness.Load("lib/Senses/Sight.luau", {
+			globals = SenseFakes.Globals({
+				hit = function(_ray)
+					if hitAt == nil then
+						return nil
+					end
+					return { Instance = { Name = "Wall" }, Position = hitAt }
+				end,
+			}),
+		})
+		local agent = SenseFakes.Agent(Vector3.new(0, 0, 0))
+		local options = {
+			Predict = 3,
+			PredictMax = 16,
+			Targets = function()
+				return {}
+			end,
+		}
+
+		local free = Sight.Predict(Vector3.new(0, 0, 0), Vector3.new(0, 0, -24), 3, options, agent)
+		expect.equal(free, Vector3.new(0, 0, -16), "72 studs of sprint capped at PredictMax")
+
+		hitAt = Vector3.new(0, 0, -6)
+		local walled = Sight.Predict(Vector3.new(0, 0, 0), Vector3.new(0, 0, -24), 3, options, agent)
+		expect.near((walled - Vector3.new(0, 0, -4)).Magnitude, 0, 1e-6, "2 studs short of the wall at 6")
+
+		hitAt = Vector3.new(0, 0, -1)
+		local pinned = Sight.Predict(Vector3.new(0, 0, 0), Vector3.new(0, 0, -24), 3, options, agent)
+		expect.equal(pinned, Vector3.new(0, 0, 0), "a wall right there keeps it where they were seen")
+	end,
+
+	["Forget clears the sighting, under the sense's prefix"] = function(expect)
+		local Sight = Harness.Load("lib/Senses/Sight.luau", { globals = SenseFakes.Globals() })
+		local blackboard = {
+			SeenPosition = Vector3.new(1, 0, 0),
+			SeenAt = 5,
+			PredictedPosition = Vector3.new(2, 0, 0),
+			SeenVelocity = Vector3.new(1, 0, 0),
+			SeenTarget = "kept",
+			["Left.SeenPosition"] = Vector3.new(3, 0, 0),
+		}
+		Sight.Forget(blackboard)
+		expect.equal(blackboard.SeenPosition, nil)
+		expect.equal(blackboard.SeenAt, nil)
+		expect.equal(blackboard.PredictedPosition, nil)
+		expect.equal(blackboard.SeenVelocity, nil)
+		expect.equal(blackboard.SeenTarget, "kept", "who is in view now is not memory")
+		expect.equal(blackboard["Left.SeenPosition"], Vector3.new(3, 0, 0), "another prefix is left alone")
+	end,
 }

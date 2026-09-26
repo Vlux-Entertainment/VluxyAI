@@ -183,7 +183,7 @@ return {
 			waypoint(0, 0, 0),
 			waypoint(2, 1, 0, "Jump"),
 			waypoint(4, 0, 0, "Custom", "Door"),
-			waypoint(6, 0, 0, "Walk", "Water"),
+			waypoint(6, 0, 0, "Walk", "Swim"),
 		})
 
 		expect.equal(#path, 4)
@@ -193,7 +193,7 @@ return {
 		expect.equal(path[2].Action, "Jump")
 		expect.equal(path[3].Action, "Custom")
 		expect.equal(path[3].Label, "Door")
-		expect.equal(path[4].Label, "Water")
+		expect.equal(path[4].Label, "Swim")
 	end,
 
 	["FromWaypoints copes with a missing Label and an empty list"] = function(expect)
@@ -226,7 +226,7 @@ return {
 		expect.includes(err, "[VluxyAI]")
 		expect.includes(
 			err,
-			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, CollapseLabels, Costs, Simplify, WaypointSpacing'
+			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, Closest, CollapseLabels, Costs, Simplify, SimplifyAngle, StopBefore, WaypointSpacing'
 		)
 	end,
 
@@ -372,12 +372,137 @@ return {
 			waypoint(4, 0, 0, "Custom", "Door"),
 			waypoint(8, 0, 0),
 		})
-		local navmesh = loadWithService(path).new({ Simplify = false })
+		local navmesh = loadWithService(path).new({ Simplify = false, StopBefore = 0 })
 		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any)
 		expect.equal(#steps, 3, "one Door step")
 		expect.equal(steps[2].Position, Vector3.new(2, 0, 0))
 
-		local raw = loadWithService(path).new({ Simplify = false, CollapseLabels = false })
+		local raw = loadWithService(path).new({ Simplify = false, CollapseLabels = false, StopBefore = 0 })
 		expect.equal(#raw:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any), 4, "off on request")
+	end,
+
+	["StopBefore moves a label onto the plain Walk step just before it"] = function(expect)
+		local Navmesh = load()
+		local door = { Name = "Door" }
+		local run = {
+			walk(0, 0, 0),
+			walk(2, 0, 0),
+			{ Position = Vector3.new(4, 0, 0), Action = "Custom", Label = "Door", Instance = door },
+			walk(6, 0, 0),
+			walk(16, 0, 0, "Far"),
+			jump(18, 0, 0),
+			walk(19, 0, 0, "AfterJump"),
+		}
+		local moved = Navmesh.StopBefore(run, 3)
+		expect.equal(#moved, #run, "no step is added or removed")
+		expect.equal(moved[2].Label, "Door", "the stop is outside the doorway")
+		expect.equal(moved[2].Instance, door)
+		expect.equal(moved[2].Action, "Custom")
+		expect.equal(moved[3].Label, nil, "the doorway step is walked through")
+		expect.equal(moved[3].Action, "Walk")
+		expect.equal(moved[5].Label, "Far", "a step 10 studs back is too far")
+		expect.equal(moved[7].Label, "AfterJump", "a Jump step never takes a label")
+		expect.equal(run[3].Label, "Door", "the input is not modified")
+	end,
+
+	["FindPath stops before a doorway by default, and Simplify keeps the walk through"] = function(expect)
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0),
+			waypoint(2, 0, 0),
+			waypoint(4, 0, 0, "Walk", "Door"),
+			waypoint(6, 0, 0),
+			waypoint(10, 0, 0),
+		})
+		local navmesh = loadWithService(path).new()
+		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 0, 0), {} :: any)
+		local labelled = nil
+		for _, step in steps do
+			if step.Label == "Door" then
+				labelled = step
+			end
+		end
+		expect.truthy(labelled, "a Door step survives")
+		expect.equal(labelled.Position, Vector3.new(2, 0, 0))
+		expect.equal(steps[#steps].Position, Vector3.new(10, 0, 0))
+	end,
+
+	["EndsNear measures the last step against the goal, ignoring height"] = function(expect)
+		local Navmesh = load()
+		expect.truthy(Navmesh.EndsNear({ walk(0, 0, 0), walk(8, 0, 0) }, Vector3.new(11, 3, 0), 4))
+		expect.falsy(Navmesh.EndsNear({ walk(0, 0, 0), walk(8, 0, 0) }, Vector3.new(13, 0, 0), 4))
+		expect.falsy(Navmesh.EndsNear({}, Vector3.new(0, 0, 0), 4))
+	end,
+
+	["FindPath accepts a ClosestNoPath that ends close to the goal"] = function(expect)
+		local near = fakePath(Enum.PathStatus.ClosestNoPath, { waypoint(0, 0, 0), waypoint(8, 0, 0) })
+		local steps, reason =
+			loadWithService(near).new():FindPath(Vector3.new(0, 0, 0), Vector3.new(10, 3, 0), {} :: any)
+		expect.equal(reason, nil)
+		expect.equal(steps[#steps].Position, Vector3.new(8, 0, 0), "a player 2 studs past the mesh edge")
+
+		local far = fakePath(Enum.PathStatus.ClosestNoPath, { waypoint(0, 0, 0), waypoint(8, 0, 0) })
+		local none, why = loadWithService(far).new():FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(none, nil)
+		expect.equal(why, "ClosestNoPath", "12 studs short is no path")
+
+		local off = fakePath(Enum.PathStatus.ClosestNoPath, { waypoint(0, 0, 0), waypoint(8, 0, 0) })
+		local refused =
+			loadWithService(off).new({ Closest = 0 }):FindPath(Vector3.new(0, 0, 0), Vector3.new(9, 0, 0), {} :: any)
+		expect.equal(refused, nil, "Closest = 0 turns it off")
+	end,
+
+	["a material name is not a label, so an ordinary path is not collapsed into one step"] = function(expect)
+		local Navmesh = load()
+		local steps = Navmesh.FromWaypoints({
+			waypoint(0, 0, 0, "Walk", "Plastic"),
+			waypoint(2, 0, 0, "Walk", "Grass"),
+			waypoint(4, 0, 0, "Walk", "Door"),
+		})
+		expect.equal(steps[1].Label, nil, "Plastic is the floor, not a label")
+		expect.equal(steps[2].Label, nil)
+		expect.equal(steps[3].Label, "Door")
+
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0, "Walk", "Plastic"),
+			waypoint(2, 0, 3, "Walk", "Plastic"),
+			waypoint(4, 0, 0, "Walk", "Plastic"),
+			waypoint(40, 0, 0, "Walk", "Plastic"),
+		})
+		local result = loadWithService(path).new():FindPath(Vector3.new(0, 0, 0), Vector3.new(40, 0, 0), {} :: any)
+		expect.equal(result[#result].Position, Vector3.new(40, 0, 0), "the path still reaches the goal")
+	end,
+
+	["safe areas are always priced out, unless the costs already price them"] = function(expect)
+		local Navmesh = load()
+		local merged = Navmesh.WithSafeAreas({ Swim = 5 })
+		expect.equal(merged.AI_SAFE, math.huge)
+		expect.equal(merged.Swim, 5)
+		expect.equal(Navmesh.WithSafeAreas({ AI_SAFE = 3 }).AI_SAFE, 3, "your own price wins")
+
+		local Service, created = loadWithService(fakePath(Enum.PathStatus.Success, { waypoint(0, 0, 0) }))
+		Service.new({ Costs = { Swim = 5 } })
+		expect.equal(created[1].Costs.AI_SAFE, math.huge, "and CreatePath gets it")
+		expect.equal(created[1].Costs.Swim, 5)
+	end,
+
+	["Simplify shaves turns under 8 degrees by default, as the original pathfinding did"] = function(expect)
+		local Navmesh = load()
+		-- A gentle curve: each 2-stud step turns about 5 degrees.
+		local curve = { walk(0, 0, 0) }
+		local heading = 0
+		local position = Vector3.new(0, 0, 0)
+		for _ = 1, 6 do
+			heading += math.rad(5)
+			position += Vector3.new(math.cos(heading), 0, math.sin(heading)) * 2
+			table.insert(curve, { Position = position, Action = "Walk" })
+		end
+		local shaved = Navmesh.Simplify(curve)
+		expect.truthy(#shaved < #curve, "a 5 degree turn is shaved")
+
+		local fine = Navmesh.Simplify(curve, 2)
+		expect.equal(#fine, #curve, "with a 2 degree angle every turn is kept")
+
+		local corner = Navmesh.Simplify({ walk(0, 0, 0), walk(10, 0, 0), walk(10, 0, 10) })
+		expect.equal(#corner, 3, "a real corner is always kept")
 	end,
 }
