@@ -226,7 +226,7 @@ return {
 		expect.includes(err, "[VluxyAI]")
 		expect.includes(
 			err,
-			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, Costs, Simplify, WaypointSpacing'
+			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, CollapseLabels, Costs, Simplify, WaypointSpacing'
 		)
 	end,
 
@@ -346,5 +346,38 @@ return {
 		navmesh:Close({ Position = Vector3.new(90, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
 		local byInstance = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
 		expect.equal(#byInstance, 3, "waypoints never carry an Instance, so position is what matches")
+	end,
+
+	["CollapseLabels merges a run of same-label steps into its first, and FindPath applies it"] = function(expect)
+		local Navmesh = load()
+		local run = {
+			walk(0, 0, 0),
+			walk(2, 0, 0, "Door"),
+			walk(4, 0, 0, "Door"),
+			walk(6, 0, 0, "Door"),
+			walk(8, 0, 0),
+			walk(10, 0, 0, "Door"),
+			walk(12, 0, 0, "Ladder"),
+			walk(14, 0, 0, "Ladder"),
+		}
+		local collapsed = Navmesh.CollapseLabels(run)
+		expect.sequence(positions(collapsed), { "0,0,0", "2,0,0", "8,0,0", "10,0,0", "12,0,0" })
+		expect.equal(collapsed[2].Label, "Door")
+		expect.equal(collapsed[5].Label, "Ladder")
+		expect.equal(#run, 8, "the input is not modified")
+
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0),
+			waypoint(2, 0, 0, "Custom", "Door"),
+			waypoint(4, 0, 0, "Custom", "Door"),
+			waypoint(8, 0, 0),
+		})
+		local navmesh = loadWithService(path).new({ Simplify = false })
+		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "one Door step")
+		expect.equal(steps[2].Position, Vector3.new(2, 0, 0))
+
+		local raw = loadWithService(path).new({ Simplify = false, CollapseLabels = false })
+		expect.equal(#raw:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any), 4, "off on request")
 	end,
 }

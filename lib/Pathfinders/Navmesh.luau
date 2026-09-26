@@ -32,6 +32,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	WaypointSpacing = 2,
 	Costs = {} :: { [string]: number },
 	Simplify = true,
+	CollapseLabels = true,
 })
 
 --[=[
@@ -45,6 +46,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.WaypointSpacing number? -- Passed to `CreatePath`. Default `2`.
 	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`.
 	.Simplify boolean? -- Run [Navmesh.Simplify] over every path. Default `true`.
+	.CollapseLabels boolean? -- Run [Navmesh.CollapseLabels] over every path, so a `PathfindingModifier` volume that labels several waypoints in a row yields one labelled step, like a link. Default `true`.
 ]=]
 export type Options = {
 	AgentRadius: number?,
@@ -54,6 +56,7 @@ export type Options = {
 	WaypointSpacing: number?,
 	Costs: { [string]: number }?,
 	Simplify: boolean?,
+	CollapseLabels: boolean?,
 }
 
 type ResolvedOptions = {
@@ -64,6 +67,7 @@ type ResolvedOptions = {
 	WaypointSpacing: number,
 	Costs: { [string]: number },
 	Simplify: boolean,
+	CollapseLabels: boolean,
 }
 
 type Closure = {
@@ -201,6 +205,32 @@ end
 
 --[=[
 	@within Navmesh
+	@param path Path
+	@return Path -- A new path; the input is not modified.
+
+	Merges each run of consecutive steps that share a `Label` into the first of them, keeping
+	its position. A `PathfindingModifier` labels every waypoint inside its volume, and waypoints
+	sit a couple of studs apart, so a doorway would otherwise be two or three "Door" steps and a
+	handler would run at each. A run is broken by an unlabelled step or a different label. Pure.
+]=]
+function Navmesh.CollapseLabels(path: Types.Path): Types.Path
+	local collapsed: Types.Path = {}
+	local previousLabel: string? = nil
+
+	for index, step in path do
+		local label = step.Label
+		local continues = label ~= nil and label == previousLabel and index > 1
+		if not continues then
+			table.insert(collapsed, step)
+		end
+		previousLabel = label
+	end
+
+	return collapsed
+end
+
+--[=[
+	@within Navmesh
 	@param waypoints { PathWaypoint }
 	@return Path
 
@@ -253,6 +283,9 @@ function Navmesh.FindPath(self: Navmesh, from: Vector3, to: Vector3, agent: Type
 	end
 
 	local steps = Navmesh.FromWaypoints(path:GetWaypoints())
+	if self._options.CollapseLabels then
+		steps = Navmesh.CollapseLabels(steps)
+	end
 	if self._options.Simplify then
 		steps = Navmesh.Simplify(steps)
 	end
