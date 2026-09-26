@@ -306,4 +306,45 @@ return {
 		expect.equal(reason, "destroyed")
 		expect.equal(#path.Computed, 0)
 	end,
+
+	["Close refuses paths through a labelled step near the closed one until it expires"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local door = { Name = "Door" }
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0),
+			waypoint(10, 0, 0, "Custom", "Door"),
+			waypoint(20, 0, 0),
+		})
+		local Navmesh = Harness.Load("lib/Pathfinders/Navmesh.luau", {
+			globals = { os = clock.os },
+			services = {
+				PathfindingService = {
+					CreatePath = function()
+						return path
+					end,
+				},
+			},
+		})
+		local navmesh = Navmesh.new()
+
+		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3)
+
+		navmesh:Close({ Position = Vector3.new(12, 0, 0), Action = "Custom", Label = "Door" }, 5)
+		local refused, reason = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(refused, nil)
+		expect.includes(reason, "closed Door")
+
+		clock:Advance(6)
+		steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "expired")
+
+		navmesh:Close({ Position = Vector3.new(90, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
+		steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "a far closure with a different instance does not match")
+		steps[2].Instance = door
+		navmesh:Close({ Position = Vector3.new(90, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
+		local byInstance = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#byInstance, 3, "waypoints never carry an Instance, so position is what matches")
+	end,
 }

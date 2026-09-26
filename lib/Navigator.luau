@@ -65,7 +65,7 @@ type self = {
 	_leftArrivedAt: number,
 	_anchor: Vector3?,
 	_anchorKind: "Arrived" | "Failed" | nil,
-	_steps: { [string]: Types.StepHandler },
+	_steps: { [string]: Types.StepHandler | Types.StepRegistration },
 	_stepOffset: number,
 
 	_connections: { Types.Connection },
@@ -109,7 +109,7 @@ export type Navigator = typeof(setmetatable({} :: self, Navigator))
 	@param mover Mover
 	@param agent Agent -- Handed to `FindPath` so a pathfinder can read the blackboard.
 	@param options NavigationOptions?
-	@param steps { [string]: StepHandler }? -- Handlers by step label.
+	@param steps { [string]: StepHandler | StepRegistration }? -- Handlers by step label.
 	@return Navigator
 ]=]
 function Navigator.new(
@@ -117,7 +117,7 @@ function Navigator.new(
 	mover: Types.Mover,
 	agent: Types.Agent,
 	options: Types.NavigationOptions?,
-	steps: { [string]: Types.StepHandler }?
+	steps: { [string]: Types.StepHandler | Types.StepRegistration }?
 ): Navigator
 	local resolved = Options.Resolve("Navigator.new", DEFAULT_OPTIONS, options :: any)
 
@@ -251,6 +251,68 @@ function Navigator._arrive(self: Navigator)
 	end
 end
 
+-- How long a step a handler refused stays closed when the handler gives no time.
+local DEFAULT_CLOSE_SECONDS = 10
+
+--[[
+	The world position of an instance a step may be about: a part, a model or an attachment.
+]]
+local function positionOfInstance(instance: any): Vector3?
+	if type(instance.IsA) ~= "function" then
+		return nil
+	end
+	if instance:IsA("BasePart") then
+		return instance.Position
+	end
+	if instance:IsA("Attachment") then
+		return instance.WorldPosition
+	end
+	if instance:IsA("Model") then
+		return instance:GetPivot().Position
+	end
+	return nil
+end
+
+--[[
+	The nearest instance carrying `tag` within `radius` of `position`, for a step that arrived
+	without its door.
+]]
+local function nearestTagged(tag: string, position: Vector3, radius: number): Instance?
+	local CollectionService = game:GetService("CollectionService")
+
+	local best: Instance? = nil
+	local bestDistance = radius
+	for _, instance in CollectionService:GetTagged(tag) do
+		local at = positionOfInstance(instance)
+		if at == nil then
+			continue
+		end
+		local distance = (at - position).Magnitude
+		if distance <= bestDistance then
+			best = instance
+			bestDistance = distance
+		end
+	end
+
+	return best
+end
+
+--[[
+	A handler said the step could not be taken: give the path up as Failed and tell the
+	pathfinder to plan around the step for a while.
+]]
+function Navigator._refuseStep(self: Navigator, step: Types.Step, seconds: number?)
+	local close = (self._pathfinder :: any).Close
+	if type(close) == "function" then
+		close(self._pathfinder, step, seconds or DEFAULT_CLOSE_SECONDS)
+	end
+
+	self._status = "Failed"
+	self._anchor = self._target
+	self._anchorKind = "Failed"
+	self.Arrived:Fire(false)
+end
+
 --[[
 	The mover reached a step. Forwards it in the original path's numbering, then, when the step's
 	label has a handler, holds the walk there and runs it.
@@ -263,9 +325,19 @@ function Navigator._onStepReached(self: Navigator, index: number, step: Types.St
 		return
 	end
 
-	local handler = if step.Label ~= nil then self._steps[step.Label] else nil
-	if handler == nil then
+	local registration = if step.Label ~= nil then self._steps[step.Label] else nil
+	if registration == nil then
 		return
+	end
+
+	local handler: Types.StepHandler
+	if type(registration) == "table" then
+		handler = registration.Handler
+		if step.Instance == nil and registration.Tag ~= nil then
+			step.Instance = nearestTagged(registration.Tag, step.Position, registration.Radius or 8)
+		end
+	else
+		handler = registration
 	end
 
 	local path = self._path
@@ -282,8 +354,10 @@ function Navigator._onStepReached(self: Navigator, index: number, step: Types.St
 	local generation = self._generation
 
 	task.spawn(function()
+		local taken: boolean? = nil
+		local closeFor: number? = nil
 		local ok, err = pcall(function()
-			handler(self._agent, step, original)
+			taken, closeFor = handler(self._agent, step, original)
 		end)
 		if not ok then
 			FormatMessage.Warn(`{self._agent.Name}: the "{step.Label}" step handler errored: {tostring(err)}`)
@@ -291,6 +365,11 @@ function Navigator._onStepReached(self: Navigator, index: number, step: Types.St
 
 		local status: Types.PathStatus = self._status
 		if self._destroyed or self._generation ~= generation or status ~= "Interacting" then
+			return
+		end
+
+		if taken == false then
+			self:_refuseStep(step, closeFor)
 			return
 		end
 

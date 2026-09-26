@@ -245,4 +245,17 @@ return {
 		local _, reason = outer:FindPath(FROM, TO, Fakes.Agent())
 		expect.equal(reason, "Ladder: Straight: blocked; Graph: unreachable")
 	end,
+
+	["Close is passed to every rung that has it"] = function(expect)
+		local Ladder = load()
+		local log = {}
+		local first = rung("A", log) :: any
+		first.Close = function(_self, step, seconds)
+			table.insert(log, `A closed {step.Label} for {seconds}`)
+		end
+		local second = rung("B", log) :: any
+		local ladder = Ladder.new({ first, second })
+		ladder:Close({ Position = FROM, Action = "Custom", Label = "Door" }, 3)
+		expect.sequence(log, { "A closed Door for 3" })
+	end,
 }

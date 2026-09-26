@@ -197,4 +197,17 @@ return {
 		expect.includes(message, 'unknown option "Radius"')
 		expect.equal(s.hybrid.Name, "Hybrid")
 	end,
+
+	["Close is passed to the graph and the local pathfinder"] = function(expect)
+		local s = setup()
+		local log = {}
+		s.graph.Close = function(_self, _step, seconds)
+			table.insert(log, `graph {seconds}`)
+		end
+		s.localPathfinder.Close = function(_self, _step, seconds)
+			table.insert(log, `local {seconds}`)
+		end
+		s.hybrid:Close({ Position = Vector3.new(), Action = "Custom", Label = "Door" }, 4)
+		expect.sequence(log, { "graph 4", "local 4" })
+	end,
 }

@@ -127,4 +127,17 @@ return {
 		definition.Steps.Door = nil
 		expect.equal(builder:GetDefinition().Steps.Door, open, "a copy")
 	end,
+
+	["OnStep with options stores a registration"] = function(expect)
+		local Builder = load()
+		local function open() end
+		local builder = Builder.new(Fakes.Entity()):UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
+		builder:OnStep("Door", open, { Tag = "AI_DOOR", Radius = 6 })
+
+		local registration = builder:GetDefinition().Steps.Door
+		expect.equal(registration.Handler, open)
+		expect.equal(registration.Tag, "AI_DOOR")
+		expect.equal(registration.Radius, 6)
+		builder:Validate()
+	end,
 }

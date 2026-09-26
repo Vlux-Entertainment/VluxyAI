@@ -361,7 +361,18 @@ function Validate.Definition(definition: any)
 			if type(label) ~= "string" then
 				fail(`{stepsPath}[{describe(label)}]`, "must be keyed by the step's Label")
 			end
-			expectFunction(handler, `{stepsPath}.{label}`)
+			if type(handler) == "table" then
+				expectKnownFields(handler, { Handler = true, Tag = true, Radius = true }, `{stepsPath}.{label}`)
+				expectFunction(handler.Handler, `{stepsPath}.{label}.Handler`)
+				if handler.Tag ~= nil then
+					expectString(handler.Tag, `{stepsPath}.{label}.Tag`)
+				end
+				if handler.Radius ~= nil then
+					expectPositiveNumber(handler.Radius, `{stepsPath}.{label}.Radius`)
+				end
+			else
+				expectFunction(handler, `{stepsPath}.{label}`)
+			end
 		end
 	end
 

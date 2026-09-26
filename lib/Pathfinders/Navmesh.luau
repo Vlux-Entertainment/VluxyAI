@@ -66,6 +66,13 @@ type ResolvedOptions = {
 	Simplify: boolean,
 }
 
+type Closure = {
+	Label: string?,
+	Instance: Instance?,
+	Position: Vector3,
+	Until: number,
+}
+
 type self = {
 	Name: string,
 	Blocked: Types.Signal<()>,
@@ -73,6 +80,7 @@ type self = {
 	_options: ResolvedOptions,
 	_path: Path,
 	_blockedConnection: RBXScriptConnection,
+	_closed: { Closure },
 	_destroyed: boolean,
 }
 
@@ -128,6 +136,7 @@ function Navmesh.new(options: Options?): Types.Pathfinder
 		_blockedConnection = path.Blocked:Connect(function()
 			blocked:Fire()
 		end),
+		_closed = {},
 		_destroyed = false,
 	}
 
@@ -248,7 +257,68 @@ function Navmesh.FindPath(self: Navmesh, from: Vector3, to: Vector3, agent: Type
 		steps = Navmesh.Simplify(steps)
 	end
 
+	local closed = self:_closedStep(steps)
+	if closed ~= nil then
+		return nil, `closed {closed.Label or "step"} at {closed.Position}`
+	end
+
 	return steps, nil
+end
+
+-- A labelled waypoint this near a closed one is the same crossing.
+local CLOSE_MATCH_DISTANCE = 4
+
+--[[
+	The first step of a path that crosses a closed labelled step, if any. Expired closures are
+	dropped on the way.
+]]
+function Navmesh._closedStep(self: Navmesh, steps: Types.Path): Types.Step?
+	if #self._closed == 0 then
+		return nil
+	end
+
+	local now = os.clock()
+	for index = #self._closed, 1, -1 do
+		if now >= self._closed[index].Until then
+			table.remove(self._closed, index)
+		end
+	end
+
+	for _, step in steps do
+		if step.Label == nil then
+			continue
+		end
+		for _, closure in self._closed do
+			local same = if closure.Instance ~= nil and step.Instance ~= nil
+				then closure.Instance == step.Instance
+				else closure.Label == step.Label
+					and (closure.Position - step.Position).Magnitude <= CLOSE_MATCH_DISTANCE
+			if same then
+				return step
+			end
+		end
+	end
+
+	return nil
+end
+
+--[=[
+	@within Navmesh
+	@param step Step -- The step a handler refused.
+	@param seconds number -- How long to refuse paths through it.
+
+	The navmesh is Roblox's, so a link cannot be closed for one agent; instead, for `seconds`,
+	any path this pathfinder computes that crosses a step with the same label within a few
+	studs (or the same `Instance`) is reported as no path, `closed <label> at <position>`. The
+	[Navigator] calls this when a step handler returns `false`.
+]=]
+function Navmesh.Close(self: Navmesh, step: Types.Step, seconds: number)
+	table.insert(self._closed, {
+		Label = step.Label,
+		Instance = step.Instance,
+		Position = step.Position,
+		Until = os.clock() + seconds,
+	})
 end
 
 --[=[

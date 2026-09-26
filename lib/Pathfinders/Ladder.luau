@@ -133,6 +133,23 @@ end
 
 --[=[
 	@within Ladder
+	@param step Step
+	@param seconds number
+
+	Passes the closure to every rung that has `Close`, since any of them might plan through
+	the same door next time.
+]=]
+function Ladder.Close(self: Ladder, step: Types.Step, seconds: number)
+	for _, pathfinder in self._pathfinders do
+		local close = (pathfinder :: any).Close
+		if type(close) == "function" then
+			close(pathfinder, step, seconds)
+		end
+	end
+end
+
+--[=[
+	@within Ladder
 
 	Calls `Destroy` on every rung that has one, in order, then drops the `Blocked` signal.
 ]=]

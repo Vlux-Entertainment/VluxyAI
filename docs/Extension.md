@@ -156,6 +156,11 @@ it returns. A state that calls `MoveTo` every tick with the same target keeps wa
 target or `Stop` abandons the path. Nothing in the package knows what a door is; it only knows
 where to pause. `agent.Navigator.StepReached` still fires for every step, handled or not.
 
+A handler returning `false` (and optionally a number of seconds) means the step could not be
+taken: the path is `Failed` and the pathfinder's optional `Close(step, seconds)` is called so
+the next plan avoids it. A navmesh step has no `Instance`; pass `{ Tag = "AI_DOOR" }` as the
+third argument of `OnStep` and the nearest tagged instance is filled in first.
+
 In a place, a `Link` ObjectValue under a graph node takes `Action` and `Label` attributes and an
 `Instance` ObjectValue child pointing at the door, and `Graph.FromInstances` reads them.
 

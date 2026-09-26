@@ -193,6 +193,22 @@ end
 
 --[=[
 	@within Hybrid
+	@param step Step
+	@param seconds number
+
+	Passes the closure to the graph and the local pathfinder, whichever has `Close`.
+]=]
+function Hybrid.Close(self: HybridClass, step: Types.Step, seconds: number)
+	for _, pathfinder in { self._graph, self._local } do
+		local close = (pathfinder :: any).Close
+		if type(close) == "function" then
+			close(pathfinder, step, seconds)
+		end
+	end
+end
+
+--[=[
+	@within Hybrid
 
 	Destroys both pathfinders. Make one `Local` per agent; a [Graph] may be shared since its
 	`Destroy` releases nothing.

@@ -322,4 +322,37 @@ return {
 		expect.equal(path[2].Label, "Door")
 		expect.equal(path[2].Instance, doorPart)
 	end,
+
+	["Close shuts a link for a while so A* goes round, by Instance or by label at the node"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local Graph = Harness.Load("lib/Pathfinders/Graph.luau", { globals = { os = clock.os } })
+		local door = { Name = "Door" }
+		local nodes = square()
+		-- 2 -> 3 is a door; the long way round is 2 -> 1 -> 4 -> 3.
+		nodes[2].Links = { 1, { To = 3, Label = "Door", Instance = door }, 5 }
+		local graph = Graph.new(nodes)
+
+		local path = graph:FindPath(Vector3.new(10, 0, 0), Vector3.new(10, 0, 10), Fakes.Agent())
+		expect.equal(#path, 3, "through the door: node 2, node 3, target")
+
+		graph:Close({ Position = Vector3.new(10, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
+		path = graph:FindPath(Vector3.new(10, 0, 0), Vector3.new(10, 0, 10), Fakes.Agent())
+		expect.equal(#path, 5, "round the square: 2, 1, 4, 3, target")
+		expect.truthy(graph:PathLength(Vector3.new(10, 0, 0), Vector3.new(10, 0, 10)) > 20, "PathLength honours it")
+
+		clock:Advance(6)
+		path = graph:FindPath(Vector3.new(10, 0, 0), Vector3.new(10, 0, 10), Fakes.Agent())
+		expect.equal(#path, 3, "open again")
+
+		graph:Close({ Position = Vector3.new(10, 0, 0), Action = "Custom", Label = "Door" }, 5)
+		path = graph:FindPath(Vector3.new(10, 0, 0), Vector3.new(10, 0, 10), Fakes.Agent())
+		expect.equal(#path, 5, "no Instance: matched by label at the node")
+
+		expect.truthy(
+			Graph.AStar(nodes, 2, 3, function(from, to)
+				return from == 2 and to == 3
+			end) :: any,
+			"AStar takes a blocked predicate"
+		)
+	end,
 }

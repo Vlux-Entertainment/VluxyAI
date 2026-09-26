@@ -125,6 +125,7 @@ type self = {
 	Name: string,
 	_nodes: { GraphNode },
 	_options: ResolvedOptions,
+	_closed: { [string]: number },
 }
 
 local Graph = {}
@@ -200,6 +201,7 @@ function Graph.new(nodes: { GraphNode }, options: GraphOptions?): Types.Pathfind
 		Name = "Graph",
 		_nodes = copy,
 		_options = resolved,
+		_closed = {},
 	}
 
 	return setmetatable(self, Graph) :: any
@@ -212,11 +214,17 @@ end
 	@param nodes { GraphNode }
 	@param start number -- Index of the start node.
 	@param goal number -- Index of the goal node.
+	@param blocked ((from: number, to: number) -> boolean)? -- Links this returns `true` for are not taken.
 	@return { number }? -- Node indices from `start` to `goal` inclusive, or `nil` when unreachable.
 
 	A* over the links with straight-line distance as the heuristic. Pure.
 ]=]
-function Graph.AStar(nodes: { GraphNode }, start: number, goal: number): { number }?
+function Graph.AStar(
+	nodes: { GraphNode },
+	start: number,
+	goal: number,
+	blocked: ((from: number, to: number) -> boolean)?
+): { number }?
 	if nodes[start] == nil or nodes[goal] == nil then
 		return nil
 	end
@@ -261,7 +269,7 @@ function Graph.AStar(nodes: { GraphNode }, start: number, goal: number): { numbe
 
 		for _, link in nodes[current].Links do
 			local neighbour = linkTarget(link)
-			if closed[neighbour] then
+			if closed[neighbour] or (blocked ~= nil and blocked(current, neighbour)) then
 				continue
 			end
 			local cost = costSoFar[current] + (nodes[neighbour].Position - currentPosition).Magnitude
@@ -526,7 +534,9 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 		return nil, `no node near {to}`
 	end
 
-	local route = Graph.AStar(self._nodes, start, goal)
+	local route = Graph.AStar(self._nodes, start, goal, function(a: number, b: number): boolean
+		return self:_isClosed(a, b)
+	end)
 	if route == nil then
 		return nil, "no route"
 	end
@@ -550,6 +560,50 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 	table.insert(path, { Position = Vector3.new(to.X, floorY, to.Z), Action = "Walk" })
 
 	return path, nil
+end
+
+--[[
+	Is the link from one node to another closed right now? Expired closures are dropped.
+]]
+function Graph._isClosed(self: GraphClass, from: number, to: number): boolean
+	local key = `{from}:{to}`
+	local until_ = self._closed[key]
+	if until_ == nil then
+		return false
+	end
+	if os.clock() >= until_ then
+		self._closed[key] = nil
+		return false
+	end
+	return true
+end
+
+--[=[
+	@within Graph
+	@param step Step -- The step a handler refused: its `Instance`, `Label` and `Position` find the link.
+	@param seconds number -- How long to plan around it.
+
+	Closes every link that emitted this step (same `Instance` when the step has one, else the
+	same `Label` leaving the node at the step's position) for `seconds`, so the next plan goes
+	another way. The [Navigator] calls this when a step handler returns `false`; a game may call
+	it when a door locks.
+]=]
+function Graph.Close(self: GraphClass, step: Types.Step, seconds: number)
+	local until_ = os.clock() + seconds
+	for from, node in self._nodes do
+		local atStep = (node.Position - step.Position).Magnitude < 0.5
+		for _, link in node.Links do
+			if type(link) ~= "table" then
+				continue
+			end
+			local matches = if step.Instance ~= nil
+				then link.Instance == step.Instance
+				else atStep and link.Label == step.Label
+			if matches then
+				self._closed[`{from}:{link.To}`] = until_
+			end
+		end
+	end
 end
 
 --[=[

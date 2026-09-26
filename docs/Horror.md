@@ -140,19 +140,36 @@ heard in the open.
 
 ## Doors
 
-A door is a labelled step. On a [Graph](/api/Graph) it is a link written as
-`{ To = 7, Label = "Door", Instance = door }`, and in a place a `Link` ObjectValue with a
-`Label` attribute and an `Instance` child. The agent registers what happens there:
+A door is a labelled step, and there are two ways to author one. Both reach the same handler.
+
+- **Navmesh.** Put a `PathfindingLink` across the doorway (two attachments, one on each side)
+  with `Label = "Door"`, or a `PathfindingModifier` with `PassThrough` and the label. Roblox
+  plans through it and marks the crossing waypoint. The step arrives without an `Instance`, so
+  tag the door part `AI_DOOR` and give the handler the tag; the nearest tagged instance is
+  looked up for it. No nodes to author.
+- **Graph.** A link written as `{ To = 7, Label = "Door", Instance = door }`, or in a place a
+  `Link` ObjectValue with a `Label` attribute and an `Instance` child. The navmesh never crosses
+  the door, so a closed door being solid is simply right, and links can be one-way or closed.
 
 ```lua
 :OnStep("Door", function(agent, step)
-	Doors.Open(step.Instance)
+	local door = step.Instance
+	if door:GetAttribute("Locked") then
+		return false, 15 -- could not; plan around it for fifteen seconds
+	end
+	Doors.Open(door)
 	task.wait(0.4)
-end)
+	return true
+end, { Tag = "AI_DOOR" })
 ```
 
 The navigator stops the mover at the step, reports `Interacting`, runs the handler, and walks
-the rest of the path when it returns.
+the rest of the path when it returns. A handler that returns `false` gives the path up as
+`Failed` and tells the pathfinder to `Close` the step: a [Graph](/api/Graph) closes the link,
+a [Navmesh](/api/Navmesh) refuses paths through that crossing, and a [Ladder](/api/Ladder) or
+[Hybrid](/api/Hybrid) passes it on. The next plan goes another way, or fails, and the brain
+does what it does on a failed path. A monster that breaks doors is a handler that plays an
+animation, unlocks the door and returns `true`.
 
 ## Scares that do not kill
 

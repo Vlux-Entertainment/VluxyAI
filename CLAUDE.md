@@ -121,8 +121,10 @@ Rules that keep it composable and testable:
   `TimeInState` hold while the agent is paused.
 - `agent:SetSpeed` is the base speed a state asks for; `agent:SetSpeedScale` is a multiplier layered
   on it (crowding, stuns, the director) that survives state changes. Movers only ever see the product.
-- Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND` and
-  `AI_LIGHT`. Prefixed so they do not collide with a project's own.
+- Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND`,
+  `AI_LIGHT` and (by convention in the docs) `AI_DOOR`. Prefixed so they do not collide with a project's own.
+- Doors: a labelled step from a navmesh `PathfindingLink`/modifier or a Graph link, one `OnStep` handler
+  for both. A handler returning `false` fails the path and calls the pathfinder's optional `Close`.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.
 - Version bumps happen in `wally.toml` and are mentioned in the commit message.
 

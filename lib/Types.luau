@@ -101,7 +101,7 @@ export type Step = {
 }
 
 --[=[
-	@type StepHandler (agent: Agent, step: Step, index: number) -> ()
+	@type StepHandler (agent: Agent, step: Step, index: number) -> (boolean?, number?)
 	@within Types
 
 	What happens at a labelled step: open the door, climb the ladder, play the vault. Registered
@@ -109,8 +109,30 @@ export type Step = {
 	navigator holds the mover at the step, reports `Interacting`, and walks the rest of the path
 	when the handler returns. A new target or `Stop` while it runs abandons the path; the handler
 	should check [Agent:IsDestroyed] after a long yield.
+
+	Return `false` to say the step could not be taken (a locked door). The path is given up as
+	`Failed`, and the pathfinder is told to `Close` that step for the seconds given as the second
+	return (default `10`), so the next plan goes another way. Returning nothing or `true` means
+	the step was taken.
 ]=]
-export type StepHandler = (agent: Agent, step: Step, index: number) -> ()
+export type StepHandler = (agent: Agent, step: Step, index: number) -> (boolean?, number?)
+
+--[=[
+	@interface StepRegistration
+	@within Types
+
+	.Handler StepHandler
+	.Tag string? -- When the step arrives without an `Instance` (a navmesh link or modifier), the nearest instance carrying this `CollectionService` tag within `Radius` of the step is put in `step.Instance` before the handler runs.
+	.Radius number? -- Studs. Default `8`.
+
+	What [Builder:OnStep] stores for a label: the handler, and how to find the door for a step
+	that does not already know it. A plain [Types.StepHandler] is accepted wherever this is.
+]=]
+export type StepRegistration = {
+	Handler: StepHandler,
+	Tag: string?,
+	Radius: number?,
+}
 
 --[=[
 	@type Path { Step }
@@ -133,6 +155,7 @@ export type Path = { Step }
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 	.Name string? -- Used in messages, such as a [Ladder]'s joined reasons.
 	.Blocked Signal<()>? -- Optional. Fired when the world changes under the last path returned; the [Navigator] re-plans on its cadence.
+	.Close ((self: any, step: Step, seconds: number) -> ())? -- Optional. A labelled step could not be taken (a locked door): plan around it for `seconds`. [Graph] closes the link, [Navmesh] refuses paths through it; [Ladder] and [Hybrid] pass it on.
 
 	Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
 	a target. `from` and `to` may be at any height: `from` is the mover's root and `to` is often a
@@ -152,6 +175,7 @@ export type Pathfinder = {
 	Destroy: ((self: any) -> ())?,
 	Name: string?,
 	Blocked: Signal<()>?,
+	Close: ((self: any, step: Step, seconds: number) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -441,7 +465,7 @@ export type Navigator = {
 	.Data { [string]: any }? -- Initial `agent.Data`. Copied per agent. Yours to use.
 	.Tick number? -- Seconds between ticks. Default `0.1`.
 	.Navigation NavigationOptions? -- Navigator tuning.
-	.Steps { [string]: StepHandler }? -- What to do at labelled steps, by label. See [Builder:OnStep].
+	.Steps { [string]: StepHandler | StepRegistration }? -- What to do at labelled steps, by label. See [Builder:OnStep].
 	.StrictBlackboard boolean? -- Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.
 	.Name string? -- Used in messages. Default `Entity.Name`.
 
@@ -458,7 +482,7 @@ export type AgentDefinition = {
 	Data: { [string]: any }?,
 	Tick: number?,
 	Navigation: NavigationOptions?,
-	Steps: { [string]: StepHandler }?,
+	Steps: { [string]: StepHandler | StepRegistration }?,
 	StrictBlackboard: boolean?,
 	Name: string?,
 }
