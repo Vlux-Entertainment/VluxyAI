@@ -202,14 +202,23 @@ return {
 			expect.errors(function()
 				Neighbours.new({ Slow = { Min = 0.5 } } :: any)
 			end),
-			"Slow.Distance must be a number above 0"
+			"Slow.Distance must be a number of 0 or more"
 		)
 		expect.includes(
 			expect.errors(function()
-				Neighbours.new({ Avoid = { Radius = 0 } })
+				Neighbours.new({ Avoid = { Radius = -1 } })
 			end),
-			"Avoid.Radius must be a number above 0"
+			"Avoid.Radius must be a number of 0 or more"
 		)
+
+		local off = Neighbours.new({ Slow = { Distance = 0 }, Avoid = { Radius = 0 } })
+		local a = agent("A", Vector3.new(0, 0, 0))
+		local b = agent("B", Vector3.new(0.5, 0, 0))
+		off:Tick(b, 0.1)
+		off:Tick(a, 0.1)
+		expect.equal(a.Scale, 1, "zero distance is off")
+		expect.equal(#a.Mover.Nudges, 0, "zero radius is off")
+		expect.equal(a.Blackboard.NearestAgent, b, "the keys are still written")
 		expect.includes(
 			expect.errors(function()
 				Neighbours.new({ Radius = 3 } :: any)
