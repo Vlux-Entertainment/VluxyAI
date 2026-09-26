@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Watched | VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/Watched"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Watched | VluxyAI"><meta data-rh="true" name="description" content="A [Types.Sense] that writes who is looking at the agent. An observer sees the agent when the
+agent&#x27;s pivot is inside the observer&#x27;s `FieldOfView` cone within `Range`, and (unless
+`RequireLineOfSight` is off) a ray from the observer&#x27;s eye to the pivot reaches the agent&#x27;s
+entity. Writes `WatchedBy`, `IsWatched`, `WatchedAt` and `UnwatchedFor`, which is what a
+freeze-when-seen state reads. `UnwatchedFor` is `math.huge` until the first time it is watched.
+
+By default an observer&#x27;s eye is its character&#x27;s head, so &quot;looking&quot; means the head&#x27;s facing,
+which on a default rig is the walk direction rather than the camera. A game that wants the
+real camera direction replicates it to the server and passes `Eye`."><meta data-rh="true" property="og:description" content="A [Types.Sense] that writes who is looking at the agent. An observer sees the agent when the
+agent&#x27;s pivot is inside the observer&#x27;s `FieldOfView` cone within `Range`, and (unless
+`RequireLineOfSight` is off) a ray from the observer&#x27;s eye to the pivot reaches the agent&#x27;s
+entity. Writes `WatchedBy`, `IsWatched`, `WatchedAt` and `UnwatchedFor`, which is what a
+freeze-when-seen state reads. `UnwatchedFor` is `math.huge` until the first time it is watched.
+
+By default an observer&#x27;s eye is its character&#x27;s head, so &quot;looking&quot; means the head&#x27;s facing,
+which on a default rig is the walk direction rather than the camera. A game that wants the
+real camera direction replicates it to the server and passes `Eye`."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Watched"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Watched" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Watched" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Watched</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  A <a href="/VluxyAI/api/Types#Sense">Types.Sense</a> that writes who is looking at the agent. An observer sees the agent when the
+  agent's pivot is inside the observer's <code>FieldOfView</code> cone within <code>Range</code>, and (unless
+  <code>RequireLineOfSight</code> is off) a ray from the observer's eye to the pivot reaches the agent's
+  entity. Writes <code>WatchedBy</code>, <code>IsWatched</code>, <code>WatchedAt</code> and <code>UnwatchedFor</code>, which is what a
+  freeze-when-seen state reads. <code>UnwatchedFor</code> is <code>math.huge</code> until the first time it is watched.
+</p>
+<p>
+  By default an observer's eye is its character's head, so "looking" means the head's facing,
+  which on a default rig is the walk direction rather than the camera. A game that wants the
+  real camera direction replicates it to the server and passes <code>Eye</code>.
+</p>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="types">Types<a href="#types" class="hash-link" aria-label="Direct link to Types" title="Direct link to Types" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="WatchedOptions"><code style="text-decoration:none">WatchedOptions</code><a href="#WatchedOptions" class="hash-link" aria-label="Direct link to WatchedOptions" title="Direct link to WatchedOptions" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Watched.luau#L62"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>WatchedOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Range<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs from which an observer can see the agent. Default <code>60</code>.</p>
+</span></span></div><div><code>FieldOfView<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The full angle of the observer's view cone, in degrees. Default <code>90</code>.</p>
+</span></span></div><div><code>RequireLineOfSight<!-- -->: </code><code class="blue_P4bS">boolean?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Cast a ray from the observer to the agent, or trust the cone alone. Default <code>true</code>.</p>
+</span></span></div><div><code>Targets<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">}</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Who might be looking. Default <a href="/VluxyAI/api/Perception#AliveRoots">Perception.AliveRoots</a>, every alive player's root.</p>
+</span></span></div><div><code>Ignore<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">}</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Extra instances the observer's ray passes through, on top of the observer's own character. Default none.</p>
+</span></span></div><div><code>Eye<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>root<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/CFrame" target="_blank" rel="noopener noreferrer">CFrame?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Where an observer looks from and which way: a replicated camera, say. <code>nil</code> falls back to the default. Default the head's CFrame when the character has one, else the root's.</p>
+</span></span></div><div><code>Prefix<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Prepended to every key this sense writes, so two instances can coexist. Default <code>""</code>.</p>
+</span></span></div></div><code>}</code></div><div></div><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new"><code style="text-decoration:none">new</code><a href="#new" class="hash-link" aria-label="Direct link to new" title="Direct link to new" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Watched.luau#L129"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Watched<!-- -->.</code><code class="green_DgR4">new</code><code>(</code><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched#WatchedOptions">WatchedOptions?</a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched">Watched</a></code></div><div></div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>&quot;unknown option&quot;</td><td>A key not in `WatchedOptions`.</td></tr><tr><td>&quot;Range must be zero or more&quot;</td><td></td></tr></tbody></table><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Tick"><code style="text-decoration:none">Tick</code><a href="#Tick" class="hash-link" aria-label="Direct link to Tick" title="Direct link to Tick" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Watched.luau#L154"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Watched<!-- -->.</code><code class="green_DgR4">Tick</code><code>(</code><div class="inset_uKQm"><div><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched">Watched</a></code><code>,</code></div><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>,</code></div><div><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Checks every observer, and writes the keys listed above to <code>agent.Blackboard</code>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Destroy"><code style="text-decoration:none">Destroy</code><a href="#Destroy" class="hash-link" aria-label="Direct link to Destroy" title="Direct link to Destroy" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Watched.luau#L208"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Watched<!-- -->.</code><code class="green_DgR4">Destroy</code><code>(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched">Watched</a></code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Nothing to release; present so the sense satisfies <a href="/VluxyAI/api/Types#Sense">Types.Sense</a> and any cleanup helper.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Configure"><code style="text-decoration:none">Configure</code><a href="#Configure" class="hash-link" aria-label="Direct link to Configure" title="Direct link to Configure" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Watched.luau#L220"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Watched<!-- -->.</code><code class="green_DgR4">Configure</code><code>(</code><div class="inset_uKQm"><div><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched">Watched</a></code><code>,</code></div><div><code>patch<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched#WatchedOptions">WatchedOptions</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The options to change; the rest keep their values.</p>
+</span></span></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>
+  Changes options after construction, for difficulty and pacing: a director widening the cone
+  or shortening the memory mid-round. The same rules as <code>new</code> apply.
+</p>
+</div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>&quot;unknown option&quot;</td><td></td></tr></tbody></table></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;new&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;options&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;WatchedOptions?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Watched&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;\&quot;unknown option\&quot;&quot;,
+                    &quot;desc&quot;: &quot;A key not in `WatchedOptions`.&quot;
+                },
+                {
+                    &quot;lua_type&quot;: &quot;\&quot;Range must be zero or more\&quot;&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 129,
+                &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Tick&quot;,
+            &quot;desc&quot;: &quot;Checks every observer, and writes the keys listed above to `agent.Blackboard`.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;self&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Watched&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;deltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 154,
+                &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Destroy&quot;,
+            &quot;desc&quot;: &quot;Nothing to release; present so the sense satisfies [Types.Sense] and any cleanup helper.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;self&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Watched&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 208,
+                &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Configure&quot;,
+            &quot;desc&quot;: &quot;Changes options after construction, for difficulty and pacing: a director widening the cone\nor shortening the memory mid-round. The same rules as `new` apply.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;self&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Watched&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;patch&quot;,
+                    &quot;desc&quot;: &quot;The options to change; the rest keep their values.&quot;,
+                    &quot;lua_type&quot;: &quot;WatchedOptions&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;\&quot;unknown option\&quot;&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 220,
+                &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [],
+    &quot;types&quot;: [
+        {
+            &quot;name&quot;: &quot;WatchedOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Range&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Studs from which an observer can see the agent. Default `60`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;FieldOfView&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;The full angle of the observer&#x27;s view cone, in degrees. Default `90`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;RequireLineOfSight&quot;,
+                    &quot;lua_type&quot;: &quot;boolean?&quot;,
+                    &quot;desc&quot;: &quot;Cast a ray from the observer to the agent, or trust the cone alone. Default `true`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Targets&quot;,
+                    &quot;lua_type&quot;: &quot;((agent: Agent) -&gt; { BasePart })?&quot;,
+                    &quot;desc&quot;: &quot;Who might be looking. Default [Perception.AliveRoots], every alive player&#x27;s root.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Ignore&quot;,
+                    &quot;lua_type&quot;: &quot;((agent: Agent) -&gt; { Instance })?&quot;,
+                    &quot;desc&quot;: &quot;Extra instances the observer&#x27;s ray passes through, on top of the observer&#x27;s own character. Default none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Eye&quot;,
+                    &quot;lua_type&quot;: &quot;((root: BasePart) -&gt; CFrame?)?&quot;,
+                    &quot;desc&quot;: &quot;Where an observer looks from and which way: a replicated camera, say. `nil` falls back to the default. Default the head&#x27;s CFrame when the character has one, else the root&#x27;s.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Prefix&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;Prepended to every key this sense writes, so two instances can coexist. Default `\&quot;\&quot;`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 62,
+                &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+            }
+        }
+    ],
+    &quot;name&quot;: &quot;Watched&quot;,
+    &quot;desc&quot;: &quot;A [Types.Sense] that writes who is looking at the agent. An observer sees the agent when the\nagent&#x27;s pivot is inside the observer&#x27;s `FieldOfView` cone within `Range`, and (unless\n`RequireLineOfSight` is off) a ray from the observer&#x27;s eye to the pivot reaches the agent&#x27;s\nentity. Writes `WatchedBy`, `IsWatched`, `WatchedAt` and `UnwatchedFor`, which is what a\nfreeze-when-seen state reads. `UnwatchedFor` is `math.huge` until the first time it is watched.\n\nBy default an observer&#x27;s eye is its character&#x27;s head, so \&quot;looking\&quot; means the head&#x27;s facing,\nwhich on a default rig is the walk direction rather than the camera. A game that wants the\nreal camera direction replicates it to the server and passes `Eye`.&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 121,
+        &quot;path&quot;: &quot;lib/Senses/Watched.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a><ul><li><a href="#WatchedOptions" class="table-of-contents__link toc-highlight">WatchedOptions</a></li></ul></li><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#Configure" class="table-of-contents__link toc-highlight">.Configure</a></li><li><a href="#Destroy" class="table-of-contents__link toc-highlight">.Destroy</a></li><li><a href="#new" class="table-of-contents__link toc-highlight">.new</a></li><li><a href="#Tick" class="table-of-contents__link toc-highlight">.Tick</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

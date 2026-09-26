@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/VluxyAI"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="VluxyAI"><meta data-rh="true" name="description" content="Simple, composable AI for Roblox. An AI is a **brain** (a table of states), a **pathfinder**
+(plans), a **mover** (executes) and some **senses** (write a blackboard), stacked with the
+builder into an **agent**.
+
+```lua
+local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
+
+local agent = VluxyAI.new(model)
+	:UseBrain(Stalker)
+	:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2 }))
+	:UseMover(VluxyAI.Movers.Humanoid.new(model))
+	:AddSense(VluxyAI.Senses.Sight.new({ Range = 40 }))
+	:Build()
+	:Start()
+```
+
+Every part is a contract in [Types]; pass your own module in to extend the package."><meta data-rh="true" property="og:description" content="Simple, composable AI for Roblox. An AI is a **brain** (a table of states), a **pathfinder**
+(plans), a **mover** (executes) and some **senses** (write a blackboard), stacked with the
+builder into an **agent**.
+
+```lua
+local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
+
+local agent = VluxyAI.new(model)
+	:UseBrain(Stalker)
+	:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2 }))
+	:UseMover(VluxyAI.Movers.Humanoid.new(model))
+	:AddSense(VluxyAI.Senses.Sight.new({ Range = 40 }))
+	:Build()
+	:Start()
+```
+
+Every part is a contract in [Types]; pass your own module in to extend the package."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/VluxyAI"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/VluxyAI" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/VluxyAI" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Vluxy</span><span style="display:inline-block">A</span><span style="display:inline-block">I</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  Simple, composable AI for Roblox. An AI is a <strong>brain</strong> (a table of states), a <strong>pathfinder</strong>
+  (plans), a <strong>mover</strong> (executes) and some <strong>senses</strong> (write a blackboard), stacked with the
+  builder into an <strong>agent</strong>.
+</p>
+<pre class="language-lua"><code class="language-lua"><span class="token keyword">local</span> VluxyAI <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span>ReplicatedStorage<span class="token punctuation">.</span>Packages<span class="token punctuation">.</span>VluxyAI<span class="token punctuation">)</span>
+
+<span class="token keyword">local</span> agent <span class="token operator">=</span> VluxyAI<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span>model<span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">UseBrain</span><span class="token punctuation">(</span>Stalker<span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">UsePathfinder</span><span class="token punctuation">(</span>VluxyAI<span class="token punctuation">.</span>Pathfinders<span class="token punctuation">.</span>Navmesh<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span><span class="token punctuation">{</span> AgentRadius <span class="token operator">=</span> <span class="token number">2</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">UseMover</span><span class="token punctuation">(</span>VluxyAI<span class="token punctuation">.</span>Movers<span class="token punctuation">.</span>Humanoid<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span>model<span class="token punctuation">)</span><span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">AddSense</span><span class="token punctuation">(</span>VluxyAI<span class="token punctuation">.</span>Senses<span class="token punctuation">.</span>Sight<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span><span class="token punctuation">{</span> Range <span class="token operator">=</span> <span class="token number">40</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">Build</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+	<span class="token punctuation">:</span><span class="token function">Start</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+</code></pre>
+<p>Every part is a contract in <a href="/VluxyAI/api/Types">Types</a>; pass your own module in to extend the package.</p>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="types">Types<a href="#types" class="hash-link" aria-label="Direct link to Types" title="Direct link to Types" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="HumanoidPresetOptions"><code style="text-decoration:none">HumanoidPresetOptions</code><a href="#HumanoidPresetOptions" class="hash-link" aria-label="Direct link to HumanoidPresetOptions" title="Direct link to HumanoidPresetOptions" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L399"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>HumanoidPresetOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Navmesh<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Navmesh#NavmeshOptions">NavmeshOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Options for <a href="/VluxyAI/api/Navmesh#new">Navmesh.new</a>.</p>
+</span></span></div><div><code>Straight<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Straight#StraightOptions">StraightOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Options for <a href="/VluxyAI/api/Straight#new">Straight.new</a>, the first rung of the ladder.</p>
+</span></span></div><div><code>Mover<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/HumanoidMover#HumanoidOptions">HumanoidOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Options for <a href="/VluxyAI/api/HumanoidMover#new">HumanoidMover.new</a>.</p>
+</span></span></div><div><code>Sight<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Sight#SightOptions">SightOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Options for <a href="/VluxyAI/api/Sight#new">Sight.new</a>.</p>
+</span></span></div><div><code>Proximity<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Proximity#ProximityOptions">ProximityOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Options for <a href="/VluxyAI/api/Proximity#new">Proximity.new</a>.</p>
+</span></span></div><div><code>Navigation<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#NavigationOptions">NavigationOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Navigator tuning. Default <code>{ RepathInterval = 0.25 }</code>.</p>
+</span></span></div></div><code>}</code></div><div></div><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Utility"><code style="text-decoration:none">Utility</code><a href="#Utility" class="hash-link" aria-label="Direct link to Utility" title="Direct link to Utility" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L187"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Utility<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Utility">Utility</a></code></div><div>
+<p>Utility scoring: <a href="/VluxyAI/api/Utility#Best">Utility.Best</a>, <a href="/VluxyAI/api/Utility#Weighted">Utility.Weighted</a>, <a href="/VluxyAI/api/Utility#Curves">Utility.Curves</a>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="When"><code style="text-decoration:none">When</code><a href="#When" class="hash-link" aria-label="Direct link to When" title="Direct link to When" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L196"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->When<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/When">When</a></code></div><div>
+<p>
+  Ready-made <code>When</code> predicates for transitions and interrupts: <a href="/VluxyAI/api/When#Has">When.Has</a>, <a href="/VluxyAI/api/When#New">When.New</a>,
+  <a href="/VluxyAI/api/When#Below">When.Below</a>, <a href="/VluxyAI/api/When#PathDone">When.PathDone</a>, <a href="/VluxyAI/api/When#Timer">When.Timer</a> and the rest.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="States"><code style="text-decoration:none">States</code><a href="#States" class="hash-link" aria-label="Direct link to States" title="Direct link to States" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L205"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->States<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/States">States</a></code></div><div>
+<p>
+  Ready-made states: <a href="/VluxyAI/api/States#Patrol">States.Patrol</a>, <a href="/VluxyAI/api/States#Investigate">States.Investigate</a>, <a href="/VluxyAI/api/States#Search">States.Search</a>, <a href="/VluxyAI/api/States#Wander">States.Wander</a>
+  and <a href="/VluxyAI/api/States#Wait">States.Wait</a>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Cleaner"><code style="text-decoration:none">Cleaner</code><a href="#Cleaner" class="hash-link" aria-label="Direct link to Cleaner" title="Direct link to Cleaner" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L213"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Cleaner<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Cleaner">Cleaner</a></code></div><div>
+<p>The package's cleanup bag, for anything you build around an agent.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Signal"><code style="text-decoration:none">Signal</code><a href="#Signal" class="hash-link" aria-label="Direct link to Signal" title="Direct link to Signal" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L221"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Signal<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code></div><div>
+<p>The package's <a href="/VluxyAI/api/Signal">Signal</a>; make one for a <a href="/VluxyAI/api/Hearing">Hearing</a> noise source.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Pathfinders"><code style="text-decoration:none">Pathfinders</code><a href="#Pathfinders" class="hash-link" aria-label="Direct link to Pathfinders" title="Direct link to Pathfinders" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L231"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Pathfinders<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>Navmesh<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Navmesh">Navmesh</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Straight<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Straight">Straight</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Ladder<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Ladder">Ladder</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Graph<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Graph">Graph</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Hybrid<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Hybrid">Hybrid</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>
+  The built-in <a href="/VluxyAI/api/Types#Pathfinder">Types.Pathfinder</a>s: <a href="/VluxyAI/api/Navmesh">Navmesh</a> for geometry, <a href="/VluxyAI/api/Straight">Straight</a> for a clear line,
+  <a href="/VluxyAI/api/Ladder">Ladder</a> to try several in order, <a href="/VluxyAI/api/Graph">Graph</a> for A* over authored nodes, and <a href="/VluxyAI/api/Hybrid">Hybrid</a> to
+  compose a graph with a local pathfinder.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Movers"><code style="text-decoration:none">Movers</code><a href="#Movers" class="hash-link" aria-label="Direct link to Movers" title="Direct link to Movers" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L245"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Movers<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>Humanoid<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/HumanoidMover">HumanoidMover</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>CFrame<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/CFrameMover">CFrameMover</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>The built-in <a href="/VluxyAI/api/Types#Mover">Types.Mover</a>s.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Senses"><code style="text-decoration:none">Senses</code><a href="#Senses" class="hash-link" aria-label="Direct link to Senses" title="Direct link to Senses" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L259"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Senses<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>Sight<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Sight">Sight</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Proximity<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Proximity">Proximity</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Hearing<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Hearing">Hearing</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Sounds<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Sounds">Sounds</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Awareness<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Awareness">Awareness</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Watched<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Watched">Watched</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Surroundings<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Surroundings">Surroundings</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Neighbours<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Neighbours">Neighbours</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Throttle<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Throttle">Throttle</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>
+  The built-in <a href="/VluxyAI/api/Types#Sense">Types.Sense</a>s. <a href="/VluxyAI/api/Hearing">Hearing</a> is for noises your code fires; <a href="/VluxyAI/api/Sounds">Sounds</a> is for the
+  tagged <code>Sound</code> instances the world is already playing; <a href="/VluxyAI/api/Awareness">Awareness</a> turns what the others
+  wrote into a detection meter; <a href="/VluxyAI/api/Neighbours">Neighbours</a> is the group sense, so enemies sharing a map
+  know about each other and, when asked, keep out of each other's way.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Director"><code style="text-decoration:none">Director</code><a href="#Director" class="hash-link" aria-label="Direct link to Director" title="Direct link to Director" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L278"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Director<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Director">Director</a></code></div><div>
+<p>
+  Pacing and shared knowledge for a group of enemies: a tension meter, a difficulty knob and a
+  shared blackboard, read through <code>director:Sense()</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Interest"><code style="text-decoration:none">Interest</code><a href="#Interest" class="hash-link" aria-label="Direct link to Interest" title="Direct link to Interest" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L287"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Interest<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Interest">Interest</a></code></div><div>
+<p>
+  Points of interest with a strength each, and <code>Best</code> to pick where an enemy looks next.
+  <a href="/VluxyAI/api/States#Roam">States.Roam</a> walks one.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Claims"><code style="text-decoration:none">Claims</code><a href="#Claims" class="hash-link" aria-label="Direct link to Claims" title="Direct link to Claims" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L295"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Claims<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Claims">Claims</a></code></div><div>
+<p>A shared "who is on what" table, so two enemies never chase the same player unless you say so.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Tables"><code style="text-decoration:none">Tables</code><a href="#Tables" class="hash-link" aria-label="Direct link to Tables" title="Direct link to Tables" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L303"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Tables<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Tables">Tables</a></code></div><div>
+<p>The package's small table helpers, including <a href="/VluxyAI/api/Tables#Prefixed">Tables.Prefixed</a>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Perception"><code style="text-decoration:none">Perception</code><a href="#Perception" class="hash-link" aria-label="Direct link to Perception" title="Direct link to Perception" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L312"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Perception<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Perception">Perception</a></code></div><div>
+<p>
+  The helpers the built-in senses are made of: alive player roots, cones, line of sight, and
+  <code>HumanoidOf</code> for a state that acts on a target. The place to start for a custom sense.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Animator"><code style="text-decoration:none">Animator</code><a href="#Animator" class="hash-link" aria-label="Direct link to Animator" title="Direct link to Animator" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L320"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Animator<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/NPCAnimator">NPCAnimator</a></code></div><div>
+<p>The NPC animation helper.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Locomotion"><code style="text-decoration:none">Locomotion</code><a href="#Locomotion" class="hash-link" aria-label="Direct link to Locomotion" title="Direct link to Locomotion" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L328"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Locomotion<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Locomotion">Locomotion</a></code></div><div>
+<p>Idle and walk for a rig from its real speed, plus one-shots by name, through the animator.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Footsteps"><code style="text-decoration:none">Footsteps</code><a href="#Footsteps" class="hash-link" aria-label="Direct link to Footsteps" title="Direct link to Footsteps" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L336"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Footsteps<!-- -->:<!-- --> </code> <code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Footsteps">Footsteps</a></code></div><div>
+<p>Footstep audio from measured movement, for the client's replica rigs (or a server rig).</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Sync"><code style="text-decoration:none">Sync</code><a href="#Sync" class="hash-link" aria-label="Direct link to Sync" title="Direct link to Sync" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L345"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Sync<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>Broadcaster<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Broadcaster#Broadcaster">Broadcaster</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Replica<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Replica#Replica">Replica</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Look<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Look">Look</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>
+  Client-side presentation: a <a href="/VluxyAI/api/Broadcaster#Broadcaster">Broadcaster</a> watches an agent on the server, a <a href="/VluxyAI/api/Replica#Replica">Replica</a> drives
+  a rig and your client states on the client. The game owns the remotes between them.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Combat"><code style="text-decoration:none">Combat</code><a href="#Combat" class="hash-link" aria-label="Direct link to Combat" title="Direct link to Combat" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L358"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Combat<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><code>Kill<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill">Kill</a></code><code class="purple_ieR2">}</code></div><div>
+<p>
+  <a href="/VluxyAI/api/Attack#State">Attack.State</a>, the one generic state, and <a href="/VluxyAI/api/Kill#Live">Kill.Live</a> and <a href="/VluxyAI/api/Kill#BlackBox">Kill.BlackBox</a>, the two ways an
+  agent kills a character.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Debug"><code style="text-decoration:none">Debug</code><a href="#Debug" class="hash-link" aria-label="Direct link to Debug" title="Direct link to Debug" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L369"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Debug<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>PathVisual<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/PathVisual">PathVisual</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>StateLabel<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/StateLabel">StateLabel</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>SenseVisual<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/SenseVisual">SenseVisual</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Rig<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Rig">Rig</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>Opt-in debug views, and a runtime R15 rig for tests and playgrounds.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Internals"><code style="text-decoration:none">Internals</code><a href="#Internals" class="hash-link" aria-label="Direct link to Internals" title="Direct link to Internals" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L383"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Internals<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><div class="inset_uKQm"><code>Runner<!-- -->: </code><code class="blue_P4bS">Runner</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>Navigator<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Navigator">Navigator</a></code></div><code class="purple_ieR2">}</code></div><div>
+<p>
+  The pieces the <a href="/VluxyAI/api/Types#Agent">Agent</a> is made of, for a custom scheduler or a client renderer that wants to
+  run a brain table itself.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Presets"><code style="text-decoration:none">Presets</code><a href="#Presets" class="hash-link" aria-label="Direct link to Presets" title="Direct link to Presets" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L419"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.<!-- -->Presets<!-- -->:<!-- --> </code> <code class="purple_ieR2">{</code><code>Humanoid<!-- -->: </code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>model<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/VluxyAI#HumanoidPresetOptions">HumanoidPresetOptions?</a></code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Builder">Builder</a></code><code class="purple_ieR2">}</code></div><div>
+<p>
+  Ready-made stacks. <code>Presets.Humanoid(model)</code> returns a <a href="/VluxyAI/api/Builder">Builder</a> already carrying a
+  <a href="/VluxyAI/api/Ladder">Ladder</a> of <a href="/VluxyAI/api/Straight">Straight</a> then <a href="/VluxyAI/api/Navmesh">Navmesh</a> (a target in plain sight costs no navmesh query), a
+  <a href="/VluxyAI/api/HumanoidMover">HumanoidMover</a> mover, <a href="/VluxyAI/api/Sight">Sight</a> and <a href="/VluxyAI/api/Proximity">Proximity</a> senses, and a quarter-second repath; add a
+  brain and build. It is what the examples build by hand, opt-in and overridable.
+</p>
+</div><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new"><code style="text-decoration:none">new</code><a href="#new" class="hash-link" aria-label="Direct link to new" title="Direct link to new" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L146"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.</code><code class="green_DgR4">new</code><code>(</code><code>entity<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Builder">Builder</a></code></div><div>
+<p>Starts a <a href="/VluxyAI/api/Builder">Builder</a> for <code>entity</code>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="NewAgent"><code style="text-decoration:none">NewAgent</code><a href="#NewAgent" class="hash-link" aria-label="Direct link to NewAgent" title="Direct link to NewAgent" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L158"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.</code><code class="green_DgR4">NewAgent</code><code>(</code><code>definition<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#AgentDefinition">AgentDefinition</a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code></div><div>
+<p>
+  Builds an <a href="/VluxyAI/api/Types#Agent">Agent</a> straight from a definition table, for code that assembles definitions
+  itself rather than through the <a href="/VluxyAI/api/Builder">Builder</a>.
+</p>
+</div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>string</td><td>The definition failed validation; the message names the field.</td></tr></tbody></table><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Validate"><code style="text-decoration:none">Validate</code><a href="#Validate" class="hash-link" aria-label="Direct link to Validate" title="Direct link to Validate" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L168"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.</code><code class="green_DgR4">Validate</code><code>(</code><code>definition<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#AgentDefinition">AgentDefinition</a></code><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Checks a definition without building it. See <a href="/VluxyAI/api/Validate">Validate</a>.</p>
+</div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>string</td><td>The path and problem of the first bad field.</td></tr></tbody></table><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ValidateBrain"><code style="text-decoration:none">ValidateBrain</code><a href="#ValidateBrain" class="hash-link" aria-label="Direct link to ValidateBrain" title="Direct link to ValidateBrain" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/init.luau#L179"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>VluxyAI<!-- -->.</code><code class="green_DgR4">ValidateBrain</code><code>(</code><div class="inset_uKQm"><div><code>brain<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Brain">Brain</a></code><code>,</code></div><div><code>path<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Prefix for messages.</p>
+</span></span></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Checks a brain table on its own. See <a href="/VluxyAI/api/Validate#Brain">Validate.Brain</a>.</p>
+</div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>string</td><td></td></tr></tbody></table></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;new&quot;,
+            &quot;desc&quot;: &quot;Starts a [Builder] for `entity`.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;entity&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Builder&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 146,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;NewAgent&quot;,
+            &quot;desc&quot;: &quot;Builds an [Agent] straight from a definition table, for code that assembles definitions\nitself rather than through the [Builder].&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;definition&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;AgentDefinition&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;The definition failed validation; the message names the field.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 158,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Validate&quot;,
+            &quot;desc&quot;: &quot;Checks a definition without building it. See [Validate].&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;definition&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;AgentDefinition&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;The path and problem of the first bad field.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 168,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;ValidateBrain&quot;,
+            &quot;desc&quot;: &quot;Checks a brain table on its own. See [Validate.Brain].&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;brain&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Brain&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;path&quot;,
+                    &quot;desc&quot;: &quot;Prefix for messages.&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 179,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [
+        {
+            &quot;name&quot;: &quot;Utility&quot;,
+            &quot;desc&quot;: &quot;Utility scoring: [Utility.Best], [Utility.Weighted], [Utility.Curves].&quot;,
+            &quot;lua_type&quot;: &quot;Utility&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 187,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;When&quot;,
+            &quot;desc&quot;: &quot;Ready-made `When` predicates for transitions and interrupts: [When.Has], [When.New],\n[When.Below], [When.PathDone], [When.Timer] and the rest.&quot;,
+            &quot;lua_type&quot;: &quot;When&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 196,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;States&quot;,
+            &quot;desc&quot;: &quot;Ready-made states: [States.Patrol], [States.Investigate], [States.Search], [States.Wander]\nand [States.Wait].&quot;,
+            &quot;lua_type&quot;: &quot;States&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 205,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Cleaner&quot;,
+            &quot;desc&quot;: &quot;The package&#x27;s cleanup bag, for anything you build around an agent.&quot;,
+            &quot;lua_type&quot;: &quot;Cleaner&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 213,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Signal&quot;,
+            &quot;desc&quot;: &quot;The package&#x27;s [Signal]; make one for a [Hearing] noise source.&quot;,
+            &quot;lua_type&quot;: &quot;Signal&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 221,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Pathfinders&quot;,
+            &quot;desc&quot;: &quot;The built-in [Types.Pathfinder]s: [Navmesh] for geometry, [Straight] for a clear line,\n[Ladder] to try several in order, [Graph] for A* over authored nodes, and [Hybrid] to\ncompose a graph with a local pathfinder.&quot;,
+            &quot;lua_type&quot;: &quot;{ Navmesh: Navmesh, Straight: Straight, Ladder: Ladder, Graph: Graph, Hybrid: Hybrid }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 231,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Movers&quot;,
+            &quot;desc&quot;: &quot;The built-in [Types.Mover]s.&quot;,
+            &quot;lua_type&quot;: &quot;{ Humanoid: HumanoidMover, CFrame: CFrameMover }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 245,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Senses&quot;,
+            &quot;desc&quot;: &quot;The built-in [Types.Sense]s. [Hearing] is for noises your code fires; [Sounds] is for the\ntagged `Sound` instances the world is already playing; [Awareness] turns what the others\nwrote into a detection meter; [Neighbours] is the group sense, so enemies sharing a map\nknow about each other and, when asked, keep out of each other&#x27;s way.&quot;,
+            &quot;lua_type&quot;: &quot;{ Sight: Sight, Proximity: Proximity, Hearing: Hearing, Sounds: Sounds, Awareness: Awareness, Watched: Watched, Surroundings: Surroundings, Neighbours: Neighbours, Throttle: Throttle }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 259,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Director&quot;,
+            &quot;desc&quot;: &quot;Pacing and shared knowledge for a group of enemies: a tension meter, a difficulty knob and a\nshared blackboard, read through `director:Sense()`.&quot;,
+            &quot;lua_type&quot;: &quot;Director&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 278,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Interest&quot;,
+            &quot;desc&quot;: &quot;Points of interest with a strength each, and `Best` to pick where an enemy looks next.\n[States.Roam] walks one.&quot;,
+            &quot;lua_type&quot;: &quot;Interest&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 287,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Claims&quot;,
+            &quot;desc&quot;: &quot;A shared \&quot;who is on what\&quot; table, so two enemies never chase the same player unless you say so.&quot;,
+            &quot;lua_type&quot;: &quot;Claims&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 295,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Tables&quot;,
+            &quot;desc&quot;: &quot;The package&#x27;s small table helpers, including [Tables.Prefixed].&quot;,
+            &quot;lua_type&quot;: &quot;Tables&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 303,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Perception&quot;,
+            &quot;desc&quot;: &quot;The helpers the built-in senses are made of: alive player roots, cones, line of sight, and\n`HumanoidOf` for a state that acts on a target. The place to start for a custom sense.&quot;,
+            &quot;lua_type&quot;: &quot;Perception&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 312,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Animator&quot;,
+            &quot;desc&quot;: &quot;The NPC animation helper.&quot;,
+            &quot;lua_type&quot;: &quot;NPCAnimator&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 320,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Locomotion&quot;,
+            &quot;desc&quot;: &quot;Idle and walk for a rig from its real speed, plus one-shots by name, through the animator.&quot;,
+            &quot;lua_type&quot;: &quot;Locomotion&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 328,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Footsteps&quot;,
+            &quot;desc&quot;: &quot;Footstep audio from measured movement, for the client&#x27;s replica rigs (or a server rig).&quot;,
+            &quot;lua_type&quot;: &quot;Footsteps&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 336,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Sync&quot;,
+            &quot;desc&quot;: &quot;Client-side presentation: a [Broadcaster] watches an agent on the server, a [Replica] drives\na rig and your client states on the client. The game owns the remotes between them.&quot;,
+            &quot;lua_type&quot;: &quot;{ Broadcaster: Broadcaster, Replica: Replica, Look: Look }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 345,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Combat&quot;,
+            &quot;desc&quot;: &quot;[Attack.State], the one generic state, and [Kill.Live] and [Kill.BlackBox], the two ways an\nagent kills a character.&quot;,
+            &quot;lua_type&quot;: &quot;{ Kill: Kill }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 358,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Debug&quot;,
+            &quot;desc&quot;: &quot;Opt-in debug views, and a runtime R15 rig for tests and playgrounds.&quot;,
+            &quot;lua_type&quot;: &quot;{ PathVisual: PathVisual, StateLabel: StateLabel, SenseVisual: SenseVisual, Rig: Rig }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 369,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Internals&quot;,
+            &quot;desc&quot;: &quot;The pieces the [Agent] is made of, for a custom scheduler or a client renderer that wants to\nrun a brain table itself.&quot;,
+            &quot;lua_type&quot;: &quot;{ Runner: Runner, Navigator: Navigator }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 383,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Presets&quot;,
+            &quot;desc&quot;: &quot;Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a\n[Ladder] of [Straight] then [Navmesh] (a target in plain sight costs no navmesh query), a\n[HumanoidMover] mover, [Sight] and [Proximity] senses, and a quarter-second repath; add a\nbrain and build. It is what the examples build by hand, opt-in and overridable.&quot;,
+            &quot;lua_type&quot;: &quot;{ Humanoid: (model: Model, options: HumanoidPresetOptions?) -&gt; Builder }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 419,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        }
+    ],
+    &quot;types&quot;: [
+        {
+            &quot;name&quot;: &quot;HumanoidPresetOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Navmesh&quot;,
+                    &quot;lua_type&quot;: &quot;NavmeshOptions?&quot;,
+                    &quot;desc&quot;: &quot;Options for [Navmesh.new].&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Straight&quot;,
+                    &quot;lua_type&quot;: &quot;StraightOptions?&quot;,
+                    &quot;desc&quot;: &quot;Options for [Straight.new], the first rung of the ladder.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Mover&quot;,
+                    &quot;lua_type&quot;: &quot;HumanoidOptions?&quot;,
+                    &quot;desc&quot;: &quot;Options for [HumanoidMover.new].&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Sight&quot;,
+                    &quot;lua_type&quot;: &quot;SightOptions?&quot;,
+                    &quot;desc&quot;: &quot;Options for [Sight.new].&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Proximity&quot;,
+                    &quot;lua_type&quot;: &quot;ProximityOptions?&quot;,
+                    &quot;desc&quot;: &quot;Options for [Proximity.new].&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Navigation&quot;,
+                    &quot;lua_type&quot;: &quot;NavigationOptions?&quot;,
+                    &quot;desc&quot;: &quot;Navigator tuning. Default `{ RepathInterval = 0.25 }`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 399,
+                &quot;path&quot;: &quot;lib/init.luau&quot;
+            }
+        }
+    ],
+    &quot;name&quot;: &quot;VluxyAI&quot;,
+    &quot;desc&quot;: &quot;Simple, composable AI for Roblox. An AI is a **brain** (a table of states), a **pathfinder**\n(plans), a **mover** (executes) and some **senses** (write a blackboard), stacked with the\nbuilder into an **agent**.\n\n```lua\nlocal VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)\n\nlocal agent = VluxyAI.new(model)\n\t:UseBrain(Stalker)\n\t:UsePathfinder(VluxyAI.Pathfinders.Navmesh.new({ AgentRadius = 2 }))\n\t:UseMover(VluxyAI.Movers.Humanoid.new(model))\n\t:AddSense(VluxyAI.Senses.Sight.new({ Range = 40 }))\n\t:Build()\n\t:Start()\n```\n\nEvery part is a contract in [Types]; pass your own module in to extend the package.&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 136,
+        &quot;path&quot;: &quot;lib/init.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a><ul><li><a href="#HumanoidPresetOptions" class="table-of-contents__link toc-highlight">HumanoidPresetOptions</a></li></ul></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a><ul><li><a href="#Animator" class="table-of-contents__link toc-highlight">Animator</a></li><li><a href="#Claims" class="table-of-contents__link toc-highlight">Claims</a></li><li><a href="#Cleaner" class="table-of-contents__link toc-highlight">Cleaner</a></li><li><a href="#Combat" class="table-of-contents__link toc-highlight">Combat</a></li><li><a href="#Debug" class="table-of-contents__link toc-highlight">Debug</a></li><li><a href="#Director" class="table-of-contents__link toc-highlight">Director</a></li><li><a href="#Footsteps" class="table-of-contents__link toc-highlight">Footsteps</a></li><li><a href="#Interest" class="table-of-contents__link toc-highlight">Interest</a></li><li><a href="#Internals" class="table-of-contents__link toc-highlight">Internals</a></li><li><a href="#Locomotion" class="table-of-contents__link toc-highlight">Locomotion</a></li><li><a href="#Movers" class="table-of-contents__link toc-highlight">Movers</a></li><li><a href="#Pathfinders" class="table-of-contents__link toc-highlight">Pathfinders</a></li><li><a href="#Perception" class="table-of-contents__link toc-highlight">Perception</a></li><li><a href="#Presets" class="table-of-contents__link toc-highlight">Presets</a></li><li><a href="#Senses" class="table-of-contents__link toc-highlight">Senses</a></li><li><a href="#Signal" class="table-of-contents__link toc-highlight">Signal</a></li><li><a href="#States" class="table-of-contents__link toc-highlight">States</a></li><li><a href="#Sync" class="table-of-contents__link toc-highlight">Sync</a></li><li><a href="#Tables" class="table-of-contents__link toc-highlight">Tables</a></li><li><a href="#Utility" class="table-of-contents__link toc-highlight">Utility</a></li><li><a href="#When" class="table-of-contents__link toc-highlight">When</a></li></ul></li><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#new" class="table-of-contents__link toc-highlight">.new</a></li><li><a href="#NewAgent" class="table-of-contents__link toc-highlight">.NewAgent</a></li><li><a href="#Validate" class="table-of-contents__link toc-highlight">.Validate</a></li><li><a href="#ValidateBrain" class="table-of-contents__link toc-highlight">.ValidateBrain</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

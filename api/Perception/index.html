@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Perception | VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/Perception"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Perception | VluxyAI"><meta data-rh="true" name="description" content="The helpers the built-in senses are made of, and the place to start when writing your own.
+A [Types.Sense] is any table with `Tick`; the work inside one is usually &quot;who could I be
+looking at&quot; (`AliveRoots`), &quot;is it in front of me&quot; (`InCone`), &quot;is anything in the way&quot;
+(`LineOfSight`), &quot;which is nearest&quot; (`SortByDistance`), and this module answers each of those
+on its own.
+
+Everything here is about *targets*: [Perception.HumanoidOf] takes a root a sense wrote to the
+blackboard and finds that character&#x27;s humanoid. The agent&#x27;s own humanoid is
+`agent.Entity:FindFirstChildOfClass(&quot;Humanoid&quot;)`, and the two look alike in code, so name
+the variable.
+
+`Targets` on every built-in sense defaults to [Perception.AliveRoots], and `Ignore` on
+[Sight] defaults to [Perception.IgnoreList]. A brain that acts on a target root a sense wrote
+to the blackboard reaches the rest of the character through [Perception.CharacterOf] and
+[Perception.HumanoidOf].
+
+Everything that takes a part reads it duck-typed, so a spec can pass plain tables."><meta data-rh="true" property="og:description" content="The helpers the built-in senses are made of, and the place to start when writing your own.
+A [Types.Sense] is any table with `Tick`; the work inside one is usually &quot;who could I be
+looking at&quot; (`AliveRoots`), &quot;is it in front of me&quot; (`InCone`), &quot;is anything in the way&quot;
+(`LineOfSight`), &quot;which is nearest&quot; (`SortByDistance`), and this module answers each of those
+on its own.
+
+Everything here is about *targets*: [Perception.HumanoidOf] takes a root a sense wrote to the
+blackboard and finds that character&#x27;s humanoid. The agent&#x27;s own humanoid is
+`agent.Entity:FindFirstChildOfClass(&quot;Humanoid&quot;)`, and the two look alike in code, so name
+the variable.
+
+`Targets` on every built-in sense defaults to [Perception.AliveRoots], and `Ignore` on
+[Sight] defaults to [Perception.IgnoreList]. A brain that acts on a target root a sense wrote
+to the blackboard reaches the rest of the character through [Perception.CharacterOf] and
+[Perception.HumanoidOf].
+
+Everything that takes a part reads it duck-typed, so a spec can pass plain tables."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Perception"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Perception" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Perception" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Perception</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  The helpers the built-in senses are made of, and the place to start when writing your own.
+  A <a href="/VluxyAI/api/Types#Sense">Types.Sense</a> is any table with <code>Tick</code>; the work inside one is usually "who could I be
+  looking at" (<code>AliveRoots</code>), "is it in front of me" (<code>InCone</code>), "is anything in the way"
+  (<code>LineOfSight</code>), "which is nearest" (<code>SortByDistance</code>), and this module answers each of those
+  on its own.
+</p>
+<p>
+  Everything here is about <em>targets</em>: <a href="/VluxyAI/api/Perception#HumanoidOf">Perception.HumanoidOf</a> takes a root a sense wrote to the
+  blackboard and finds that character's humanoid. The agent's own humanoid is
+  <code>agent.Entity:FindFirstChildOfClass("Humanoid")</code>, and the two look alike in code, so name
+  the variable.
+</p>
+<p>
+  <code>Targets</code> on every built-in sense defaults to <a href="/VluxyAI/api/Perception#AliveRoots">Perception.AliveRoots</a>, and <code>Ignore</code> on
+  <a href="/VluxyAI/api/Sight">Sight</a> defaults to <a href="/VluxyAI/api/Perception#IgnoreList">Perception.IgnoreList</a>. A brain that acts on a target root a sense wrote
+  to the blackboard reaches the rest of the character through <a href="/VluxyAI/api/Perception#CharacterOf">Perception.CharacterOf</a> and
+  <a href="/VluxyAI/api/Perception#HumanoidOf">Perception.HumanoidOf</a>.
+</p>
+<p>Everything that takes a part reads it duck-typed, so a spec can pass plain tables.</p>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="properties">Properties<a href="#properties" class="hash-link" aria-label="Direct link to Properties" title="Direct link to Properties" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="HIDDEN_ATTRIBUTE"><code style="text-decoration:none">HIDDEN_ATTRIBUTE</code><a href="#HIDDEN_ATTRIBUTE" class="hash-link" aria-label="Direct link to HIDDEN_ATTRIBUTE" title="Direct link to HIDDEN_ATTRIBUTE" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L54"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.<!-- -->HIDDEN_ATTRIBUTE<!-- -->:<!-- --> </code> <code class="blue_P4bS">&quot;AI_HIDDEN&quot;</code></div><div>
+<p>
+  The attribute name that hides a character from every sense: set it to <code>true</code> on the
+  character (or on its root) while the player is in a locker, under a bed, or otherwise out of
+  the game's sight rules, and <a href="/VluxyAI/api/Perception#AliveRoots">Perception.AliveRoots</a> leaves them out until it is cleared.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LIGHT_TAG"><code style="text-decoration:none">LIGHT_TAG</code><a href="#LIGHT_TAG" class="hash-link" aria-label="Direct link to LIGHT_TAG" title="Direct link to LIGHT_TAG" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L373"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.<!-- -->LIGHT_TAG<!-- -->:<!-- --> </code> <code class="blue_P4bS">&quot;AI_LIGHT&quot;</code></div><div>
+<p>The <code>CollectionService</code> tag a light must carry for <a href="/VluxyAI/api/Perception#LightAt">Perception.LightAt</a> to count it.</p>
+</div><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="IsHidden"><code style="text-decoration:none">IsHidden</code><a href="#IsHidden" class="hash-link" aria-label="Direct link to IsHidden" title="Direct link to IsHidden" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L61"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">IsHidden</code><code>(</code><div class="inset_uKQm"><div><code>root<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>A target root, or anything with <code>GetAttribute</code>.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> when the root or its character carries <code>AI_HIDDEN = true</code>.</p>
+</span></span></div><div></div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="AliveRoots"><code style="text-decoration:none">AliveRoots</code><a href="#AliveRoots" class="hash-link" aria-label="Direct link to AliveRoots" title="Direct link to AliveRoots" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L109"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">AliveRoots</code><code>(</code><code>) → </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>The <code>HumanoidRootPart</code> of every player whose character is alive and not hidden.</p>
+</span></span></div><div>
+<p>
+  Every player character with a Humanoid whose Health is above zero, by its root, minus the
+  ones hidden with <a href="/VluxyAI/api/Perception#HIDDEN_ATTRIBUTE">Perception.HIDDEN_ATTRIBUTE</a>. The default <code>Targets</code> of every sense, so
+  hiding a player once hides them from Sight, Proximity and Watched together. Takes no
+  arguments, so it can be a <code>Targets</code> function as it is.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="AllAliveRoots"><code style="text-decoration:none">AllAliveRoots</code><a href="#AllAliveRoots" class="hash-link" aria-label="Direct link to AllAliveRoots" title="Direct link to AllAliveRoots" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L120"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">AllAliveRoots</code><code>(</code><code>) → </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>Every alive player root, hidden ones included.</p>
+</span></span></div><div>
+<p>
+  For the checks a hidden player still takes part in: <a href="/VluxyAI/api/Perception#SeenByAnyone">Perception.SeenByAnyone</a> uses it, since
+  a player inside a locker can still see out of it.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="IgnoreList"><code style="text-decoration:none">IgnoreList</code><a href="#IgnoreList" class="hash-link" aria-label="Direct link to IgnoreList" title="Direct link to IgnoreList" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L132"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">IgnoreList</code><code>(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>) → </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>{ agent.Entity }</code>.</p>
+</span></span></div><div>
+<p>
+  The raycast filter for a ray cast from the agent outwards: its entity alone, which
+  <code>FilterDescendantsInstances</code> extends to everything under it. The default <code>Ignore</code> of <a href="/VluxyAI/api/Sight">Sight</a>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="PositionOf"><code style="text-decoration:none">PositionOf</code><a href="#PositionOf" class="hash-link" aria-label="Direct link to PositionOf" title="Direct link to PositionOf" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L144"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">PositionOf</code><code>(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><div>
+<p>
+  Where the agent is: its mover's position when it has one, else its entity's pivot. The real
+  <a href="/VluxyAI/api/Types#Agent">Agent</a> has <code>GetPosition</code>; a spec's fake may not.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ModelOf"><code style="text-decoration:none">ModelOf</code><a href="#ModelOf" class="hash-link" aria-label="Direct link to ModelOf" title="Direct link to ModelOf" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L161"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">ModelOf</code><code>(</code><code>part<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The nearest ancestor Model, or <code>nil</code>.</p>
+</span></span></div><div>
+<p>
+  The Model a part belongs to, or <code>nil</code> when it has none or is a fake without
+  <code>FindFirstAncestorOfClass</code>. <a href="/VluxyAI/api/Perception#CharacterOf">Perception.CharacterOf</a> is the same lookup typed as a <code>Model</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="CharacterOf"><code style="text-decoration:none">CharacterOf</code><a href="#CharacterOf" class="hash-link" aria-label="Direct link to CharacterOf" title="Direct link to CharacterOf" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L178"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">CharacterOf</code><code>(</code><div class="inset_uKQm"><div><code>part<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>A root a sense wrote to the blackboard, or any part of a character.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The nearest ancestor Model, or <code>nil</code> when there is none.</p>
+</span></span></div><div>
+<p>
+  The character a part belongs to. What a brain calls on <code>SeenTarget</code> or <code>NearestTarget</code> when
+  it wants the whole model rather than the root.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="HumanoidOf"><code style="text-decoration:none">HumanoidOf</code><a href="#HumanoidOf" class="hash-link" aria-label="Direct link to HumanoidOf" title="Direct link to HumanoidOf" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L190"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">HumanoidOf</code><code>(</code><div class="inset_uKQm"><div><code>part<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>A root a sense wrote to the blackboard, or any part of a character.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Humanoid" target="_blank" rel="noopener noreferrer">Humanoid?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The Humanoid inside the part's character, or <code>nil</code> when there is no character or no Humanoid.</p>
+</span></span></div><div>
+<p>
+  The Humanoid a brain damages, checks the health of, or reads the state of, found through
+  <a href="/VluxyAI/api/Perception#CharacterOf">Perception.CharacterOf</a>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="EyeOf"><code style="text-decoration:none">EyeOf</code><a href="#EyeOf" class="hash-link" aria-label="Direct link to EyeOf" title="Direct link to EyeOf" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L212"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">EyeOf</code><code>(</code><code>root<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The character's <code>Head</code> when it has one, else <code>root</code> itself.</p>
+</span></span></div><div>
+<p>
+  The part to look out of for a character. <a href="/VluxyAI/api/Watched">Watched</a> judges an observer's look direction by
+  this part's <code>CFrame</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="RaycastParams"><code style="text-decoration:none">RaycastParams</code><a href="#RaycastParams" class="hash-link" aria-label="Direct link to RaycastParams" title="Direct link to RaycastParams" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L235"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">RaycastParams</code><code>(</code><div class="inset_uKQm"><div><code>ignore<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>Passed through, with their descendants.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">RaycastParams</code></div><div>
+<p>Raycast parameters that exclude <code>ignore</code> (and their descendants) and water.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Transparent"><code style="text-decoration:none">Transparent</code><a href="#Transparent" class="hash-link" aria-label="Direct link to Transparent" title="Direct link to Transparent" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L264"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">Transparent</code><code>(</code><div class="inset_uKQm"><div><code>threshold<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>Transparency</code> at or above which a part is see-through. Default <code>0.5</code>.</p>
+</span></span></div></div><code>) → </code><code class="purple_ieR2">(</code><code>part<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p>A <code>SeeThrough</code> predicate for <a href="/VluxyAI/api/Perception#LineOfSight">Perception.LineOfSight</a> and <a href="/VluxyAI/api/Sight">Sight</a>.</p>
+</span></span></div><div>
+<p>Glass and fences: parts this transparent do not block sight.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LineOfSight"><code style="text-decoration:none">LineOfSight</code><a href="#LineOfSight" class="hash-link" aria-label="Direct link to LineOfSight" title="Direct link to LineOfSight" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L286"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">LineOfSight</code><code>(</code><div class="inset_uKQm"><div><code>from<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>to<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>ignore<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>What the ray passes through.</p>
+</span></span></div><div><code>allow<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>What the ray may hit and still count as clear, usually the target's own model.</p>
+</span></span></div><div><code>seeThrough<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>part<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS">boolean</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Parts this returns <code>true</code> for do not block; the ray is cast again past them, up to eight times.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">boolean</code></div><div>
+<p>
+  Is the straight line from <code>from</code> to <code>to</code> clear? <code>true</code> when the ray hits nothing, or hits
+  <code>allow</code> or something under it, which is how a target's own body does not block sight of it.
+  Without <code>seeThrough</code>, anything else the ray hits blocks, glass included; pass
+  <a href="/VluxyAI/api/Perception#Transparent">Perception.Transparent</a> or your own rule to look past it.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="CountWalls"><code style="text-decoration:none">CountWalls</code><a href="#CountWalls" class="hash-link" aria-label="Direct link to CountWalls" title="Direct link to CountWalls" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L336"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">CountWalls</code><code>(</code><div class="inset_uKQm"><div><code>from<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>to<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>ignore<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>What does not count, with descendants: the listener's entity, the source's part.</p>
+</span></span></div><div><code>limit<!-- -->: </code><code class="blue_P4bS">number?</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>Stop counting here. Default <code>3</code>.</p>
+</span></span></div><div><code>margin<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Hits within this many studs of <code>to</code> do not count, so a noise inside a body is not walled off by that body. Default <code>2</code>.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>How many distinct parts the straight line crosses, up to <code>limit</code>.</p>
+</span></span></div><div>
+<p>
+  How many walls stand between a sound and a listener. <a href="/VluxyAI/api/Hearing">Hearing</a> and <a href="/VluxyAI/api/Sounds">Sounds</a> multiply the
+  loudness by <code>Occlusion</code> once per wall.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LightFalloff"><code style="text-decoration:none">LightFalloff</code><a href="#LightFalloff" class="hash-link" aria-label="Direct link to LightFalloff" title="Direct link to LightFalloff" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L382"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">LightFalloff</code><code>(</code><div class="inset_uKQm"><div><code>distance<!-- -->: </code><code class="blue_P4bS">number</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs from the light.</p>
+</span></span></div><div><code>range<!-- -->: </code><code class="blue_P4bS">number</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The light's <code>Range</code>.</p>
+</span></span></div><div><code>brightness<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>The light's <code>Brightness</code>.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>brightness</code> at the light, falling linearly to <code>0</code> at <code>range</code>. Pure.</p>
+</span></span></div><div></div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LightContribution"><code style="text-decoration:none">LightContribution</code><a href="#LightContribution" class="hash-link" aria-label="Direct link to LightContribution" title="Direct link to LightContribution" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L398"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">LightContribution</code><code>(</code><div class="inset_uKQm"><div><code>light<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Light" target="_blank" rel="noopener noreferrer">Light<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>A <code>PointLight</code>, <code>SpotLight</code> or <code>SurfaceLight</code> on a part or an attachment.</p>
+</span></span></div><div><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div></div><code>) → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>How much this light lights <code>position</code>: <code>0</code> when disabled, out of range, not on a part, or outside a spot light's cone.</p>
+</span></span></div><div>
+<p>
+  Read duck-typed (<code>Enabled</code>, <code>Brightness</code>, <code>Range</code>, <code>Parent</code>, and for a spot light <code>Angle</code> and
+  <code>Face</code>), so a spec can pass a plain table.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LightAt"><code style="text-decoration:none">LightAt</code><a href="#LightAt" class="hash-link" aria-label="Direct link to LightAt" title="Direct link to LightAt" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L456"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">LightAt</code><code>(</code><div class="inset_uKQm"><div><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>ambient<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Light everywhere, added before the clamp. <code>0</code> is pitch black where no light reaches. Default <code>0</code>.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>The light level at <code>position</code> in <code>[0, 1]</code>: <code>ambient</code> plus every tagged light's <a href="/VluxyAI/api/Perception#LightContribution">Perception.LightContribution</a>, clamped.</p>
+</span></span></div><div>
+<p>
+  How lit a spot is, from the lights tagged <a href="/VluxyAI/api/Perception#LIGHT_TAG">Perception.LIGHT_TAG</a>. Tag the lights that matter
+  to the AI (a flashlight, the ceiling lamps, a fire) and pass this as a <a href="/VluxyAI/api/Sight">Sight</a> <code>Visibility</code>,
+  and a player in the dark is invisible until a light finds them. Not physically accurate; a
+  gameplay number.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="SeenByAnyone"><code style="text-decoration:none">SeenByAnyone</code><a href="#SeenByAnyone" class="hash-link" aria-label="Direct link to SeenByAnyone" title="Direct link to SeenByAnyone" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L498"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">SeenByAnyone</code><code>(</code><div class="inset_uKQm"><div><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Perception#SeenByOptions">SeenByOptions?</a></code></div></div><code>) → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> when any observer has <code>position</code> inside their view cone with a clear line to it.</p>
+</span></span></div><h3>Types</h3><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="SeenByOptions"><a href="#SeenByOptions" class="hash-link" aria-label="Direct link to SeenByOptions" title="Direct link to SeenByOptions" translate="no">​</a></h3><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>SeenByOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>FieldOfView<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The full angle of each observer's view cone. Default <code>100</code>.</p>
+</span></span></div><div><code>Range<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs. Default <code>math.huge</code>.</p>
+</span></span></div><div><code>Eye<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>root<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/CFrame" target="_blank" rel="noopener noreferrer">CFrame?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Where an observer looks from. Default: the character's head, else its root (<a href="/VluxyAI/api/Perception#EyeOf">Perception.EyeOf</a>). A game that replicates the camera returns it here.</p>
+</span></span></div><div><code>Ignore<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>What the sight ray passes through. Default nothing.</p>
+</span></span></div><div><code>Observers<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Who may be looking. Default <a href="/VluxyAI/api/Perception#AllAliveRoots">Perception.AllAliveRoots</a>, hidden players included.</p>
+</span></span></div></div><code>}</code></div><div></div><div>
+<p>
+  "Would anyone see it happen here?" The check to run before a stalker teleports, spawns or
+  vanishes, so it only ever does so off screen. The <a href="/VluxyAI/api/Watched">Watched</a> sense is the same question asked
+  about the agent every tick; this is the one-off version about any point.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="InCone"><code style="text-decoration:none">InCone</code><a href="#InCone" class="hash-link" aria-label="Direct link to InCone" title="Direct link to InCone" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L543"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">InCone</code><code>(</code><div class="inset_uKQm"><div><code>origin<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/CFrame" target="_blank" rel="noopener noreferrer">CFrame<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The eye; its <code>LookVector</code> is the centre of the cone.</p>
+</span></span></div><div><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>fieldOfViewDegrees<!-- -->: </code><code class="blue_P4bS">number</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The full angle of the cone.</p>
+</span></span></div><div><code>range<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs.</p>
+</span></span></div></div><code>) → </code><code>(</code><div class="inset_uKQm"><div><code class="blue_P4bS">boolean</code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>Inside the cone and within range.</p>
+</span></span></div><div><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>The dot product between the look vector and the direction to <code>position</code>: <code>1</code> dead ahead, <code>0</code> beside, <code>-1</code> behind.</p>
+</span></span></div></div><code>)</code></div><div>
+<p>
+  Is <code>position</code> inside the cone that opens <code>fieldOfViewDegrees</code> wide around <code>origin.LookVector</code>,
+  within <code>range</code> studs? The angle is the true angle in three dimensions, so something high above
+  is outside just as something off to the side is. A position at the origin counts as inside.
+  The dot is returned either way, so a consideration can score on it.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="SortByDistance"><code style="text-decoration:none">SortByDistance</code><a href="#SortByDistance" class="hash-link" aria-label="Direct link to SortByDistance" title="Direct link to SortByDistance" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Perception.luau#L575"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Perception<!-- -->.</code><code class="green_DgR4">SortByDistance</code><code>(</code><div class="inset_uKQm"><div><code>origin<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code></div><div><code>parts<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code></div></div><code>) → </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/BasePart" target="_blank" rel="noopener noreferrer">BasePart<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>A new list, nearest first.</p>
+</span></span></div><div>
+<p>
+  A new list of <code>parts</code>, nearest to <code>origin</code> first. Stable: parts at the same distance keep
+  their order. <code>parts</code> is not touched.
+</p>
+</div></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;IsHidden&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;root&quot;,
+                    &quot;desc&quot;: &quot;A target root, or anything with `GetAttribute`.&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;`true` when the root or its character carries `AI_HIDDEN = true`.&quot;,
+                    &quot;lua_type&quot;: &quot;boolean&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 61,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;AliveRoots&quot;,
+            &quot;desc&quot;: &quot;Every player character with a Humanoid whose Health is above zero, by its root, minus the\nones hidden with [Perception.HIDDEN_ATTRIBUTE]. The default `Targets` of every sense, so\nhiding a player once hides them from Sight, Proximity and Watched together. Takes no\narguments, so it can be a `Targets` function as it is.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The `HumanoidRootPart` of every player whose character is alive and not hidden.&quot;,
+                    &quot;lua_type&quot;: &quot;{ BasePart }&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 109,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;AllAliveRoots&quot;,
+            &quot;desc&quot;: &quot;For the checks a hidden player still takes part in: [Perception.SeenByAnyone] uses it, since\na player inside a locker can still see out of it.&quot;,
+            &quot;params&quot;: [],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;Every alive player root, hidden ones included.&quot;,
+                    &quot;lua_type&quot;: &quot;{ BasePart }&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 120,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;IgnoreList&quot;,
+            &quot;desc&quot;: &quot;The raycast filter for a ray cast from the agent outwards: its entity alone, which\n`FilterDescendantsInstances` extends to everything under it. The default `Ignore` of [Sight].&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;`{ agent.Entity }`.&quot;,
+                    &quot;lua_type&quot;: &quot;{ Instance }&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 132,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;PositionOf&quot;,
+            &quot;desc&quot;: &quot;Where the agent is: its mover&#x27;s position when it has one, else its entity&#x27;s pivot. The real\n[Agent] has `GetPosition`; a spec&#x27;s fake may not.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 144,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;ModelOf&quot;,
+            &quot;desc&quot;: &quot;The Model a part belongs to, or `nil` when it has none or is a fake without\n`FindFirstAncestorOfClass`. [Perception.CharacterOf] is the same lookup typed as a `Model`.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;part&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The nearest ancestor Model, or `nil`.&quot;,
+                    &quot;lua_type&quot;: &quot;Instance?&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 161,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;CharacterOf&quot;,
+            &quot;desc&quot;: &quot;The character a part belongs to. What a brain calls on `SeenTarget` or `NearestTarget` when\nit wants the whole model rather than the root.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;part&quot;,
+                    &quot;desc&quot;: &quot;A root a sense wrote to the blackboard, or any part of a character.&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The nearest ancestor Model, or `nil` when there is none.&quot;,
+                    &quot;lua_type&quot;: &quot;Model?&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 178,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;HumanoidOf&quot;,
+            &quot;desc&quot;: &quot;The Humanoid a brain damages, checks the health of, or reads the state of, found through\n[Perception.CharacterOf].&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;part&quot;,
+                    &quot;desc&quot;: &quot;A root a sense wrote to the blackboard, or any part of a character.&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The Humanoid inside the part&#x27;s character, or `nil` when there is no character or no Humanoid.&quot;,
+                    &quot;lua_type&quot;: &quot;Humanoid?&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 190,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;EyeOf&quot;,
+            &quot;desc&quot;: &quot;The part to look out of for a character. [Watched] judges an observer&#x27;s look direction by\nthis part&#x27;s `CFrame`.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;root&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The character&#x27;s `Head` when it has one, else `root` itself.&quot;,
+                    &quot;lua_type&quot;: &quot;BasePart&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 212,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;RaycastParams&quot;,
+            &quot;desc&quot;: &quot;Raycast parameters that exclude `ignore` (and their descendants) and water.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;ignore&quot;,
+                    &quot;desc&quot;: &quot;Passed through, with their descendants.&quot;,
+                    &quot;lua_type&quot;: &quot;{ Instance }&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;RaycastParams&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 235,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Transparent&quot;,
+            &quot;desc&quot;: &quot;Glass and fences: parts this transparent do not block sight.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;threshold&quot;,
+                    &quot;desc&quot;: &quot;`Transparency` at or above which a part is see-through. Default `0.5`.&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;A `SeeThrough` predicate for [Perception.LineOfSight] and [Sight].&quot;,
+                    &quot;lua_type&quot;: &quot;(part: BasePart) -&gt; boolean&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 264,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;LineOfSight&quot;,
+            &quot;desc&quot;: &quot;Is the straight line from `from` to `to` clear? `true` when the ray hits nothing, or hits\n`allow` or something under it, which is how a target&#x27;s own body does not block sight of it.\nWithout `seeThrough`, anything else the ray hits blocks, glass included; pass\n[Perception.Transparent] or your own rule to look past it.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;from&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;to&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;ignore&quot;,
+                    &quot;desc&quot;: &quot;What the ray passes through.&quot;,
+                    &quot;lua_type&quot;: &quot;{ Instance }&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;allow&quot;,
+                    &quot;desc&quot;: &quot;What the ray may hit and still count as clear, usually the target&#x27;s own model.&quot;,
+                    &quot;lua_type&quot;: &quot;Instance?&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;seeThrough&quot;,
+                    &quot;desc&quot;: &quot;Parts this returns `true` for do not block; the ray is cast again past them, up to eight times.&quot;,
+                    &quot;lua_type&quot;: &quot;((part: BasePart) -&gt; boolean)?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;boolean&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 286,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;CountWalls&quot;,
+            &quot;desc&quot;: &quot;How many walls stand between a sound and a listener. [Hearing] and [Sounds] multiply the\nloudness by `Occlusion` once per wall.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;from&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;to&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;ignore&quot;,
+                    &quot;desc&quot;: &quot;What does not count, with descendants: the listener&#x27;s entity, the source&#x27;s part.&quot;,
+                    &quot;lua_type&quot;: &quot;{ Instance }&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;limit&quot;,
+                    &quot;desc&quot;: &quot;Stop counting here. Default `3`.&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;margin&quot;,
+                    &quot;desc&quot;: &quot;Hits within this many studs of `to` do not count, so a noise inside a body is not walled off by that body. Default `2`.&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;How many distinct parts the straight line crosses, up to `limit`.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 336,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;LightFalloff&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;distance&quot;,
+                    &quot;desc&quot;: &quot;Studs from the light.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;range&quot;,
+                    &quot;desc&quot;: &quot;The light&#x27;s `Range`.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;brightness&quot;,
+                    &quot;desc&quot;: &quot;The light&#x27;s `Brightness`.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;`brightness` at the light, falling linearly to `0` at `range`. Pure.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 382,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;LightContribution&quot;,
+            &quot;desc&quot;: &quot;Read duck-typed (`Enabled`, `Brightness`, `Range`, `Parent`, and for a spot light `Angle` and\n`Face`), so a spec can pass a plain table.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;light&quot;,
+                    &quot;desc&quot;: &quot;A `PointLight`, `SpotLight` or `SurfaceLight` on a part or an attachment.&quot;,
+                    &quot;lua_type&quot;: &quot;Light&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;position&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;How much this light lights `position`: `0` when disabled, out of range, not on a part, or outside a spot light&#x27;s cone.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 398,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;LightAt&quot;,
+            &quot;desc&quot;: &quot;How lit a spot is, from the lights tagged [Perception.LIGHT_TAG]. Tag the lights that matter\nto the AI (a flashlight, the ceiling lamps, a fire) and pass this as a [Sight] `Visibility`,\nand a player in the dark is invisible until a light finds them. Not physically accurate; a\ngameplay number.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;position&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;ambient&quot;,
+                    &quot;desc&quot;: &quot;Light everywhere, added before the clamp. `0` is pitch black where no light reaches. Default `0`.&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;The light level at `position` in `[0, 1]`: `ambient` plus every tagged light&#x27;s [Perception.LightContribution], clamped.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 456,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;SeenByAnyone&quot;,
+            &quot;desc&quot;: &quot;\&quot;Would anyone see it happen here?\&quot; The check to run before a stalker teleports, spawns or\nvanishes, so it only ever does so off screen. The [Watched] sense is the same question asked\nabout the agent every tick; this is the one-off version about any point.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;position&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;options&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;SeenByOptions?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;`true` when any observer has `position` inside their view cone with a clear line to it.&quot;,
+                    &quot;lua_type&quot;: &quot;boolean&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 498,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;InCone&quot;,
+            &quot;desc&quot;: &quot;Is `position` inside the cone that opens `fieldOfViewDegrees` wide around `origin.LookVector`,\nwithin `range` studs? The angle is the true angle in three dimensions, so something high above\nis outside just as something off to the side is. A position at the origin counts as inside.\nThe dot is returned either way, so a consideration can score on it.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;origin&quot;,
+                    &quot;desc&quot;: &quot;The eye; its `LookVector` is the centre of the cone.&quot;,
+                    &quot;lua_type&quot;: &quot;CFrame&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;position&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;fieldOfViewDegrees&quot;,
+                    &quot;desc&quot;: &quot;The full angle of the cone.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;range&quot;,
+                    &quot;desc&quot;: &quot;Studs.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;Inside the cone and within range.&quot;,
+                    &quot;lua_type&quot;: &quot;boolean&quot;
+                },
+                {
+                    &quot;desc&quot;: &quot;The dot product between the look vector and the direction to `position`: `1` dead ahead, `0` beside, `-1` behind.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 543,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;SortByDistance&quot;,
+            &quot;desc&quot;: &quot;A new list of `parts`, nearest to `origin` first. Stable: parts at the same distance keep\ntheir order. `parts` is not touched.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;origin&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;parts&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;{ BasePart }&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;A new list, nearest first.&quot;,
+                    &quot;lua_type&quot;: &quot;{ BasePart }&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 575,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [
+        {
+            &quot;name&quot;: &quot;HIDDEN_ATTRIBUTE&quot;,
+            &quot;desc&quot;: &quot;The attribute name that hides a character from every sense: set it to `true` on the\ncharacter (or on its root) while the player is in a locker, under a bed, or otherwise out of\nthe game&#x27;s sight rules, and [Perception.AliveRoots] leaves them out until it is cleared.&quot;,
+            &quot;lua_type&quot;: &quot;\&quot;AI_HIDDEN\&quot;&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 54,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;LIGHT_TAG&quot;,
+            &quot;desc&quot;: &quot;The `CollectionService` tag a light must carry for [Perception.LightAt] to count it.&quot;,
+            &quot;lua_type&quot;: &quot;\&quot;AI_LIGHT\&quot;&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 373,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        }
+    ],
+    &quot;types&quot;: [
+        {
+            &quot;name&quot;: &quot;SeenByOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;FieldOfView&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;The full angle of each observer&#x27;s view cone. Default `100`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Range&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Studs. Default `math.huge`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Eye&quot;,
+                    &quot;lua_type&quot;: &quot;((root: BasePart) -&gt; CFrame?)?&quot;,
+                    &quot;desc&quot;: &quot;Where an observer looks from. Default: the character&#x27;s head, else its root ([Perception.EyeOf]). A game that replicates the camera returns it here.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Ignore&quot;,
+                    &quot;lua_type&quot;: &quot;{ Instance }?&quot;,
+                    &quot;desc&quot;: &quot;What the sight ray passes through. Default nothing.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Observers&quot;,
+                    &quot;lua_type&quot;: &quot;{ BasePart }?&quot;,
+                    &quot;desc&quot;: &quot;Who may be looking. Default [Perception.AllAliveRoots], hidden players included.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 480,
+                &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+            }
+        }
+    ],
+    &quot;name&quot;: &quot;Perception&quot;,
+    &quot;desc&quot;: &quot;The helpers the built-in senses are made of, and the place to start when writing your own.\nA [Types.Sense] is any table with `Tick`; the work inside one is usually \&quot;who could I be\nlooking at\&quot; (`AliveRoots`), \&quot;is it in front of me\&quot; (`InCone`), \&quot;is anything in the way\&quot;\n(`LineOfSight`), \&quot;which is nearest\&quot; (`SortByDistance`), and this module answers each of those\non its own.\n\nEverything here is about *targets*: [Perception.HumanoidOf] takes a root a sense wrote to the\nblackboard and finds that character&#x27;s humanoid. The agent&#x27;s own humanoid is\n`agent.Entity:FindFirstChildOfClass(\&quot;Humanoid\&quot;)`, and the two look alike in code, so name\nthe variable.\n\n`Targets` on every built-in sense defaults to [Perception.AliveRoots], and `Ignore` on\n[Sight] defaults to [Perception.IgnoreList]. A brain that acts on a target root a sense wrote\nto the blackboard reaches the rest of the character through [Perception.CharacterOf] and\n[Perception.HumanoidOf].\n\nEverything that takes a part reads it duck-typed, so a spec can pass plain tables.&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 42,
+        &quot;path&quot;: &quot;lib/Senses/Perception.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a><ul><li><a href="#SeenByOptions" class="table-of-contents__link toc-highlight">SeenByOptions</a></li></ul></li><li><a href="#properties" class="table-of-contents__link toc-highlight">Properties</a><ul><li><a href="#HIDDEN_ATTRIBUTE" class="table-of-contents__link toc-highlight">HIDDEN_ATTRIBUTE</a></li><li><a href="#LIGHT_TAG" class="table-of-contents__link toc-highlight">LIGHT_TAG</a></li></ul></li><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#AliveRoots" class="table-of-contents__link toc-highlight">.AliveRoots</a></li><li><a href="#AllAliveRoots" class="table-of-contents__link toc-highlight">.AllAliveRoots</a></li><li><a href="#CharacterOf" class="table-of-contents__link toc-highlight">.CharacterOf</a></li><li><a href="#CountWalls" class="table-of-contents__link toc-highlight">.CountWalls</a></li><li><a href="#EyeOf" class="table-of-contents__link toc-highlight">.EyeOf</a></li><li><a href="#HumanoidOf" class="table-of-contents__link toc-highlight">.HumanoidOf</a></li><li><a href="#IgnoreList" class="table-of-contents__link toc-highlight">.IgnoreList</a></li><li><a href="#InCone" class="table-of-contents__link toc-highlight">.InCone</a></li><li><a href="#IsHidden" class="table-of-contents__link toc-highlight">.IsHidden</a></li><li><a href="#LightAt" class="table-of-contents__link toc-highlight">.LightAt</a></li><li><a href="#LightContribution" class="table-of-contents__link toc-highlight">.LightContribution</a></li><li><a href="#LightFalloff" class="table-of-contents__link toc-highlight">.LightFalloff</a></li><li><a href="#LineOfSight" class="table-of-contents__link toc-highlight">.LineOfSight</a></li><li><a href="#ModelOf" class="table-of-contents__link toc-highlight">.ModelOf</a></li><li><a href="#PositionOf" class="table-of-contents__link toc-highlight">.PositionOf</a></li><li><a href="#RaycastParams" class="table-of-contents__link toc-highlight">.RaycastParams</a></li><li><a href="#SeenByAnyone" class="table-of-contents__link toc-highlight">.SeenByAnyone</a></li><li><a href="#SortByDistance" class="table-of-contents__link toc-highlight">.SortByDistance</a></li><li><a href="#Transparent" class="table-of-contents__link toc-highlight">.Transparent</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

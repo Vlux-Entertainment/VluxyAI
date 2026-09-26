@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Throttle | VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/Throttle"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Throttle | VluxyAI"><meta data-rh="true" name="description" content="Wraps a [Types.Sense] so it ticks every `interval` seconds instead of every agent tick. The
+first tick runs at once. Exposed as `VluxyAI.Senses.Throttle`.
+
+```lua
+:AddSense(VluxyAI.Senses.Throttle.new(VluxyAI.Senses.Sight.new({ Range = 40 }), 0.3))
+```
+
+The wrapped sense&#x27;s blackboard keys keep their last values between runs, so a memory such as
+`SeenPosition` still ages by the wrapped sense&#x27;s own clock."><meta data-rh="true" property="og:description" content="Wraps a [Types.Sense] so it ticks every `interval` seconds instead of every agent tick. The
+first tick runs at once. Exposed as `VluxyAI.Senses.Throttle`.
+
+```lua
+:AddSense(VluxyAI.Senses.Throttle.new(VluxyAI.Senses.Sight.new({ Range = 40 }), 0.3))
+```
+
+The wrapped sense&#x27;s blackboard keys keep their last values between runs, so a memory such as
+`SeenPosition` still ages by the wrapped sense&#x27;s own clock."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Throttle"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Throttle" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Throttle" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Throttle</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  Wraps a <a href="/VluxyAI/api/Types#Sense">Types.Sense</a> so it ticks every <code>interval</code> seconds instead of every agent tick. The
+  first tick runs at once. Exposed as <code>VluxyAI.Senses.Throttle</code>.
+</p>
+<pre class="language-lua"><code class="language-lua"><span class="token punctuation">:</span><span class="token function">AddSense</span><span class="token punctuation">(</span>VluxyAI<span class="token punctuation">.</span>Senses<span class="token punctuation">.</span>Throttle<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span>VluxyAI<span class="token punctuation">.</span>Senses<span class="token punctuation">.</span>Sight<span class="token punctuation">.</span><span class="token function">new</span><span class="token punctuation">(</span><span class="token punctuation">{</span> Range <span class="token operator">=</span> <span class="token number">40</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">,</span> <span class="token number">0.3</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+</code></pre>
+<p>
+  The wrapped sense's blackboard keys keep their last values between runs, so a memory such as
+  <code>SeenPosition</code> still ages by the wrapped sense's own clock.
+</p>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="new"><code style="text-decoration:none">new</code><a href="#new" class="hash-link" aria-label="Direct link to new" title="Direct link to new" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Throttle.luau#L48"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Throttle<!-- -->.</code><code class="green_DgR4">new</code><code>(</code><div class="inset_uKQm"><div><code>sense<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Sense">Sense</a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The sense to slow down.</p>
+</span></span></div><div><code>interval<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds between its ticks. Must be above <code>0</code>.</p>
+</span></span></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Throttle">Throttle</a></code></div><div></div><h3>Errors</h3><table class="errorTable_jfN8"><thead><tr><th>Type</th><th>Description</th></tr></thead><tbody><tr><td>string</td><td>`sense` has no `Tick`, or `interval` is not above `0`.</td></tr></tbody></table><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Tick"><code style="text-decoration:none">Tick</code><a href="#Tick" class="hash-link" aria-label="Direct link to Tick" title="Direct link to Tick" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Throttle.luau#L73"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Throttle<!-- -->.</code><code class="green_DgR4">Tick</code><code>(</code><div class="inset_uKQm"><div><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Throttle">Throttle</a></code><code>,</code></div><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>,</code></div><div><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>
+  Adds <code>deltaTime</code> to this agent's clock and ticks the wrapped sense with the time gathered
+  once it reaches the interval.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Destroy"><code style="text-decoration:none">Destroy</code><a href="#Destroy" class="hash-link" aria-label="Direct link to Destroy" title="Direct link to Destroy" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Senses/Throttle.luau#L98"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Throttle<!-- -->.</code><code class="green_DgR4">Destroy</code><code>(</code><div class="inset_uKQm"><div><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Throttle">Throttle</a></code><code>,</code></div><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent?</a></code></div></div><code>) → </code><code>(</code><code>)</code></div><div>
+<p>Forgets the agent's clock (or all of them) and forwards to the wrapped sense's <code>Destroy</code>.</p>
+</div></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;new&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;sense&quot;,
+                    &quot;desc&quot;: &quot;The sense to slow down.&quot;,
+                    &quot;lua_type&quot;: &quot;Sense&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;interval&quot;,
+                    &quot;desc&quot;: &quot;Seconds between its ticks. Must be above `0`.&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Throttle&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;errors&quot;: [
+                {
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;`sense` has no `Tick`, or `interval` is not above `0`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 48,
+                &quot;path&quot;: &quot;lib/Senses/Throttle.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Tick&quot;,
+            &quot;desc&quot;: &quot;Adds `deltaTime` to this agent&#x27;s clock and ticks the wrapped sense with the time gathered\nonce it reaches the interval.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;self&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Throttle&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;deltaTime&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 73,
+                &quot;path&quot;: &quot;lib/Senses/Throttle.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Destroy&quot;,
+            &quot;desc&quot;: &quot;Forgets the agent&#x27;s clock (or all of them) and forwards to the wrapped sense&#x27;s `Destroy`.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;self&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Throttle&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;Agent?&quot;
+                }
+            ],
+            &quot;returns&quot;: [],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 98,
+                &quot;path&quot;: &quot;lib/Senses/Throttle.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [],
+    &quot;types&quot;: [],
+    &quot;name&quot;: &quot;Throttle&quot;,
+    &quot;desc&quot;: &quot;Wraps a [Types.Sense] so it ticks every `interval` seconds instead of every agent tick. The\nfirst tick runs at once. Exposed as `VluxyAI.Senses.Throttle`.\n\n```lua\n:AddSense(VluxyAI.Senses.Throttle.new(VluxyAI.Senses.Sight.new({ Range = 40 }), 0.3))\n```\n\nThe wrapped sense&#x27;s blackboard keys keep their last values between runs, so a memory such as\n`SeenPosition` still ages by the wrapped sense&#x27;s own clock.&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 40,
+        &quot;path&quot;: &quot;lib/Senses/Throttle.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#Destroy" class="table-of-contents__link toc-highlight">.Destroy</a></li><li><a href="#new" class="table-of-contents__link toc-highlight">.new</a></li><li><a href="#Tick" class="table-of-contents__link toc-highlight">.Tick</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

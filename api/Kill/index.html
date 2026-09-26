@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Kill | VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/Kill"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Kill | VluxyAI"><meta data-rh="true" name="description" content="Kills a character from an agent in one of two ways, decided and finished on the server, and
+announced as a `&quot;Kill&quot;` event on [Agent].Events with `{ Kind, Victim, Duration }` so a client
+[Replica] can present it: `replica:On(&quot;Kill&quot;, ...)`.
+
+- [Kill.Live]: the victim is held next to the killer while both play an animation, then dies.
+- [Kill.BlackBox]: announced at once, resolved after a delay; the client cuts to black.
+- [Kill.Scare]: the live hold without the death, announced as `&quot;Scare&quot;`; the victim is let go.
+
+A kill that was announced and then cancelled (or lost to another cause of death) emits
+`&quot;KillCancelled&quot;` with `{ Kind, Victim }`, so the client can put its screen back; a scare cut
+short emits `&quot;ScareCancelled&quot;`."><meta data-rh="true" property="og:description" content="Kills a character from an agent in one of two ways, decided and finished on the server, and
+announced as a `&quot;Kill&quot;` event on [Agent].Events with `{ Kind, Victim, Duration }` so a client
+[Replica] can present it: `replica:On(&quot;Kill&quot;, ...)`.
+
+- [Kill.Live]: the victim is held next to the killer while both play an animation, then dies.
+- [Kill.BlackBox]: announced at once, resolved after a delay; the client cuts to black.
+- [Kill.Scare]: the live hold without the death, announced as `&quot;Scare&quot;`; the victim is let go.
+
+A kill that was announced and then cancelled (or lost to another cause of death) emits
+`&quot;KillCancelled&quot;` with `{ Kind, Victim }`, so the client can put its screen back; a scare cut
+short emits `&quot;ScareCancelled&quot;`."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Kill"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Kill" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Kill" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Kill</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  Kills a character from an agent in one of two ways, decided and finished on the server, and
+  announced as a <code>"Kill"</code> event on <a href="/VluxyAI/api/Types#Agent">Agent</a>.Events with <code>{ Kind, Victim, Duration }</code> so a client
+  <a href="/VluxyAI/api/Replica#Replica">Replica</a> can present it: <code>replica:On("Kill", ...)</code>.
+</p>
+<ul>
+  <li>[Kill.Live]: the victim is held next to the killer while both play an animation, then dies.</li>
+  <li>[Kill.BlackBox]: announced at once, resolved after a delay; the client cuts to black.</li>
+  <li>[Kill.Scare]: the live hold without the death, announced as <code>"Scare"</code>; the victim is let go.</li>
+</ul>
+<p>
+  A kill that was announced and then cancelled (or lost to another cause of death) emits
+  <code>"KillCancelled"</code> with <code>{ Kind, Victim }</code>, so the client can put its screen back; a scare cut
+  short emits <code>"ScareCancelled"</code>.
+</p>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="types">Types<a href="#types" class="hash-link" aria-label="Direct link to Types" title="Direct link to Types" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="KillHandle"><code style="text-decoration:none">KillHandle</code><a href="#KillHandle" class="hash-link" aria-label="Direct link to KillHandle" title="Direct link to KillHandle" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Combat/Kill.luau#L153"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>KillHandle<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Finished<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">boolean</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired once: <code>true</code> when the victim died, <code>false</code> when cancelled.</p>
+</span></span></div><div><code>Cancel<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#KillHandle">KillHandle</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Releases the victim alive.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>What both kill functions return.</p>
+</div><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="functions">Functions<a href="#functions" class="hash-link" aria-label="Direct link to Functions" title="Direct link to Functions" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Live"><code style="text-decoration:none">Live</code><a href="#Live" class="hash-link" aria-label="Direct link to Live" title="Direct link to Live" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Combat/Kill.luau#L384"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Kill<!-- -->.</code><code class="green_DgR4">Live</code><code>(</code><div class="inset_uKQm"><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The killer.</p>
+</span></span></div><div><code>victim<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The character to kill. Needs a Humanoid (or a <code>Health</code> provider) and a PrimaryPart.</p>
+</span></span></div><div><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#LiveKillOptions">LiveKillOptions?</a></code></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#KillHandle">KillHandle</a></code></div><h3>Types</h3><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="LiveKillOptions"><a href="#LiveKillOptions" class="hash-link" aria-label="Direct link to LiveKillOptions" title="Direct link to LiveKillOptions" translate="no">​</a></h3><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>LiveKillOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Duration<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds the hold lasts before the victim dies. Default <code>1.5</code>.</p>
+</span></span></div><div><code>Offset<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/CFrame" target="_blank" rel="noopener noreferrer">CFrame?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the victim is held, relative to the killer's pivot. Default 2.5 studs in front, facing the killer.</p>
+</span></span></div><div><code>KillerAnimation<!-- -->: </code><code class="blue_P4bS">number</code><code class="op_lSLc"> | </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Played on the killer: an animation asset id, or the name of a one-shot on the killer's <a href="/VluxyAI/api/Locomotion">Locomotion</a>. Default none.</p>
+</span></span></div><div><code>VictimAnimation<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Animation asset id played on the victim. Default none.</p>
+</span></span></div><div><code>Health<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#HealthProvider">HealthProvider?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the victim's health lives, when not on the Humanoid.</p>
+</span></span></div></div><code>}</code></div><div></div><div>
+<p>
+  Emits <code>Kill</code> with <code>Kind = "Live"</code>, anchors the victim's root, holds it at <code>Offset</code> from the
+  killer every frame, plays the animations, and after <code>Duration</code> sets the victim's health to
+  zero (bypassing a ForceField, as a kill should). <code>Cancel</code> releases the victim alive.
+</p>
+<p>
+  Finishes <code>false</code> at once, with a warning, when the victim has no humanoid or root, is dead, or
+  is already held by another live kill, or when the agent is not running. Finishes <code>false</code> if the
+  killer is destroyed or the victim dies of something else during the hold.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Scare"><code style="text-decoration:none">Scare</code><a href="#Scare" class="hash-link" aria-label="Direct link to Scare" title="Direct link to Scare" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Combat/Kill.luau#L418"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Kill<!-- -->.</code><code class="green_DgR4">Scare</code><code>(</code><div class="inset_uKQm"><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The scarer.</p>
+</span></span></div><div><code>victim<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The character to grab. Needs a Humanoid (or a <code>Health</code> provider) and a PrimaryPart.</p>
+</span></span></div><div><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#ScareOptions">ScareOptions?</a></code></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#KillHandle">KillHandle</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Finishes <code>true</code> when the hold ran its course and the victim was let go, <code>false</code> when cut short.</p>
+</span></span></div><h3>Types</h3><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ScareOptions"><a href="#ScareOptions" class="hash-link" aria-label="Direct link to ScareOptions" title="Direct link to ScareOptions" translate="no">​</a></h3><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>ScareOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Duration<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds the hold lasts before the victim is let go. Default <code>1</code>.</p>
+</span></span></div><div><code>Offset<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/CFrame" target="_blank" rel="noopener noreferrer">CFrame?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the victim is held, relative to the killer's pivot. Default 2.5 studs in front, facing the killer.</p>
+</span></span></div><div><code>Damage<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Dealt when the hold ends. Default <code>0</code>.</p>
+</span></span></div><div><code>KillerAnimation<!-- -->: </code><code class="blue_P4bS">number</code><code class="op_lSLc"> | </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Played on the killer: an asset id, or a <a href="/VluxyAI/api/Locomotion">Locomotion</a> one-shot name. Default none.</p>
+</span></span></div><div><code>VictimAnimation<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Animation asset id played on the victim. Default none.</p>
+</span></span></div><div><code>Health<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#HealthProvider">HealthProvider?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the victim's health lives, when not on the Humanoid.</p>
+</span></span></div></div><code>}</code></div><div></div><div>
+<p>
+  The live hold without the death: emits <code>Scare</code> with <code>Kind = "Scare"</code>, holds the victim at
+  <code>Offset</code> while both animations play, deals <code>Damage</code> when the time is up, and releases them.
+  A jump scare, a grab that throws the player off, a bite that does not finish them. The same
+  refusals as <a href="/VluxyAI/api/Kill#Live">Kill.Live</a>; a victim already held by a kill or another scare is refused.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="BlackBox"><code style="text-decoration:none">BlackBox</code><a href="#BlackBox" class="hash-link" aria-label="Direct link to BlackBox" title="Direct link to BlackBox" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Combat/Kill.luau#L452"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code>Kill<!-- -->.</code><code class="green_DgR4">BlackBox</code><code>(</code><div class="inset_uKQm"><div><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The killer.</p>
+</span></span></div><div><code>victim<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code>,</code><span class="inlineDescription_G7Er">-- <span>
+<p>The character to kill.</p>
+</span></span></div><div><code>options<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#BlackBoxKillOptions">BlackBoxKillOptions?</a></code></div></div><code>) → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Kill#KillHandle">KillHandle</a></code></div><h3>Types</h3><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="BlackBoxKillOptions"><a href="#BlackBoxKillOptions" class="hash-link" aria-label="Direct link to BlackBoxKillOptions" title="Direct link to BlackBoxKillOptions" translate="no">​</a></h3><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>BlackBoxKillOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Delay<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds between the announcement and the death. Default <code>0.6</code>.</p>
+</span></span></div><div><code>Health<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#HealthProvider">HealthProvider?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the victim's health lives, when not on the Humanoid.</p>
+</span></span></div></div><code>}</code></div><div></div><div>
+<p>
+  Emits <code>Kill</code> with <code>Kind = "BlackBox"</code> at once and sets the victim's health to zero after
+  <code>Delay</code>. <code>Cancel</code> within the delay spares them. Finishes <code>false</code> if the victim died of
+  something else meanwhile, or if the agent was not running to begin with.
+</p>
+</div></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [
+        {
+            &quot;name&quot;: &quot;Live&quot;,
+            &quot;desc&quot;: &quot;Emits `Kill` with `Kind = \&quot;Live\&quot;`, anchors the victim&#x27;s root, holds it at `Offset` from the\nkiller every frame, plays the animations, and after `Duration` sets the victim&#x27;s health to\nzero (bypassing a ForceField, as a kill should). `Cancel` releases the victim alive.\n\nFinishes `false` at once, with a warning, when the victim has no humanoid or root, is dead, or\nis already held by another live kill, or when the agent is not running. Finishes `false` if the\nkiller is destroyed or the victim dies of something else during the hold.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;The killer.&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;victim&quot;,
+                    &quot;desc&quot;: &quot;The character to kill. Needs a Humanoid (or a `Health` provider) and a PrimaryPart.&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;options&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;LiveKillOptions?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;KillHandle&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 384,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Scare&quot;,
+            &quot;desc&quot;: &quot;The live hold without the death: emits `Scare` with `Kind = \&quot;Scare\&quot;`, holds the victim at\n`Offset` while both animations play, deals `Damage` when the time is up, and releases them.\nA jump scare, a grab that throws the player off, a bite that does not finish them. The same\nrefusals as [Kill.Live]; a victim already held by a kill or another scare is refused.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;The scarer.&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;victim&quot;,
+                    &quot;desc&quot;: &quot;The character to grab. Needs a Humanoid (or a `Health` provider) and a PrimaryPart.&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;options&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;ScareOptions?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;Finishes `true` when the hold ran its course and the victim was let go, `false` when cut short.&quot;,
+                    &quot;lua_type&quot;: &quot;KillHandle&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 418,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;BlackBox&quot;,
+            &quot;desc&quot;: &quot;Emits `Kill` with `Kind = \&quot;BlackBox\&quot;` at once and sets the victim&#x27;s health to zero after\n`Delay`. `Cancel` within the delay spares them. Finishes `false` if the victim died of\nsomething else meanwhile, or if the agent was not running to begin with.&quot;,
+            &quot;params&quot;: [
+                {
+                    &quot;name&quot;: &quot;agent&quot;,
+                    &quot;desc&quot;: &quot;The killer.&quot;,
+                    &quot;lua_type&quot;: &quot;Agent&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;victim&quot;,
+                    &quot;desc&quot;: &quot;The character to kill.&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;options&quot;,
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;BlackBoxKillOptions?&quot;
+                }
+            ],
+            &quot;returns&quot;: [
+                {
+                    &quot;desc&quot;: &quot;&quot;,
+                    &quot;lua_type&quot;: &quot;KillHandle&quot;
+                }
+            ],
+            &quot;function_type&quot;: &quot;static&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 452,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        }
+    ],
+    &quot;properties&quot;: [],
+    &quot;types&quot;: [
+        {
+            &quot;name&quot;: &quot;LiveKillOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Duration&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds the hold lasts before the victim dies. Default `1.5`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Offset&quot;,
+                    &quot;lua_type&quot;: &quot;CFrame?&quot;,
+                    &quot;desc&quot;: &quot;Where the victim is held, relative to the killer&#x27;s pivot. Default 2.5 studs in front, facing the killer.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;KillerAnimation&quot;,
+                    &quot;lua_type&quot;: &quot;number | string?&quot;,
+                    &quot;desc&quot;: &quot;Played on the killer: an animation asset id, or the name of a one-shot on the killer&#x27;s [Locomotion]. Default none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;VictimAnimation&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Animation asset id played on the victim. Default none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Health&quot;,
+                    &quot;lua_type&quot;: &quot;HealthProvider?&quot;,
+                    &quot;desc&quot;: &quot;Where the victim&#x27;s health lives, when not on the Humanoid.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 104,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;ScareOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Duration&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds the hold lasts before the victim is let go. Default `1`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Offset&quot;,
+                    &quot;lua_type&quot;: &quot;CFrame?&quot;,
+                    &quot;desc&quot;: &quot;Where the victim is held, relative to the killer&#x27;s pivot. Default 2.5 studs in front, facing the killer.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Damage&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Dealt when the hold ends. Default `0`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;KillerAnimation&quot;,
+                    &quot;lua_type&quot;: &quot;number | string?&quot;,
+                    &quot;desc&quot;: &quot;Played on the killer: an asset id, or a [Locomotion] one-shot name. Default none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;VictimAnimation&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Animation asset id played on the victim. Default none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Health&quot;,
+                    &quot;lua_type&quot;: &quot;HealthProvider?&quot;,
+                    &quot;desc&quot;: &quot;Where the victim&#x27;s health lives, when not on the Humanoid.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 123,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;BlackBoxKillOptions&quot;,
+            &quot;desc&quot;: &quot;&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Delay&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds between the announcement and the death. Default `0.6`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Health&quot;,
+                    &quot;lua_type&quot;: &quot;HealthProvider?&quot;,
+                    &quot;desc&quot;: &quot;Where the victim&#x27;s health lives, when not on the Humanoid.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 139,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;KillHandle&quot;,
+            &quot;desc&quot;: &quot;What both kill functions return.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Finished&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;boolean&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired once: `true` when the victim died, `false` when cancelled.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Cancel&quot;,
+                    &quot;lua_type&quot;: &quot;(self: KillHandle) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Releases the victim alive.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 153,
+                &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+            }
+        }
+    ],
+    &quot;name&quot;: &quot;Kill&quot;,
+    &quot;desc&quot;: &quot;Kills a character from an agent in one of two ways, decided and finished on the server, and\nannounced as a `\&quot;Kill\&quot;` event on [Agent].Events with `{ Kind, Victim, Duration }` so a client\n[Replica] can present it: `replica:On(\&quot;Kill\&quot;, ...)`.\n\n- [Kill.Live]: the victim is held next to the killer while both play an animation, then dies.\n- [Kill.BlackBox]: announced at once, resolved after a delay; the client cuts to black.\n- [Kill.Scare]: the live hold without the death, announced as `\&quot;Scare\&quot;`; the victim is let go.\n\nA kill that was announced and then cancelled (or lost to another cause of death) emits\n`\&quot;KillCancelled\&quot;` with `{ Kind, Victim }`, so the client can put its screen back; a scare cut\nshort emits `\&quot;ScareCancelled\&quot;`.&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 245,
+        &quot;path&quot;: &quot;lib/Combat/Kill.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a><ul><li><a href="#BlackBoxKillOptions" class="table-of-contents__link toc-highlight">BlackBoxKillOptions</a></li><li><a href="#KillHandle" class="table-of-contents__link toc-highlight">KillHandle</a></li><li><a href="#LiveKillOptions" class="table-of-contents__link toc-highlight">LiveKillOptions</a></li><li><a href="#ScareOptions" class="table-of-contents__link toc-highlight">ScareOptions</a></li></ul></li><li><a href="#functions" class="table-of-contents__link toc-highlight">Functions</a><ul><li><a href="#BlackBox" class="table-of-contents__link toc-highlight">.BlackBox</a></li><li><a href="#Live" class="table-of-contents__link toc-highlight">.Live</a></li><li><a href="#Scare" class="table-of-contents__link toc-highlight">.Scare</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

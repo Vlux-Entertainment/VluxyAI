@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="plugin-moonwave plugin-id-moonwave" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.10.1">
+<title data-rh="true">Types | VluxyAI</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://Vlux-Entertainment.github.io/VluxyAI/api/Types"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docusaurus_tag" content="default"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docsearch:docusaurus_tag" content="default"><meta data-rh="true" property="og:title" content="Types | VluxyAI"><meta data-rh="true" name="description" content="The contracts VluxyAI is built from. You extend the package by passing in your own module that
+satisfies one of these types; the package never learns your module exists.
+
+The important ones:
+
+- [Types.Brain]: a table of states. The part you write for every AI.
+- [Types.Pathfinder]: anything with `FindPath`. Plans, never moves.
+- [Types.Mover]: anything with `Follow` and `Stop`. Moves, never plans.
+- [Types.Sense]: anything with `Tick` that writes to the [Types.Blackboard].
+- [Types.AgentDefinition]: the composition of the above, which `Build()` validates and turns into
+  an [Agent]."><meta data-rh="true" property="og:description" content="The contracts VluxyAI is built from. You extend the package by passing in your own module that
+satisfies one of these types; the package never learns your module exists.
+
+The important ones:
+
+- [Types.Brain]: a table of states. The part you write for every AI.
+- [Types.Pathfinder]: anything with `FindPath`. Plans, never moves.
+- [Types.Mover]: anything with `Follow` and `Stop`. Moves, never plans.
+- [Types.Sense]: anything with `Tick` that writes to the [Types.Blackboard].
+- [Types.AgentDefinition]: the composition of the above, which `Build()` validates and turns into
+  an [Agent]."><link data-rh="true" rel="canonical" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Types"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Types" hreflang="en"><link data-rh="true" rel="alternate" href="https://Vlux-Entertainment.github.io/VluxyAI/api/Types" hreflang="x-default"><link rel="stylesheet" href="/VluxyAI/assets/css/styles.5ec48d9a.css">
+<script src="/VluxyAI/assets/js/runtime~main.3fa6bb8b.js" defer="defer"></script>
+<script src="/VluxyAI/assets/js/main.2f75207e.js" defer="defer"></script>
+</head>
+<body>
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")),document.documentElement.setAttribute("data-theme-choice",t||"system")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/VluxyAI/"><b class="navbar__title text--truncate">VluxyAI</b></a><a class="navbar__item navbar__link" href="/VluxyAI/docs/intro">Docs</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/VluxyAI/api/">API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://discord.gg/Ebbp9UgBUD" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Discord<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><a href="https://github.com/Vlux-Entertainment/VluxyAI" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"><div class="navbar__search"><span aria-label="expand searchbar" role="button" class="search-icon" tabindex="0"></span><input id="search_input_react" type="search" placeholder="Loading..." aria-label="Search" class="navbar__search-input search-bar" disabled=""></div></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0 docPageContainer_wNNk"><div class="docPage_Dpn1"><div class="docSidebarContainer_o_re"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/VluxyAI"><span title="​Vluxy​A​I" class="linkLabel_WmDU">​Vluxy​A​I</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/VluxyAI/api/Types"><span title="​Types" class="linkLabel_WmDU">​Types</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Builder"><span title="​Builder" class="linkLabel_WmDU">​Builder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Agent"><span title="​Agent" class="linkLabel_WmDU">​Agent</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navigator"><span title="​Navigator" class="linkLabel_WmDU">​Navigator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Validate"><span title="​Validate" class="linkLabel_WmDU">​Validate</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/When"><span title="​When" class="linkLabel_WmDU">​When</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/States"><span title="​States" class="linkLabel_WmDU">​States</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Utility"><span title="​Utility" class="linkLabel_WmDU">​Utility</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Director"><span title="​Director" class="linkLabel_WmDU">​Director</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Interest"><span title="​Interest" class="linkLabel_WmDU">​Interest</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Claims"><span title="​Claims" class="linkLabel_WmDU">​Claims</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Tables"><span title="​Tables" class="linkLabel_WmDU">​Tables</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Signal"><span title="​Signal" class="linkLabel_WmDU">​Signal</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Cleaner"><span title="​Cleaner" class="linkLabel_WmDU">​Cleaner</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Navmesh"><span title="​Navmesh" class="linkLabel_WmDU">​Navmesh</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Straight"><span title="​Straight" class="linkLabel_WmDU">​Straight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Ladder"><span title="​Ladder" class="linkLabel_WmDU">​Ladder</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Graph"><span title="​Graph" class="linkLabel_WmDU">​Graph</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hybrid"><span title="​Hybrid" class="linkLabel_WmDU">​Hybrid</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/HumanoidMover"><span title="​Humanoid​Mover" class="linkLabel_WmDU">​Humanoid​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/CFrameMover"><span title="​C​Frame​Mover" class="linkLabel_WmDU">​C​Frame​Mover</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sight"><span title="​Sight" class="linkLabel_WmDU">​Sight</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Proximity"><span title="​Proximity" class="linkLabel_WmDU">​Proximity</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Hearing"><span title="​Hearing" class="linkLabel_WmDU">​Hearing</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Sounds"><span title="​Sounds" class="linkLabel_WmDU">​Sounds</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Awareness"><span title="​Awareness" class="linkLabel_WmDU">​Awareness</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Watched"><span title="​Watched" class="linkLabel_WmDU">​Watched</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Surroundings"><span title="​Surroundings" class="linkLabel_WmDU">​Surroundings</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Neighbours"><span title="​Neighbours" class="linkLabel_WmDU">​Neighbours</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Throttle"><span title="​Throttle" class="linkLabel_WmDU">​Throttle</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Perception"><span title="​Perception" class="linkLabel_WmDU">​Perception</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Broadcaster"><span title="​Broadcaster" class="linkLabel_WmDU">​Broadcaster</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Replica"><span title="​Replica" class="linkLabel_WmDU">​Replica</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Look"><span title="​Look" class="linkLabel_WmDU">​Look</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/LookReceiver"><span title="​Look​Receiver" class="linkLabel_WmDU">​Look​Receiver</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Attack"><span title="​Attack" class="linkLabel_WmDU">​Attack</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Kill"><span title="​Kill" class="linkLabel_WmDU">​Kill</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/NPCAnimator"><span title="​N​P​C​Animator" class="linkLabel_WmDU">​N​P​C​Animator</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Locomotion"><span title="​Locomotion" class="linkLabel_WmDU">​Locomotion</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Footsteps"><span title="​Footsteps" class="linkLabel_WmDU">​Footsteps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/PathVisual"><span title="​Path​Visual" class="linkLabel_WmDU">​Path​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/StateLabel"><span title="​State​Label" class="linkLabel_WmDU">​State​Label</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/SenseVisual"><span title="​Sense​Visual" class="linkLabel_WmDU">​Sense​Visual</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/VluxyAI/api/Rig"><span title="​Rig" class="linkLabel_WmDU">​Rig</span></a></li></ul></nav></div></div><main class="docMainContainer_HJE1"><div class="container padding-vert--lg"><div class="row"><div class="col docItemCol_MU3C"><div class="docItemContainer_Wv98"><article><div class="member_J0w1 markdown"><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_oUs_"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><header><h1 class="docTitle_mZRt" style="text-decoration:none"><span style="display:inline-block">Types</span></h1><div class="luaClassTags_EipM"></div><div>
+<p>
+  The contracts VluxyAI is built from. You extend the package by passing in your own module that
+  satisfies one of these types; the package never learns your module exists.
+</p>
+<p>The important ones:</p>
+<ul>
+  <li>[Types.Brain]: a table of states. The part you write for every AI.</li>
+  <li>[Types.Pathfinder]: anything with <code>FindPath</code>. Plans, never moves.</li>
+  <li>[Types.Mover]: anything with <code>Follow</code> and <code>Stop</code>. Moves, never plans.</li>
+  <li>[Types.Sense]: anything with <code>Tick</code> that writes to the <a href="/VluxyAI/api/Types#Blackboard">Types.Blackboard</a>.</li>
+  <li>
+    [Types.AgentDefinition]: the composition of the above, which <code>Build()</code> validates and turns into
+    an <a href="/VluxyAI/api/Types#Agent">Agent</a>.
+  </li>
+</ul>
+</div></header><h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="types">Types<a href="#types" class="hash-link" aria-label="Direct link to Types" title="Direct link to Types" translate="no">​</a></h2><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Connection"><code style="text-decoration:none">Connection</code><a href="#Connection" class="hash-link" aria-label="Direct link to Connection" title="Direct link to Connection" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L42"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Connection<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Connected<!-- -->: </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>false</code> once disconnected.</p>
+</span></span></div><div><code>Disconnect<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Connection">Connection</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Disconnects the handler.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>What <a href="/VluxyAI/api/Types#Signal">Types.Signal</a> <code>Connect</code> returns. Any cleanup helper that calls <code>Disconnect</code> accepts it.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Signal&lt;T...&gt;"><code style="text-decoration:none">Signal&lt;T...&gt;</code><a href="#Signal&lt;T...&gt;" class="hash-link" aria-label="Direct link to Signal&lt;T...&gt;" title="Direct link to Signal&lt;T...&gt;" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L61"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Signal&lt;T...&gt;<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Connect<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>handler<!-- -->: </code><code class="green_DgR4">(</code><code class="blue_P4bS">T...</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Connection">Connection</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs <code>handler</code> on every fire.</p>
+</span></span></div><div><code>Once<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>handler<!-- -->: </code><code class="green_DgR4">(</code><code class="blue_P4bS">T...</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Connection">Connection</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs <code>handler</code> on the next fire only.</p>
+</span></span></div><div><code>Wait<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">T...</code><span class="inlineDescription_G7Er">-- <span>
+<p>Yields until the next fire.</p>
+</span></span></div><div><code>Fire<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">T...</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fires every connected handler.</p>
+</span></span></div><div><code>DisconnectAll<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Drops every handler.</p>
+</span></span></div><div><code>Destroy<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">T...</code><code class="op_lSLc">&gt;</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Drops every handler and refuses new ones.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  A small signal with the same surface as <code>RBXScriptSignal</code>, implemented in plain Luau so the
+  core runs outside Roblox. Movers and agents expose these; a <a href="/VluxyAI/api/Cleaner">Cleaner</a> releases their connections.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="StepAction"><code style="text-decoration:none">StepAction</code><a href="#StepAction" class="hash-link" aria-label="Direct link to StepAction" title="Direct link to StepAction" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L83"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>StepAction<!-- --> = </code> <code class="blue_P4bS">&quot;Walk&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Jump&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Custom&quot;</code></div><div>
+<p>
+  What a <a href="/VluxyAI/api/Types#Mover">Types.Mover</a> does at a step. Mirrors <code>Enum.PathWaypointAction</code>. <code>Custom</code> steps come
+  from <code>PathfindingModifier</code> labels or your own pathfinder; the mover walks to them like any other
+  step and the <a href="/VluxyAI/api/Types#Navigator">Types.Navigator</a>'s <code>StepReached</code> tells you when it got there, so a door or a ladder
+  is your code.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Step"><code style="text-decoration:none">Step</code><a href="#Step" class="hash-link" aria-label="Direct link to Step" title="Direct link to Step" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L96"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Step<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where to go, as a floor position. Movers add their own height.</p>
+</span></span></div><div><code>Action<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#StepAction">StepAction</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>What to do on the way there.</p>
+</span></span></div><div><code>Label<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The <code>PathfindingModifier</code> label, or whatever your pathfinder attaches. A <a href="/VluxyAI/api/Types#StepHandler">Types.StepHandler</a> registered for it runs when the step is reached.</p>
+</span></span></div><div><code>Instance<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Instance" target="_blank" rel="noopener noreferrer">Instance?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>What the step is about, when the pathfinder knows: the door on a <a href="/VluxyAI/api/Graph">Graph</a> link.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>One point along a <a href="/VluxyAI/api/Types#Path">Types.Path</a>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="StepHandler"><code style="text-decoration:none">StepHandler</code><a href="#StepHandler" class="hash-link" aria-label="Direct link to StepHandler" title="Direct link to StepHandler" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L118"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>StepHandler<!-- --> = </code> <code class="purple_ieR2">(</code><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>step<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Step">Step</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>index<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS">boolean?</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">number?</code></div><code class="purple_ieR2">)</code></div><div>
+<p>
+  What happens at a labelled step: open the door, climb the ladder, play the vault. Registered
+  with <a href="/VluxyAI/api/Builder#OnStep">Builder:OnStep</a> under the step's <code>Label</code>. Runs in its own thread and may yield; the
+  navigator holds the mover at the step, reports <code>Interacting</code>, and walks the rest of the path
+  when the handler returns. A new target or <code>Stop</code> while it runs abandons the path; the handler
+  should check <a href="/VluxyAI/api/Types#Agent#IsDestroyed">Agent:IsDestroyed</a> after a long yield.
+</p>
+<p>
+  Return <code>false</code> to say the step could not be taken (a locked door). The path is given up as
+  <code>Failed</code>, and the pathfinder is told to <code>Close</code> that step for the seconds given as the second
+  return (default <code>10</code>), so the next plan goes another way. Returning nothing or <code>true</code> means
+  the step was taken.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="StepRegistration"><code style="text-decoration:none">StepRegistration</code><a href="#StepRegistration" class="hash-link" aria-label="Direct link to StepRegistration" title="Direct link to StepRegistration" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L131"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>StepRegistration<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Handler<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#StepHandler">StepHandler</a></code></div><div><code>Tag<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>When the step arrives without an <code>Instance</code> (a navmesh link or modifier), the nearest instance carrying this <code>CollectionService</code> tag within <code>Radius</code> of the step is put in <code>step.Instance</code> before the handler runs.</p>
+</span></span></div><div><code>Radius<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs. Default <code>8</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  What <a href="/VluxyAI/api/Builder#OnStep">Builder:OnStep</a> stores for a label: the handler, and how to find the door for a step
+  that does not already know it. A plain <a href="/VluxyAI/api/Types#StepHandler">Types.StepHandler</a> is accepted wherever this is.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Path"><code style="text-decoration:none">Path</code><a href="#Path" class="hash-link" aria-label="Direct link to Path" title="Direct link to Path" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L144"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>Path<!-- --> = </code> <code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Step">Step</a></code><code class="purple_ieR2">}</code></div><div>
+<p>
+  An ordered list of steps from where the agent was to where it wants to be. The first step is the
+  agent's own position when the pathfinder includes it; movers cope either way.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Pathfinder"><code style="text-decoration:none">Pathfinder</code><a href="#Pathfinder" class="hash-link" aria-label="Direct link to Pathfinder" title="Direct link to Pathfinder" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L173"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Pathfinder<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>FindPath<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>from<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>to<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Path">Path?</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">string?</code></div><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Returns a path, or <code>nil</code> and a reason. May yield.</p>
+</span></span></div><div><code>Destroy<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional cleanup. Called when the agent is destroyed.</p>
+</span></span></div><div><code>Name<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Used in messages, such as a <a href="/VluxyAI/api/Ladder">Ladder</a>'s joined reasons.</p>
+</span></span></div><div><code>Blocked<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. Fired when the world changes under the last path returned; the <a href="/VluxyAI/api/Types#Navigator">Navigator</a> re-plans on its cadence.</p>
+</span></span></div><div><code>Close<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>step<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Step">Step</a></code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>seconds<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. A labelled step could not be taken (a locked door): plan around it for <code>seconds</code>. <a href="/VluxyAI/api/Graph">Graph</a> closes the link, <a href="/VluxyAI/api/Navmesh">Navmesh</a> refuses paths through it; <a href="/VluxyAI/api/Ladder">Ladder</a> and <a href="/VluxyAI/api/Hybrid">Hybrid</a> pass it on.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
+  a target. <code>from</code> and <code>to</code> may be at any height: <code>from</code> is the mover's root and <code>to</code> is often a
+  player's root or a floor node; the path it returns holds floor positions. An empty path counts
+  as a failure. <code>FindPath</code> runs in its own thread and may yield or error; an error is treated as a
+  failed plan and warned about once. <code>VluxyAI.Pathfinders</code> ships <code>Navmesh</code>, <code>Straight</code> and
+  <code>Ladder</code>; your own is any table with <code>FindPath</code>.
+</p>
+<p>
+  <code>Blocked</code> is how a pathfinder that watches the world (<a href="/VluxyAI/api/Navmesh">Navmesh</a> listens to its <code>Path.Blocked</code>)
+  tells the navigator that the path being walked is no longer good, so the agent re-plans as soon
+  as the cadence allows instead of walking into the obstacle and waiting for the mover's stuck
+  check. A pathfinder that cannot know leaves it out; <a href="/VluxyAI/api/Ladder">Ladder</a> and <a href="/VluxyAI/api/Hybrid">Hybrid</a> forward it from the
+  rung that produced the current path.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Mover"><code style="text-decoration:none">Mover</code><a href="#Mover" class="hash-link" aria-label="Direct link to Mover" title="Direct link to Mover" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L215"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Mover<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Follow<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>path<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Path">Path</a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Starts moving along <code>path</code>, replacing any current path.</p>
+</span></span></div><div><code>Stop<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Halts. Fires <code>Arrived(false)</code> if a path was in progress.</p>
+</span></span></div><div><code>GetPosition<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the agent's root or pivot is right now: the body, not the floor.</p>
+</span></span></div><div><code>GetSpeed<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs per second.</p>
+</span></span></div><div><code>SetSpeed<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>speed<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs per second.</p>
+</span></span></div><div><code>IsMoving<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> while a path is in progress.</p>
+</span></span></div><div><code>StepReached<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS">number</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Step">Step</a></code></div><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired with the index and step each time one is reached.</p>
+</span></span></div><div><code>Arrived<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">boolean</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired once per <code>Follow</code>: <code>true</code> at the end of the path, <code>false</code> if stopped, replaced or stuck.</p>
+</span></span></div><div><code>Destroy<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional cleanup. Called when the agent is destroyed.</p>
+</span></span></div><div><code>Face<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. Turn toward <code>position</code> while standing still; <code>nil</code> stops. <a href="/VluxyAI/api/Types#Agent#LookAt">Agent:LookAt</a> calls it.</p>
+</span></span></div><div><code>Teleport<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. Put the body at <code>position</code> at once, dropping any path. <a href="/VluxyAI/api/Types#Agent#Teleport">Agent:Teleport</a> calls it.</p>
+</span></span></div><div><code>SetNudge<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>offset<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. Aim at each step plus <code>offset</code> (never the last step), so a steering sense can push the body sideways; <code>nil</code> clears. <a href="/VluxyAI/api/Neighbours">Neighbours</a> calls it.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>Executes a <a href="/VluxyAI/api/Types#Path">Types.Path</a> and nothing else. Rules that keep a mover and the <a href="/VluxyAI/api/Types#Navigator">Navigator</a> honest:</p>
+<ul>
+  <li>
+    <code>Follow</code> fires <code>Arrived(false)</code> for the path it replaces before starting the new one, and
+    the new path's outcome is reported on a later frame, never from inside <code>Follow</code>. An empty
+    path is <code>Arrived(false)</code> on the next frame.
+  </li>
+  <li><code>Follow</code> is called from the navigator's planning thread, so it must not yield.</li>
+  <li>
+    <code>Arrived(true)</code> means the last step was reached. The navigator then checks the target for
+    itself: within <code>ArriveDistance</code> it reports arrival, otherwise it re-plans or reports failure.
+  </li>
+  <li><code>Arrived(false)</code> from a stuck detector makes the navigator re-plan on its cadence.</li>
+</ul>
+<p>
+  <code>VluxyAI.Movers</code> ships <code>Humanoid</code> (uses <code>MoveTo</code>) and <code>CFrame</code> (steps a pivot, no rig needed);
+  your own is any table with this shape. Make the signals with <code>VluxyAI.Signal.new()</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Blackboard"><code style="text-decoration:none">Blackboard</code><a href="#Blackboard" class="hash-link" aria-label="Direct link to Blackboard" title="Direct link to Blackboard" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L242"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>Blackboard<!-- --> = </code> <code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">}</code></div><div>
+<p>
+  The only thing states read about the world. Senses write to it every tick; states and utility
+  considerations read it and never query the world themselves. Each sense documents the keys it
+  writes. Declare your own blackboard type per AI and cast once at the boundary.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Sense"><code style="text-decoration:none">Sense</code><a href="#Sense" class="hash-link" aria-label="Direct link to Sense" title="Direct link to Sense" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L259"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Sense<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Tick<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Called once per agent tick. Writes to <code>agent.Blackboard</code>.</p>
+</span></span></div><div><code>Destroy<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent?</a></code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional cleanup, called with each agent that is destroyed. A shared sense releases that agent's state and tears down only when none remain; called with no agent it tears down outright.</p>
+</span></span></div><div><code>Configure<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>patch<!-- -->: </code><code class="yellow_QJap">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS">any</code><code class="yellow_QJap">}</code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Optional. Changes options after construction; every built-in has it, so a director can widen a cone or shorten a memory mid-round.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  Perceives and nothing else. Senses tick in the order they were added, before the navigator and
+  the brain. A sense keeps no per-agent state of its own: memory (<code>SeenAt</code>, <code>HeardAt</code>) lives on
+  the blackboard, so one instance may serve many agents and a state may clear a memory early by
+  setting the key to <code>nil</code>. Distances are <code>math.huge</code> when there is nothing to measure.
+  <code>VluxyAI.Senses</code> ships <code>Sight</code>, <code>Proximity</code>, <code>Hearing</code>, <code>Sounds</code>, <code>Awareness</code>, <code>Watched</code>,
+  <code>Surroundings</code> and <code>Neighbours</code>; your own is any table with <code>Tick</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Transition"><code style="text-decoration:none">Transition</code><a href="#Transition" class="hash-link" aria-label="Direct link to Transition" title="Direct link to Transition" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L281"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Transition<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>To<!-- -->: </code><code class="blue_P4bS">string</code><span class="inlineDescription_G7Er">-- <span>
+<p>The state to enter. Must exist in the brain; <code>Build()</code> checks.</p>
+</span></span></div><div><code>When<!-- -->: </code><code class="purple_ieR2">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p>Checked every tick, in order, before <code>Update</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  A declarative transition. The first one whose <code>When</code> returns <code>true</code> wins. <code>To</code> may name the
+  current state, which re-enters it (<code>Exit</code> then <code>Enter</code>); an <code>Update</code> returning the current name
+  does nothing. If <code>When</code> forces a change through <a href="/VluxyAI/api/Types#Agent#SetState">Agent:SetState</a>, that change wins and its own
+  result is ignored.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Interrupt"><code style="text-decoration:none">Interrupt</code><a href="#Interrupt" class="hash-link" aria-label="Direct link to Interrupt" title="Direct link to Interrupt" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L299"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Interrupt<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>To<!-- -->: </code><code class="blue_P4bS">string</code><span class="inlineDescription_G7Er">-- <span>
+<p>The state to enter. Must exist in the brain; <code>Build()</code> checks.</p>
+</span></span></div><div><code>When<!-- -->: </code><code class="purple_ieR2">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p>Checked every tick, in order, before the current state's own transitions.</p>
+</span></span></div><div><code>Except<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS">string</code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>States in which this interrupt is not checked, such as the one it leads to or an attack that must finish.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  A <a href="/VluxyAI/api/Types#Transition">Types.Transition</a> that applies from every state: "hunt whoever I see", "freeze when lit",
+  "stop when the director says so". Written once on the brain instead of in every state.
+  Interrupts are checked in order before the current state's transitions; the first true one
+  wins the tick.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="State"><code style="text-decoration:none">State</code><a href="#State" class="hash-link" aria-label="Direct link to State" title="Direct link to State" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L319"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>State<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Enter<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs once when the state becomes current.</p>
+</span></span></div><div><code>Update<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="blue_P4bS">string?</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs every tick. Return a state name to change state, or nothing to stay.</p>
+</span></span></div><div><code>Exit<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs once when the state stops being current.</p>
+</span></span></div><div><code>Transitions<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Transition">Transition</a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Checked in order before <code>Update</code> each tick.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  One state of a <a href="/VluxyAI/api/Types#Brain">Types.Brain</a>. Every field is optional, so a state can be as small as a single
+  <code>Update</code>. Returning the current state's name from <code>Update</code> does nothing; use <a href="/VluxyAI/api/Types#Agent#SetState">Agent:SetState</a> to
+  re-enter a state on purpose. If <code>Update</code> itself forces a change through <code>SetState</code>, its return
+  value is ignored so two transitions never stack.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Brain"><code style="text-decoration:none">Brain</code><a href="#Brain" class="hash-link" aria-label="Direct link to Brain" title="Direct link to Brain" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L336"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Brain<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Initial<!-- -->: </code><code class="blue_P4bS">string</code><span class="inlineDescription_G7Er">-- <span>
+<p>The state entered on <code>Start()</code>.</p>
+</span></span></div><div><code>States<!-- -->: </code><code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#State">State</a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>Every state, keyed by name.</p>
+</span></span></div><div><code>Interrupts<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Interrupt">Interrupt</a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Transitions that apply from every state, checked before the current state's own.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>A flat finite state machine as a table. The whole AI, readable top to bottom.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Curve"><code style="text-decoration:none">Curve</code><a href="#Curve" class="hash-link" aria-label="Direct link to Curve" title="Direct link to Curve" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L353"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>Curve<!-- --> = </code> <code class="purple_ieR2">(</code><code>x<!-- -->: </code><code class="blue_P4bS">number</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code></div><div>
+<p>
+  Maps a normalised input in <code>[0, 1]</code> to a score in <code>[0, 1]</code>. <a href="/VluxyAI/api/Utility#Curves">Utility.Curves</a> ships the common
+  shapes; any function works.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Consideration&lt;T&gt;"><code style="text-decoration:none">Consideration&lt;T&gt;</code><a href="#Consideration&lt;T&gt;" class="hash-link" aria-label="Direct link to Consideration&lt;T&gt;" title="Direct link to Consideration&lt;T&gt;" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L368"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Consideration&lt;T&gt;<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Input<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>agent<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>candidate<!-- -->: </code><code class="blue_P4bS">T</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Reads a raw value about the candidate, usually off the blackboard.</p>
+</span></span></div><div><code>Min<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The raw value that maps to <code>0</code>. Default <code>0</code>.</p>
+</span></span></div><div><code>Max<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The raw value that maps to <code>1</code>. Default <code>1</code>.</p>
+</span></span></div><div><code>Curve<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Curve">Curve?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The response curve. Default linear.</p>
+</span></span></div><div><code>Invert<!-- -->: </code><code class="blue_P4bS">boolean?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Flip the normalised input before the curve, so a big distance scores low.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  One factor in scoring a candidate. A candidate's score is the product of its considerations, so
+  any one of them can veto by returning <code>0</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Scored&lt;T&gt;"><code style="text-decoration:none">Scored&lt;T&gt;</code><a href="#Scored&lt;T&gt;" class="hash-link" aria-label="Direct link to Scored&lt;T&gt;" title="Direct link to Scored&lt;T&gt;" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L385"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Scored&lt;T&gt;<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Candidate<!-- -->: </code><code class="blue_P4bS">T</code><span class="inlineDescription_G7Er">-- <span>
+<p>The thing that was scored.</p>
+</span></span></div><div><code>Score<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Its score in <code>[0, 1]</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>One row of a <a href="/VluxyAI/api/Utility#ScoreAll">Utility.ScoreAll</a> result.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="PathStatus"><code style="text-decoration:none">PathStatus</code><a href="#PathStatus" class="hash-link" aria-label="Direct link to PathStatus" title="Direct link to PathStatus" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L401"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>PathStatus<!-- --> = </code> <code class="blue_P4bS">&quot;Idle&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Planning&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Moving&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Interacting&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Arrived&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Failed&quot;</code></div><div>
+<p>
+  Where a <a href="/VluxyAI/api/Types#Navigator">Navigator</a> is with its current target. <code>Idle</code> means no target or stopped;
+  <code>Interacting</code> means a <a href="/VluxyAI/api/Types#StepHandler">Types.StepHandler</a> is running at a step and the walk resumes after.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="NavigationOptions"><code style="text-decoration:none">NavigationOptions</code><a href="#NavigationOptions" class="hash-link" aria-label="Direct link to NavigationOptions" title="Direct link to NavigationOptions" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L415"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>NavigationOptions<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>RepathInterval<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds between re-plans while the target keeps moving. Must be above 0; the three distances below may be 0. Default <code>0.5</code>.</p>
+</span></span></div><div><code>RepathDistance<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Studs the target must move before a re-plan happens. Default <code>2</code>.</p>
+</span></span></div><div><code>MaxPathAge<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds a path is followed before it is planned again even though the target has not moved, so the agent keeps up with a changing level. Must be above 0. Default <code>math.huge</code> (never).</p>
+</span></span></div><div><code>ArriveDistance<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default <code>2.5</code>.</p>
+</span></span></div><div><code>ArriveHeight<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Height difference allowed for arrival, so a target on the floor above does not count. Default <code>8</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>Tunes how <a href="/VluxyAI/api/Types#Navigator">Navigator</a> turns repeated <code>MoveTo</code> calls into plans.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Navigator"><code style="text-decoration:none">Navigator</code><a href="#Navigator" class="hash-link" aria-label="Direct link to Navigator" title="Direct link to Navigator" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L440"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Navigator<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>MoveTo<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>target<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Head to <code>target</code>. Safe to call every tick; re-plans on a cadence.</p>
+</span></span></div><div><code>Stop<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Forget the target and halt.</p>
+</span></span></div><div><code>GetStatus<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#PathStatus">PathStatus</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Where the navigator is with its target.</p>
+</span></span></div><div><code>GetTarget<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The current target.</p>
+</span></span></div><div><code>GetPath<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Path">Path?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The last path planned.</p>
+</span></span></div><div><code>StepReached<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS">number</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Step">Step</a></code></div><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Forwarded from the mover.</p>
+</span></span></div><div><code>Arrived<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS">boolean</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired when the target is reached (<code>true</code>) or given up on (<code>false</code>).</p>
+</span></span></div><div><code>PathChanged<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Path">Path?</a></code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired with each new path, and with <code>nil</code> when there is none.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  Owns the pair of a <a href="/VluxyAI/api/Types#Pathfinder">Types.Pathfinder</a> and a [Types.Mover]: plans with one, follows with the
+  other, and re-plans when the target moves, the pathfinder reports the path blocked, or the path
+  is older than <code>MaxPathAge</code>. Every agent with both has one at <code>agent.Navigator</code>.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="AgentDefinition"><code style="text-decoration:none">AgentDefinition</code><a href="#AgentDefinition" class="hash-link" aria-label="Direct link to AgentDefinition" title="Direct link to AgentDefinition" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L475"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>AgentDefinition<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Entity<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The model the AI drives. Needs a <code>PrimaryPart</code>.</p>
+</span></span></div><div><code>Brain<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Brain">Brain</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The state table.</p>
+</span></span></div><div><code>Pathfinder<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Pathfinder">Pathfinder?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Required if <code>Mover</code> is given.</p>
+</span></span></div><div><code>Mover<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Mover">Mover?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Required if <code>Pathfinder</code> is given.</p>
+</span></span></div><div><code>Senses<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Sense">Sense</a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Ticked in order before the brain each tick.</p>
+</span></span></div><div><code>Blackboard<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Blackboard">Blackboard?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Initial blackboard values. Copied per agent.</p>
+</span></span></div><div><code>Data<!-- -->: </code><code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Initial <code>agent.Data</code>. Copied per agent. Yours to use.</p>
+</span></span></div><div><code>Tick<!-- -->: </code><code class="blue_P4bS">number?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds between ticks. Default <code>0.1</code>.</p>
+</span></span></div><div><code>Navigation<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#NavigationOptions">NavigationOptions?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Navigator tuning.</p>
+</span></span></div><div><code>Steps<!-- -->: </code><code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#StepHandler">StepHandler</a></code><code class="op_lSLc"> | </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#StepRegistration">StepRegistration</a></code><code class="purple_ieR2">}</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>What to do at labelled steps, by label. See <a href="/VluxyAI/api/Builder#OnStep">Builder:OnStep</a>.</p>
+</span></span></div><div><code>StrictBlackboard<!-- -->: </code><code class="blue_P4bS">boolean?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (<code>SeenTaget</code>). For development; costs a metatable on every read. Default <code>false</code>.</p>
+</span></span></div><div><code>Name<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Used in messages. Default <code>Entity.Name</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  Everything an <a href="/VluxyAI/api/Types#Agent">Agent</a> is built from. The <a href="/VluxyAI/api/Builder">Builder</a> produces one of these; you can also write it
+  as a table and hand it to <code>VluxyAI.NewAgent</code>. <code>Validate</code> checks it either way.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Agent"><code style="text-decoration:none">Agent</code><a href="#Agent" class="hash-link" aria-label="Direct link to Agent" title="Direct link to Agent" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L537"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Agent<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Entity<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The model being driven.</p>
+</span></span></div><div><code>Name<!-- -->: </code><code class="blue_P4bS">string</code><span class="inlineDescription_G7Er">-- <span>
+<p>For messages.</p>
+</span></span></div><div><code>Blackboard<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Blackboard">Blackboard</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Written by senses, read by states.</p>
+</span></span></div><div><code>Data<!-- -->: </code><code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS">any</code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>Free scratch space for your states.</p>
+</span></span></div><div><code>Brain<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Brain">Brain</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The state table.</p>
+</span></span></div><div><code>Senses<!-- -->: </code><code class="purple_ieR2">{</code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Sense">Sense</a></code><code class="purple_ieR2">}</code><span class="inlineDescription_G7Er">-- <span>
+<p>Ticked before the brain.</p>
+</span></span></div><div><code>Navigator<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Navigator">Navigator?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Present when the definition had a pathfinder and a mover.</p>
+</span></span></div><div><code>Mover<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Mover">Mover?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The mover, if any.</p>
+</span></span></div><div><code>Pathfinder<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Pathfinder">Pathfinder?</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The pathfinder, if any.</p>
+</span></span></div><div><code>StateChanged<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS">string</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">string?</code></div><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired with the new and previous state names.</p>
+</span></span></div><div><code>Destroyed<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Fired once, at the end of <code>Destroy</code>, so anything built around the agent can go with it.</p>
+</span></span></div><div><code>Events<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Signal">Signal</a></code><code class="op_lSLc">&lt;</code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code class="blue_P4bS">string</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code class="blue_P4bS">any</code></div><code class="purple_ieR2">)</code><code class="op_lSLc">&gt;</code><span class="inlineDescription_G7Er">-- <span>
+<p>Everything the agent announces through <a href="/VluxyAI/api/Types#Agent#Emit">Agent:Emit</a>; a <a href="/VluxyAI/api/Broadcaster#Broadcaster">Broadcaster</a> relays it to clients.</p>
+</span></span></div><div><code>GetState<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The current state name, <code>nil</code> before <code>Start</code>.</p>
+</span></span></div><div><code>SetState<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>name<!-- -->: </code><code class="blue_P4bS">string</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Force a transition, re-entering if already there.</p>
+</span></span></div><div><code>MoveTo<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>target<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Shorthand for <code>Navigator:MoveTo</code>. Errors without a navigator; warns and does nothing before <code>Start</code>.</p>
+</span></span></div><div><code>Stop<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Shorthand for <code>Navigator:Stop</code>. No-op without a navigator.</p>
+</span></span></div><div><code>GetPosition<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The mover's position, or the entity's pivot.</p>
+</span></span></div><div><code>HasArrived<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> while the navigator status is <code>Arrived</code>.</p>
+</span></span></div><div><code>GetPathStatus<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#PathStatus">PathStatus</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The navigator status, or <code>Idle</code> without a navigator.</p>
+</span></span></div><div><code>SetSpeed<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>speed<!-- -->: </code><code class="blue_P4bS">number</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>seconds<!-- -->: </code><code class="blue_P4bS">number?</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>The base speed; the mover gets it times the speed scale. With <code>seconds</code>, ramps there over the ticks. No-op without a mover.</p>
+</span></span></div><div><code>SetSpeedScale<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>scale<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>A multiplier layered on the base speed, kept across states. <code>1</code> is none.</p>
+</span></span></div><div><code>GetSpeedScale<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code></div><div><code>GetSpeed<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>The base speed, before the scale.</p>
+</span></span></div><div><code>StartTimer<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>name<!-- -->: </code><code class="blue_P4bS">string</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>seconds<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Starts a named timer.</p>
+</span></span></div><div><code>TimerDone<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>name<!-- -->: </code><code class="blue_P4bS">string</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> once the timer ran out, or if it was never started.</p>
+</span></span></div><div><code>TimerLeft<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>name<!-- -->: </code><code class="blue_P4bS">string</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds left on the timer, <code>0</code> when done.</p>
+</span></span></div><div><code>TimeInState<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds since the current state was entered, paused time excluded. <code>0</code> before <code>Start</code>.</p>
+</span></span></div><div><code>Pause<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Freeze: no ticks, no movement, timers on hold. For cutscenes, jumpscares and a director backing an enemy off.</p>
+</span></span></div><div><code>Resume<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Undo <code>Pause</code>. The navigator re-plans to its target on the next tick.</p>
+</span></span></div><div><code>IsPaused<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code></div><div><code>LookAt<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3?<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Turn toward <code>position</code> while standing still, <code>nil</code> to stop. Needs a mover with <code>Face</code>; otherwise does nothing.</p>
+</span></span></div><div><code>Teleport<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Put the body at <code>position</code> at once, dropping the current path. Uses the mover's <code>Teleport</code>, else the entity's <code>PivotTo</code>.</p>
+</span></span></div><div><code>IsNew<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>key<!-- -->: </code><code class="blue_P4bS">string</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> while <code>Blackboard[key]</code> is non-nil and differs from the value last passed to <code>Acknowledge</code>.</p>
+</span></span></div><div><code>Acknowledge<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>key<!-- -->: </code><code class="blue_P4bS">string</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Marks the current <code>Blackboard[key]</code> as dealt with, so <code>IsNew</code> is <code>false</code> until it changes.</p>
+</span></span></div><div><code>Step<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>One tick, driven by hand. Tests use this.</p>
+</span></span></div><div><code>Start<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>manual<!-- -->: </code><code class="blue_P4bS">boolean?</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><span class="inlineDescription_G7Er">-- <span>
+<p>Enters the initial state and starts ticking on <code>Heartbeat</code>. With <code>manual</code>, you drive <code>Step</code> yourself.</p>
+</span></span></div><div><code>IsRunning<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> between <code>Start</code> and <code>Destroy</code>.</p>
+</span></span></div><div><code>IsDestroyed<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">boolean</code><span class="inlineDescription_G7Er">-- <span>
+<p><code>true</code> once <code>Destroy</code> has run.</p>
+</span></span></div><div><code>Emit<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>name<!-- -->: </code><code class="blue_P4bS">string</code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>payload<!-- -->: </code><code class="blue_P4bS">any?</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Announces something for clients: a scream, a kill, a door. Fires <code>Events</code>.</p>
+</span></span></div><div><code>Destroy<!-- -->: </code><code class="purple_ieR2">(</code><code>self<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#Agent">Agent</a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Exits the current state, stops, destroys every part.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>The running AI. Handed to every <code>Enter</code>, <code>Update</code>, <code>Exit</code>, <code>When</code> and <code>Input</code> function.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ClientState"><code style="text-decoration:none">ClientState</code><a href="#ClientState" class="hash-link" aria-label="Direct link to ClientState" title="Direct link to ClientState" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L596"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>ClientState<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Enter<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>replica<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs when the server enters the state of that name.</p>
+</span></span></div><div><code>Update<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><div class="inset_uKQm"><code>replica<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">,</code></div><div class="inset_uKQm"><code>deltaTime<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs every frame while it is current.</p>
+</span></span></div><div><code>Exit<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>replica<!-- -->: </code><code class="blue_P4bS">any</code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Runs when the server leaves it.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  The client's side of one server state: what a <a href="/VluxyAI/api/Replica#Replica">Replica</a> does while the enemy is in it. The
+  same shape as a <a href="/VluxyAI/api/Types#State">Types.State</a> without transitions, since the server decides those.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Visuals"><code style="text-decoration:none">Visuals</code><a href="#Visuals" class="hash-link" aria-label="Direct link to Visuals" title="Direct link to Visuals" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L609"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>Visuals<!-- --> = </code> <code class="purple_ieR2">{</code><span><code>[</code><code class="blue_P4bS">string</code><code>]</code></span><code>: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#ClientState">ClientState</a></code><code class="purple_ieR2">}</code></div><div>
+<p>
+  Client states keyed by server state name. Only the states a client needs to react to are
+  listed; the rest are tracked without doing anything.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="Snapshot"><code style="text-decoration:none">Snapshot</code><a href="#Snapshot" class="hash-link" aria-label="Direct link to Snapshot" title="Direct link to Snapshot" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L621"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>Snapshot<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>State<!-- -->: </code><code class="blue_P4bS">string?</code><span class="inlineDescription_G7Er">-- <span>
+<p>The current state name.</p>
+</span></span></div><div><code>Position<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/datatype/Vector3" target="_blank" rel="noopener noreferrer">Vector3<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The rig's pivot position.</p>
+</span></span></div><div><code>Yaw<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Facing in radians about Y.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>Everything a client that just joined needs, from <a href="/VluxyAI/api/Broadcaster#Broadcaster#Snapshot">Broadcaster.Snapshot</a> to <a href="/VluxyAI/api/Replica#Replica#ApplySnapshot">Replica.ApplySnapshot</a>.</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="KillKind"><code style="text-decoration:none">KillKind</code><a href="#KillKind" class="hash-link" aria-label="Direct link to KillKind" title="Direct link to KillKind" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L634"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">type</code> <code>KillKind<!-- --> = </code> <code class="blue_P4bS">&quot;Live&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;BlackBox&quot;</code><code class="op_lSLc"> | </code><code class="blue_P4bS">&quot;Scare&quot;</code></div><div>
+<p>
+  How a <a href="/VluxyAI/api/Kill">Kill</a> is presented: played out in the world, cut to black, or a scare, which is the
+  live hold without the death.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="HealthProvider"><code style="text-decoration:none">HealthProvider</code><a href="#HealthProvider" class="hash-link" aria-label="Direct link to HealthProvider" title="Direct link to HealthProvider" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L647"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>HealthProvider<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Get<!-- -->: </code><code class="purple_ieR2">(</code><code>character<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>The character's current health.</p>
+</span></span></div><div><code>Damage<!-- -->: </code><code class="purple_ieR2">(</code><div class="inset_uKQm"><code>character<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="purple_ieR2">,</code></div><div class="inset_uKQm"><code>amount<!-- -->: </code><code class="blue_P4bS">number</code></div><code class="purple_ieR2">)</code><code class="purple_ieR2"> → </code><code class="purple_ieR2">(</code><code class="purple_ieR2">)</code><span class="inlineDescription_G7Er">-- <span>
+<p>Hurt it.</p>
+</span></span></div><div><code>Kill<!-- -->: </code><code class="purple_ieR2">(</code><code class="green_DgR4">(</code><code>character<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><code class="green_DgR4">)</code><code class="green_DgR4"> → </code><code class="green_DgR4">(</code><code class="green_DgR4">)</code><code class="purple_ieR2">)</code><code class="blue_P4bS">?</code><span class="inlineDescription_G7Er">-- <span>
+<p>Finish it. Default: <code>Damage</code> with <code>math.huge</code>.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  How <a href="/VluxyAI/api/Attack">Attack</a> and <a href="/VluxyAI/api/Kill">Kill</a> read and change a victim's health when the game does not use the
+  <code>Humanoid</code> for it. Without one, the Humanoid's <code>Health</code> and <code>TakeDamage</code> are used.
+</p>
+</div><div class="divider_rE5g"></div><h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="KillEvent"><code style="text-decoration:none">KillEvent</code><a href="#KillEvent" class="hash-link" aria-label="Direct link to KillEvent" title="Direct link to KillEvent" translate="no">​</a></h3><div class="repositoryDetailsContainer_BPdw"><a class="sourceButton_sEho" href="https://github.com/Vlux-Entertainment/VluxyAI/blob/master/lib/Types.luau#L665"><div class="sourceButtonText_Vh0m">&lt;/&gt;</div></a></div><div class="memberString_GwaU"><code class="purple_ieR2">interface</code> <code>KillEvent<!-- --> <!-- -->{</code><div class="inset_uKQm"><div><code>Kind<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="/VluxyAI/api/Types#KillKind">KillKind</a></code></div><div><code>Victim<!-- -->: </code><code class="blue_P4bS"><a style="text-decoration:underline;color:inherit" href="https://developer.roblox.com/en-us/api-reference/class/Model" target="_blank" rel="noopener noreferrer">Model<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" x="0px" y="0px" viewBox="0 0 100 100" width="15" height="15" class="icon outbound" style="color:gray;vertical-align:middle;margin-left:2px"><path fill="currentColor" d="M18.8,85.1h56l0,0c2.2,0,4-1.8,4-4v-32h-8v28h-48v-48h28v-8h-32l0,0c-2.2,0-4,1.8-4,4v56C14.8,83.3,16.6,85.1,18.8,85.1z"></path> <polygon fill="currentColor" points="45.7,48.7 51.3,54.3 77.2,28.5 77.2,37.2 85.2,37.2 85.2,14.9 62.8,14.9 62.8,22.9 71.5,22.9"></polygon></svg></a></code><span class="inlineDescription_G7Er">-- <span>
+<p>The character being killed.</p>
+</span></span></div><div><code>Duration<!-- -->: </code><code class="blue_P4bS">number</code><span class="inlineDescription_G7Er">-- <span>
+<p>Seconds until the victim dies (or, for a scare, is released), for the client to match.</p>
+</span></span></div></div><code>}</code></div><div>
+<p>
+  The payload of the <code>"Kill"</code> event an agent emits, and of the <code>"Scare"</code> event a scare emits.
+  A <code>"KillCancelled"</code> (or <code>"ScareCancelled"</code>) event with <code>{ Kind, Victim }</code> follows if it ends
+  early.
+</p>
+</div></div></article></div><details><summary>Show raw api</summary><pre style="max-width:100%;white-space:pre-wrap">{
+    &quot;functions&quot;: [],
+    &quot;properties&quot;: [],
+    &quot;types&quot;: [
+        {
+            &quot;name&quot;: &quot;Connection&quot;,
+            &quot;desc&quot;: &quot;What [Types.Signal] `Connect` returns. Any cleanup helper that calls `Disconnect` accepts it.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Connected&quot;,
+                    &quot;lua_type&quot;: &quot;boolean&quot;,
+                    &quot;desc&quot;: &quot;`false` once disconnected.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Disconnect&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Connection) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Disconnects the handler.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 42,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Signal&lt;T...&gt;&quot;,
+            &quot;desc&quot;: &quot;A small signal with the same surface as `RBXScriptSignal`, implemented in plain Luau so the\ncore runs outside Roblox. Movers and agents expose these; a [Cleaner] releases their connections.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Connect&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;, handler: (T...) -&gt; ()) -&gt; Connection&quot;,
+                    &quot;desc&quot;: &quot;Runs `handler` on every fire.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Once&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;, handler: (T...) -&gt; ()) -&gt; Connection&quot;,
+                    &quot;desc&quot;: &quot;Runs `handler` on the next fire only.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Wait&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;) -&gt; T...&quot;,
+                    &quot;desc&quot;: &quot;Yields until the next fire.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Fire&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;, T...) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Fires every connected handler.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;DisconnectAll&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Drops every handler.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroy&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Signal&lt;T...&gt;) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Drops every handler and refuses new ones.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 61,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;StepAction&quot;,
+            &quot;desc&quot;: &quot;What a [Types.Mover] does at a step. Mirrors `Enum.PathWaypointAction`. `Custom` steps come\nfrom `PathfindingModifier` labels or your own pathfinder; the mover walks to them like any other\nstep and the [Types.Navigator]&#x27;s `StepReached` tells you when it got there, so a door or a ladder\nis your code.&quot;,
+            &quot;lua_type&quot;: &quot;\&quot;Walk\&quot; | \&quot;Jump\&quot; | \&quot;Custom\&quot;&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 83,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Step&quot;,
+            &quot;desc&quot;: &quot;One point along a [Types.Path].&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Position&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;,
+                    &quot;desc&quot;: &quot;Where to go, as a floor position. Movers add their own height.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Action&quot;,
+                    &quot;lua_type&quot;: &quot;StepAction&quot;,
+                    &quot;desc&quot;: &quot;What to do on the way there.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Label&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;The `PathfindingModifier` label, or whatever your pathfinder attaches. A [Types.StepHandler] registered for it runs when the step is reached.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Instance&quot;,
+                    &quot;lua_type&quot;: &quot;Instance?&quot;,
+                    &quot;desc&quot;: &quot;What the step is about, when the pathfinder knows: the door on a [Graph] link.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 96,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;StepHandler&quot;,
+            &quot;desc&quot;: &quot;What happens at a labelled step: open the door, climb the ladder, play the vault. Registered\nwith [Builder:OnStep] under the step&#x27;s `Label`. Runs in its own thread and may yield; the\nnavigator holds the mover at the step, reports `Interacting`, and walks the rest of the path\nwhen the handler returns. A new target or `Stop` while it runs abandons the path; the handler\nshould check [Agent:IsDestroyed] after a long yield.\n\nReturn `false` to say the step could not be taken (a locked door). The path is given up as\n`Failed`, and the pathfinder is told to `Close` that step for the seconds given as the second\nreturn (default `10`), so the next plan goes another way. Returning nothing or `true` means\nthe step was taken.&quot;,
+            &quot;lua_type&quot;: &quot;(agent: Agent, step: Step, index: number) -&gt; (boolean?, number?)&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 118,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;StepRegistration&quot;,
+            &quot;desc&quot;: &quot;What [Builder:OnStep] stores for a label: the handler, and how to find the door for a step\nthat does not already know it. A plain [Types.StepHandler] is accepted wherever this is.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Handler&quot;,
+                    &quot;lua_type&quot;: &quot;StepHandler&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Tag&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;When the step arrives without an `Instance` (a navmesh link or modifier), the nearest instance carrying this `CollectionService` tag within `Radius` of the step is put in `step.Instance` before the handler runs.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Radius&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Studs. Default `8`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 131,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Path&quot;,
+            &quot;desc&quot;: &quot;An ordered list of steps from where the agent was to where it wants to be. The first step is the\nagent&#x27;s own position when the pathfinder includes it; movers cope either way.&quot;,
+            &quot;lua_type&quot;: &quot;{ Step }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 144,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Pathfinder&quot;,
+            &quot;desc&quot;: &quot;Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps\na target. `from` and `to` may be at any height: `from` is the mover&#x27;s root and `to` is often a\nplayer&#x27;s root or a floor node; the path it returns holds floor positions. An empty path counts\nas a failure. `FindPath` runs in its own thread and may yield or error; an error is treated as a\nfailed plan and warned about once. `VluxyAI.Pathfinders` ships `Navmesh`, `Straight` and\n`Ladder`; your own is any table with `FindPath`.\n\n`Blocked` is how a pathfinder that watches the world ([Navmesh] listens to its `Path.Blocked`)\ntells the navigator that the path being walked is no longer good, so the agent re-plans as soon\nas the cadence allows instead of walking into the obstacle and waiting for the mover&#x27;s stuck\ncheck. A pathfinder that cannot know leaves it out; [Ladder] and [Hybrid] forward it from the\nrung that produced the current path.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;FindPath&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any, from: Vector3, to: Vector3, agent: Agent) -&gt; (Path?, string?)&quot;,
+                    &quot;desc&quot;: &quot;Returns a path, or `nil` and a reason. May yield.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroy&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional cleanup. Called when the agent is destroyed.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Name&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;Used in messages, such as a [Ladder]&#x27;s joined reasons.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Blocked&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;()&gt;?&quot;,
+                    &quot;desc&quot;: &quot;Optional. Fired when the world changes under the last path returned; the [Navigator] re-plans on its cadence.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Close&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, step: Step, seconds: number) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional. A labelled step could not be taken (a locked door): plan around it for `seconds`. [Graph] closes the link, [Navmesh] refuses paths through it; [Ladder] and [Hybrid] pass it on.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 173,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Mover&quot;,
+            &quot;desc&quot;: &quot;Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:\n\n- `Follow` fires `Arrived(false)` for the path it replaces before starting the new one, and\n  the new path&#x27;s outcome is reported on a later frame, never from inside `Follow`. An empty\n  path is `Arrived(false)` on the next frame.\n- `Follow` is called from the navigator&#x27;s planning thread, so it must not yield.\n- `Arrived(true)` means the last step was reached. The navigator then checks the target for\n  itself: within `ArriveDistance` it reports arrival, otherwise it re-plans or reports failure.\n- `Arrived(false)` from a stuck detector makes the navigator re-plan on its cadence.\n\n`VluxyAI.Movers` ships `Humanoid` (uses `MoveTo`) and `CFrame` (steps a pivot, no rig needed);\nyour own is any table with this shape. Make the signals with `VluxyAI.Signal.new()`.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Follow&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any, path: Path) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Starts moving along `path`, replacing any current path.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Stop&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Halts. Fires `Arrived(false)` if a path was in progress.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetPosition&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; Vector3&quot;,
+                    &quot;desc&quot;: &quot;Where the agent&#x27;s root or pivot is right now: the body, not the floor.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetSpeed&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;Studs per second.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;SetSpeed&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any, speed: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Studs per second.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;IsMoving&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` while a path is in progress.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;StepReached&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;(number, Step)&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired with the index and step each time one is reached.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Arrived&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;boolean&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired once per `Follow`: `true` at the end of the path, `false` if stopped, replaced or stuck.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroy&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional cleanup. Called when the agent is destroyed.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Face&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, position: Vector3?) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional. Turn toward `position` while standing still; `nil` stops. [Agent:LookAt] calls it.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Teleport&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, position: Vector3) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional. Put the body at `position` at once, dropping any path. [Agent:Teleport] calls it.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;SetNudge&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, offset: Vector3?) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional. Aim at each step plus `offset` (never the last step), so a steering sense can push the body sideways; `nil` clears. [Neighbours] calls it.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 215,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Blackboard&quot;,
+            &quot;desc&quot;: &quot;The only thing states read about the world. Senses write to it every tick; states and utility\nconsiderations read it and never query the world themselves. Each sense documents the keys it\nwrites. Declare your own blackboard type per AI and cast once at the boundary.&quot;,
+            &quot;lua_type&quot;: &quot;{ [string]: any }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 242,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Sense&quot;,
+            &quot;desc&quot;: &quot;Perceives and nothing else. Senses tick in the order they were added, before the navigator and\nthe brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on\nthe blackboard, so one instance may serve many agents and a state may clear a memory early by\nsetting the key to `nil`. Distances are `math.huge` when there is nothing to measure.\n`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Awareness`, `Watched`,\n`Surroundings` and `Neighbours`; your own is any table with `Tick`.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Tick&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any, agent: Agent, deltaTime: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Called once per agent tick. Writes to `agent.Blackboard`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroy&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, agent: Agent?) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional cleanup, called with each agent that is destroyed. A shared sense releases that agent&#x27;s state and tears down only when none remain; called with no agent it tears down outright.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Configure&quot;,
+                    &quot;lua_type&quot;: &quot;((self: any, patch: { [string]: any }) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Optional. Changes options after construction; every built-in has it, so a director can widen a cone or shorten a memory mid-round.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 259,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Transition&quot;,
+            &quot;desc&quot;: &quot;A declarative transition. The first one whose `When` returns `true` wins. `To` may name the\ncurrent state, which re-enters it (`Exit` then `Enter`); an `Update` returning the current name\ndoes nothing. If `When` forces a change through [Agent:SetState], that change wins and its own\nresult is ignored.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;To&quot;,
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;The state to enter. Must exist in the brain; `Build()` checks.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;When&quot;,
+                    &quot;lua_type&quot;: &quot;(agent: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;Checked every tick, in order, before `Update`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 281,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Interrupt&quot;,
+            &quot;desc&quot;: &quot;A [Types.Transition] that applies from every state: \&quot;hunt whoever I see\&quot;, \&quot;freeze when lit\&quot;,\n\&quot;stop when the director says so\&quot;. Written once on the brain instead of in every state.\nInterrupts are checked in order before the current state&#x27;s transitions; the first true one\nwins the tick.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;To&quot;,
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;The state to enter. Must exist in the brain; `Build()` checks.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;When&quot;,
+                    &quot;lua_type&quot;: &quot;(agent: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;Checked every tick, in order, before the current state&#x27;s own transitions.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Except&quot;,
+                    &quot;lua_type&quot;: &quot;{ string }?&quot;,
+                    &quot;desc&quot;: &quot;States in which this interrupt is not checked, such as the one it leads to or an attack that must finish.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 299,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;State&quot;,
+            &quot;desc&quot;: &quot;One state of a [Types.Brain]. Every field is optional, so a state can be as small as a single\n`Update`. Returning the current state&#x27;s name from `Update` does nothing; use [Agent:SetState] to\nre-enter a state on purpose. If `Update` itself forces a change through `SetState`, its return\nvalue is ignored so two transitions never stack.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Enter&quot;,
+                    &quot;lua_type&quot;: &quot;((agent: Agent) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Runs once when the state becomes current.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Update&quot;,
+                    &quot;lua_type&quot;: &quot;((agent: Agent, deltaTime: number) -&gt; string?)?&quot;,
+                    &quot;desc&quot;: &quot;Runs every tick. Return a state name to change state, or nothing to stay.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Exit&quot;,
+                    &quot;lua_type&quot;: &quot;((agent: Agent) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Runs once when the state stops being current.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Transitions&quot;,
+                    &quot;lua_type&quot;: &quot;{ Transition }?&quot;,
+                    &quot;desc&quot;: &quot;Checked in order before `Update` each tick.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 319,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Brain&quot;,
+            &quot;desc&quot;: &quot;A flat finite state machine as a table. The whole AI, readable top to bottom.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Initial&quot;,
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;The state entered on `Start()`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;States&quot;,
+                    &quot;lua_type&quot;: &quot;{ [string]: State }&quot;,
+                    &quot;desc&quot;: &quot;Every state, keyed by name.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Interrupts&quot;,
+                    &quot;lua_type&quot;: &quot;{ Interrupt }?&quot;,
+                    &quot;desc&quot;: &quot;Transitions that apply from every state, checked before the current state&#x27;s own.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 336,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Curve&quot;,
+            &quot;desc&quot;: &quot;Maps a normalised input in `[0, 1]` to a score in `[0, 1]`. [Utility.Curves] ships the common\nshapes; any function works.&quot;,
+            &quot;lua_type&quot;: &quot;(x: number) -&gt; number&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 353,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Consideration&lt;T&gt;&quot;,
+            &quot;desc&quot;: &quot;One factor in scoring a candidate. A candidate&#x27;s score is the product of its considerations, so\nany one of them can veto by returning `0`.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Input&quot;,
+                    &quot;lua_type&quot;: &quot;(agent: Agent, candidate: T) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;Reads a raw value about the candidate, usually off the blackboard.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Min&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;The raw value that maps to `0`. Default `0`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Max&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;The raw value that maps to `1`. Default `1`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Curve&quot;,
+                    &quot;lua_type&quot;: &quot;Curve?&quot;,
+                    &quot;desc&quot;: &quot;The response curve. Default linear.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Invert&quot;,
+                    &quot;lua_type&quot;: &quot;boolean?&quot;,
+                    &quot;desc&quot;: &quot;Flip the normalised input before the curve, so a big distance scores low.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 368,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Scored&lt;T&gt;&quot;,
+            &quot;desc&quot;: &quot;One row of a [Utility.ScoreAll] result.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Candidate&quot;,
+                    &quot;lua_type&quot;: &quot;T&quot;,
+                    &quot;desc&quot;: &quot;The thing that was scored.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Score&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;,
+                    &quot;desc&quot;: &quot;Its score in `[0, 1]`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 385,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;PathStatus&quot;,
+            &quot;desc&quot;: &quot;Where a [Navigator] is with its current target. `Idle` means no target or stopped;\n`Interacting` means a [Types.StepHandler] is running at a step and the walk resumes after.&quot;,
+            &quot;lua_type&quot;: &quot;\&quot;Idle\&quot; | \&quot;Planning\&quot; | \&quot;Moving\&quot; | \&quot;Interacting\&quot; | \&quot;Arrived\&quot; | \&quot;Failed\&quot;&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 401,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;NavigationOptions&quot;,
+            &quot;desc&quot;: &quot;Tunes how [Navigator] turns repeated `MoveTo` calls into plans.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;RepathInterval&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds between re-plans while the target keeps moving. Must be above 0; the three distances below may be 0. Default `0.5`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;RepathDistance&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Studs the target must move before a re-plan happens. Default `2`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;MaxPathAge&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds a path is followed before it is planned again even though the target has not moved, so the agent keeps up with a changing level. Must be above 0. Default `math.huge` (never).&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;ArriveDistance&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Horizontal studs from the target that count as arrived. Must exceed the two bodies&#x27; radii for a chase to ever arrive. Default `2.5`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;ArriveHeight&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 415,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Navigator&quot;,
+            &quot;desc&quot;: &quot;Owns the pair of a [Types.Pathfinder] and a [Types.Mover]: plans with one, follows with the\nother, and re-plans when the target moves, the pathfinder reports the path blocked, or the path\nis older than `MaxPathAge`. Every agent with both has one at `agent.Navigator`.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;MoveTo&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any, target: Vector3) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Head to `target`. Safe to call every tick; re-plans on a cadence.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Stop&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Forget the target and halt.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetStatus&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; PathStatus&quot;,
+                    &quot;desc&quot;: &quot;Where the navigator is with its target.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetTarget&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; Vector3?&quot;,
+                    &quot;desc&quot;: &quot;The current target.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetPath&quot;,
+                    &quot;lua_type&quot;: &quot;(self: any) -&gt; Path?&quot;,
+                    &quot;desc&quot;: &quot;The last path planned.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;StepReached&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;(number, Step)&gt;&quot;,
+                    &quot;desc&quot;: &quot;Forwarded from the mover.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Arrived&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;boolean&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired when the target is reached (`true`) or given up on (`false`).&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;PathChanged&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;Path?&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired with each new path, and with `nil` when there is none.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 440,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;AgentDefinition&quot;,
+            &quot;desc&quot;: &quot;Everything an [Agent] is built from. The [Builder] produces one of these; you can also write it\nas a table and hand it to `VluxyAI.NewAgent`. `Validate` checks it either way.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Entity&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;,
+                    &quot;desc&quot;: &quot;The model the AI drives. Needs a `PrimaryPart`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Brain&quot;,
+                    &quot;lua_type&quot;: &quot;Brain&quot;,
+                    &quot;desc&quot;: &quot;The state table.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Pathfinder&quot;,
+                    &quot;lua_type&quot;: &quot;Pathfinder?&quot;,
+                    &quot;desc&quot;: &quot;Required if `Mover` is given.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Mover&quot;,
+                    &quot;lua_type&quot;: &quot;Mover?&quot;,
+                    &quot;desc&quot;: &quot;Required if `Pathfinder` is given.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Senses&quot;,
+                    &quot;lua_type&quot;: &quot;{ Sense }?&quot;,
+                    &quot;desc&quot;: &quot;Ticked in order before the brain each tick.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Blackboard&quot;,
+                    &quot;lua_type&quot;: &quot;Blackboard?&quot;,
+                    &quot;desc&quot;: &quot;Initial blackboard values. Copied per agent.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Data&quot;,
+                    &quot;lua_type&quot;: &quot;{ [string]: any }?&quot;,
+                    &quot;desc&quot;: &quot;Initial `agent.Data`. Copied per agent. Yours to use.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Tick&quot;,
+                    &quot;lua_type&quot;: &quot;number?&quot;,
+                    &quot;desc&quot;: &quot;Seconds between ticks. Default `0.1`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Navigation&quot;,
+                    &quot;lua_type&quot;: &quot;NavigationOptions?&quot;,
+                    &quot;desc&quot;: &quot;Navigator tuning.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Steps&quot;,
+                    &quot;lua_type&quot;: &quot;{ [string]: StepHandler | StepRegistration }?&quot;,
+                    &quot;desc&quot;: &quot;What to do at labelled steps, by label. See [Builder:OnStep].&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;StrictBlackboard&quot;,
+                    &quot;lua_type&quot;: &quot;boolean?&quot;,
+                    &quot;desc&quot;: &quot;Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Name&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;Used in messages. Default `Entity.Name`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 475,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Agent&quot;,
+            &quot;desc&quot;: &quot;The running AI. Handed to every `Enter`, `Update`, `Exit`, `When` and `Input` function.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Entity&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;,
+                    &quot;desc&quot;: &quot;The model being driven.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Name&quot;,
+                    &quot;lua_type&quot;: &quot;string&quot;,
+                    &quot;desc&quot;: &quot;For messages.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Blackboard&quot;,
+                    &quot;lua_type&quot;: &quot;Blackboard&quot;,
+                    &quot;desc&quot;: &quot;Written by senses, read by states.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Data&quot;,
+                    &quot;lua_type&quot;: &quot;{ [string]: any }&quot;,
+                    &quot;desc&quot;: &quot;Free scratch space for your states.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Brain&quot;,
+                    &quot;lua_type&quot;: &quot;Brain&quot;,
+                    &quot;desc&quot;: &quot;The state table.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Senses&quot;,
+                    &quot;lua_type&quot;: &quot;{ Sense }&quot;,
+                    &quot;desc&quot;: &quot;Ticked before the brain.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Navigator&quot;,
+                    &quot;lua_type&quot;: &quot;Navigator?&quot;,
+                    &quot;desc&quot;: &quot;Present when the definition had a pathfinder and a mover.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Mover&quot;,
+                    &quot;lua_type&quot;: &quot;Mover?&quot;,
+                    &quot;desc&quot;: &quot;The mover, if any.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Pathfinder&quot;,
+                    &quot;lua_type&quot;: &quot;Pathfinder?&quot;,
+                    &quot;desc&quot;: &quot;The pathfinder, if any.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;StateChanged&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;(string, string?)&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired with the new and previous state names.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroyed&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;()&gt;&quot;,
+                    &quot;desc&quot;: &quot;Fired once, at the end of `Destroy`, so anything built around the agent can go with it.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Events&quot;,
+                    &quot;lua_type&quot;: &quot;Signal&lt;(string, any)&gt;&quot;,
+                    &quot;desc&quot;: &quot;Everything the agent announces through [Agent:Emit]; a [Broadcaster] relays it to clients.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetState&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; string?&quot;,
+                    &quot;desc&quot;: &quot;The current state name, `nil` before `Start`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;SetState&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, name: string) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Force a transition, re-entering if already there.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;MoveTo&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, target: Vector3) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Shorthand for `Navigator:MoveTo`. Errors without a navigator; warns and does nothing before `Start`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Stop&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Shorthand for `Navigator:Stop`. No-op without a navigator.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetPosition&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; Vector3&quot;,
+                    &quot;desc&quot;: &quot;The mover&#x27;s position, or the entity&#x27;s pivot.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;HasArrived&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` while the navigator status is `Arrived`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetPathStatus&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; PathStatus&quot;,
+                    &quot;desc&quot;: &quot;The navigator status, or `Idle` without a navigator.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;SetSpeed&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, speed: number, seconds: number?) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;The base speed; the mover gets it times the speed scale. With `seconds`, ramps there over the ticks. No-op without a mover.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;SetSpeedScale&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, scale: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;A multiplier layered on the base speed, kept across states. `1` is none.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetSpeedScale&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;GetSpeed&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;The base speed, before the scale.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;StartTimer&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, name: string, seconds: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Starts a named timer.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;TimerDone&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, name: string) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` once the timer ran out, or if it was never started.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;TimerLeft&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, name: string) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;Seconds left on the timer, `0` when done.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;TimeInState&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;Seconds since the current state was entered, paused time excluded. `0` before `Start`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Pause&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Freeze: no ticks, no movement, timers on hold. For cutscenes, jumpscares and a director backing an enemy off.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Resume&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Undo `Pause`. The navigator re-plans to its target on the next tick.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;IsPaused&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;LookAt&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, position: Vector3?) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Turn toward `position` while standing still, `nil` to stop. Needs a mover with `Face`; otherwise does nothing.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Teleport&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, position: Vector3) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Put the body at `position` at once, dropping the current path. Uses the mover&#x27;s `Teleport`, else the entity&#x27;s `PivotTo`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;IsNew&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, key: string) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` while `Blackboard[key]` is non-nil and differs from the value last passed to `Acknowledge`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Acknowledge&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, key: string) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Marks the current `Blackboard[key]` as dealt with, so `IsNew` is `false` until it changes.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Step&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, deltaTime: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;One tick, driven by hand. Tests use this.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Start&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, manual: boolean?) -&gt; Agent&quot;,
+                    &quot;desc&quot;: &quot;Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;IsRunning&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` between `Start` and `Destroy`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;IsDestroyed&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; boolean&quot;,
+                    &quot;desc&quot;: &quot;`true` once `Destroy` has run.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Emit&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent, name: string, payload: any?) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Announces something for clients: a scream, a kill, a door. Fires `Events`.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Destroy&quot;,
+                    &quot;lua_type&quot;: &quot;(self: Agent) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Exits the current state, stops, destroys every part.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 537,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;ClientState&quot;,
+            &quot;desc&quot;: &quot;The client&#x27;s side of one server state: what a [Replica] does while the enemy is in it. The\nsame shape as a [Types.State] without transitions, since the server decides those.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Enter&quot;,
+                    &quot;lua_type&quot;: &quot;((replica: any) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Runs when the server enters the state of that name.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Update&quot;,
+                    &quot;lua_type&quot;: &quot;((replica: any, deltaTime: number) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Runs every frame while it is current.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Exit&quot;,
+                    &quot;lua_type&quot;: &quot;((replica: any) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Runs when the server leaves it.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 596,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Visuals&quot;,
+            &quot;desc&quot;: &quot;Client states keyed by server state name. Only the states a client needs to react to are\nlisted; the rest are tracked without doing anything.&quot;,
+            &quot;lua_type&quot;: &quot;{ [string]: ClientState }&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 609,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;Snapshot&quot;,
+            &quot;desc&quot;: &quot;Everything a client that just joined needs, from [Broadcaster.Snapshot] to [Replica.ApplySnapshot].&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;State&quot;,
+                    &quot;lua_type&quot;: &quot;string?&quot;,
+                    &quot;desc&quot;: &quot;The current state name.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Position&quot;,
+                    &quot;lua_type&quot;: &quot;Vector3&quot;,
+                    &quot;desc&quot;: &quot;The rig&#x27;s pivot position.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Yaw&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;,
+                    &quot;desc&quot;: &quot;Facing in radians about Y.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 621,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;KillKind&quot;,
+            &quot;desc&quot;: &quot;How a [Kill] is presented: played out in the world, cut to black, or a scare, which is the\nlive hold without the death.&quot;,
+            &quot;lua_type&quot;: &quot;\&quot;Live\&quot; | \&quot;BlackBox\&quot; | \&quot;Scare\&quot;&quot;,
+            &quot;source&quot;: {
+                &quot;line&quot;: 634,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;HealthProvider&quot;,
+            &quot;desc&quot;: &quot;How [Attack] and [Kill] read and change a victim&#x27;s health when the game does not use the\n`Humanoid` for it. Without one, the Humanoid&#x27;s `Health` and `TakeDamage` are used.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Get&quot;,
+                    &quot;lua_type&quot;: &quot;(character: Model) -&gt; number&quot;,
+                    &quot;desc&quot;: &quot;The character&#x27;s current health.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Damage&quot;,
+                    &quot;lua_type&quot;: &quot;(character: Model, amount: number) -&gt; ()&quot;,
+                    &quot;desc&quot;: &quot;Hurt it.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Kill&quot;,
+                    &quot;lua_type&quot;: &quot;((character: Model) -&gt; ())?&quot;,
+                    &quot;desc&quot;: &quot;Finish it. Default: `Damage` with `math.huge`.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 647,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        },
+        {
+            &quot;name&quot;: &quot;KillEvent&quot;,
+            &quot;desc&quot;: &quot;The payload of the `\&quot;Kill\&quot;` event an agent emits, and of the `\&quot;Scare\&quot;` event a scare emits.\nA `\&quot;KillCancelled\&quot;` (or `\&quot;ScareCancelled\&quot;`) event with `{ Kind, Victim }` follows if it ends\nearly.&quot;,
+            &quot;fields&quot;: [
+                {
+                    &quot;name&quot;: &quot;Kind&quot;,
+                    &quot;lua_type&quot;: &quot;KillKind&quot;,
+                    &quot;desc&quot;: &quot;&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Victim&quot;,
+                    &quot;lua_type&quot;: &quot;Model&quot;,
+                    &quot;desc&quot;: &quot;The character being killed.&quot;
+                },
+                {
+                    &quot;name&quot;: &quot;Duration&quot;,
+                    &quot;lua_type&quot;: &quot;number&quot;,
+                    &quot;desc&quot;: &quot;Seconds until the victim dies (or, for a scare, is released), for the client to match.&quot;
+                }
+            ],
+            &quot;source&quot;: {
+                &quot;line&quot;: 665,
+                &quot;path&quot;: &quot;lib/Types.luau&quot;
+            }
+        }
+    ],
+    &quot;name&quot;: &quot;Types&quot;,
+    &quot;desc&quot;: &quot;The contracts VluxyAI is built from. You extend the package by passing in your own module that\nsatisfies one of these types; the package never learns your module exists.\n\nThe important ones:\n\n- [Types.Brain]: a table of states. The part you write for every AI.\n- [Types.Pathfinder]: anything with `FindPath`. Plans, never moves.\n- [Types.Mover]: anything with `Follow` and `Stop`. Moves, never plans.\n- [Types.Sense]: anything with `Tick` that writes to the [Types.Blackboard].\n- [Types.AgentDefinition]: the composition of the above, which `Build()` validates and turns into\n  an [Agent].&quot;,
+    &quot;source&quot;: {
+        &quot;line&quot;: 27,
+        &quot;path&quot;: &quot;lib/Types.luau&quot;
+    }
+}</pre></details></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#types" class="table-of-contents__link toc-highlight">Types</a><ul><li><a href="#Agent" class="table-of-contents__link toc-highlight">Agent</a></li><li><a href="#AgentDefinition" class="table-of-contents__link toc-highlight">AgentDefinition</a></li><li><a href="#Blackboard" class="table-of-contents__link toc-highlight">Blackboard</a></li><li><a href="#Brain" class="table-of-contents__link toc-highlight">Brain</a></li><li><a href="#ClientState" class="table-of-contents__link toc-highlight">ClientState</a></li><li><a href="#Connection" class="table-of-contents__link toc-highlight">Connection</a></li><li><a href="#Consideration&lt;T&gt;" class="table-of-contents__link toc-highlight">Consideration<t></t></a></li><li><a href="#Curve" class="table-of-contents__link toc-highlight">Curve</a></li><li><a href="#HealthProvider" class="table-of-contents__link toc-highlight">HealthProvider</a></li><li><a href="#Interrupt" class="table-of-contents__link toc-highlight">Interrupt</a></li><li><a href="#KillEvent" class="table-of-contents__link toc-highlight">KillEvent</a></li><li><a href="#KillKind" class="table-of-contents__link toc-highlight">KillKind</a></li><li><a href="#Mover" class="table-of-contents__link toc-highlight">Mover</a></li><li><a href="#NavigationOptions" class="table-of-contents__link toc-highlight">NavigationOptions</a></li><li><a href="#Navigator" class="table-of-contents__link toc-highlight">Navigator</a></li><li><a href="#Path" class="table-of-contents__link toc-highlight">Path</a></li><li><a href="#Pathfinder" class="table-of-contents__link toc-highlight">Pathfinder</a></li><li><a href="#PathStatus" class="table-of-contents__link toc-highlight">PathStatus</a></li><li><a href="#Scored&lt;T&gt;" class="table-of-contents__link toc-highlight">Scored<t></t></a></li><li><a href="#Sense" class="table-of-contents__link toc-highlight">Sense</a></li><li><a href="#Signal&lt;T...&gt;" class="table-of-contents__link toc-highlight">Signal<t...></t...></a></li><li><a href="#Snapshot" class="table-of-contents__link toc-highlight">Snapshot</a></li><li><a href="#State" class="table-of-contents__link toc-highlight">State</a></li><li><a href="#Step" class="table-of-contents__link toc-highlight">Step</a></li><li><a href="#StepAction" class="table-of-contents__link toc-highlight">StepAction</a></li><li><a href="#StepHandler" class="table-of-contents__link toc-highlight">StepHandler</a></li><li><a href="#StepRegistration" class="table-of-contents__link toc-highlight">StepRegistration</a></li><li><a href="#Transition" class="table-of-contents__link toc-highlight">Transition</a></li><li><a href="#Visuals" class="table-of-contents__link toc-highlight">Visuals</a></li></ul></li></ul></div></div></div></div></main></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 VluxEntertainment(Partnership). Built with Moonwave and Docusaurus.</div></div></div></footer></div>
+</body>
+</html>
