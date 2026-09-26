@@ -6,6 +6,7 @@
 	service is a play-test.
 ]]
 
+local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local roblox = require("@lune/roblox")
@@ -38,6 +39,7 @@ end
 local function fakePath(status: any, waypoints: { any }?, computeError: string?)
 	local path = {
 		Status = status,
+		Blocked = Fakes.Signal().new(),
 		Computed = {} :: { { any } },
 		Destroyed = false,
 	}
@@ -224,7 +226,7 @@ return {
 		expect.includes(err, "[VluxyAI]")
 		expect.includes(
 			err,
-			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, Costs, Simplify, WaypointSpacing'
+			'Navmesh.new: unknown option "AgentRadiu"; expected one of AgentCanClimb, AgentCanJump, AgentHeight, AgentRadius, CollapseLabels, Costs, Simplify, WaypointSpacing'
 		)
 	end,
 
@@ -267,6 +269,27 @@ return {
 		expect.equal(reason, "Unable to cast to Vector3")
 	end,
 
+	["Blocked relays the Path instance's Blocked event until Destroy"] = function(expect)
+		local path = fakePath(Enum.PathStatus.Success, { waypoint(0, 0, 0), waypoint(4, 0, 0) })
+		local Navmesh = loadWithService(path)
+		local navmesh = Navmesh.new()
+
+		local fired = 0
+		local arguments = -1
+		navmesh.Blocked:Connect(function(...)
+			fired += 1
+			arguments = select("#", ...)
+		end)
+
+		path.Blocked:Fire(3)
+		expect.equal(fired, 1)
+		expect.equal(arguments, 0, "the waypoint index is not passed on")
+
+		navmesh:Destroy()
+		path.Blocked:Fire(3)
+		expect.equal(fired, 1, "disconnected on Destroy")
+	end,
+
 	["Destroy destroys the Path instance once and FindPath then fails"] = function(expect)
 		local path = fakePath(Enum.PathStatus.Success, { waypoint(0, 0, 0), waypoint(4, 0, 0) })
 		local Navmesh = loadWithService(path)
@@ -282,5 +305,79 @@ return {
 		expect.equal(result, nil)
 		expect.equal(reason, "destroyed")
 		expect.equal(#path.Computed, 0)
+	end,
+
+	["Close refuses paths through a labelled step near the closed one until it expires"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local door = { Name = "Door" }
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0),
+			waypoint(10, 0, 0, "Custom", "Door"),
+			waypoint(20, 0, 0),
+		})
+		local Navmesh = Harness.Load("lib/Pathfinders/Navmesh.luau", {
+			globals = { os = clock.os },
+			services = {
+				PathfindingService = {
+					CreatePath = function()
+						return path
+					end,
+				},
+			},
+		})
+		local navmesh = Navmesh.new()
+
+		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3)
+
+		navmesh:Close({ Position = Vector3.new(12, 0, 0), Action = "Custom", Label = "Door" }, 5)
+		local refused, reason = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(refused, nil)
+		expect.includes(reason, "closed Door")
+
+		clock:Advance(6)
+		steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "expired")
+
+		navmesh:Close({ Position = Vector3.new(90, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
+		steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "a far closure with a different instance does not match")
+		steps[2].Instance = door
+		navmesh:Close({ Position = Vector3.new(90, 0, 0), Action = "Custom", Label = "Door", Instance = door }, 5)
+		local byInstance = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(20, 0, 0), {} :: any)
+		expect.equal(#byInstance, 3, "waypoints never carry an Instance, so position is what matches")
+	end,
+
+	["CollapseLabels merges a run of same-label steps into its first, and FindPath applies it"] = function(expect)
+		local Navmesh = load()
+		local run = {
+			walk(0, 0, 0),
+			walk(2, 0, 0, "Door"),
+			walk(4, 0, 0, "Door"),
+			walk(6, 0, 0, "Door"),
+			walk(8, 0, 0),
+			walk(10, 0, 0, "Door"),
+			walk(12, 0, 0, "Ladder"),
+			walk(14, 0, 0, "Ladder"),
+		}
+		local collapsed = Navmesh.CollapseLabels(run)
+		expect.sequence(positions(collapsed), { "0,0,0", "2,0,0", "8,0,0", "10,0,0", "12,0,0" })
+		expect.equal(collapsed[2].Label, "Door")
+		expect.equal(collapsed[5].Label, "Ladder")
+		expect.equal(#run, 8, "the input is not modified")
+
+		local path = fakePath(Enum.PathStatus.Success, {
+			waypoint(0, 0, 0),
+			waypoint(2, 0, 0, "Custom", "Door"),
+			waypoint(4, 0, 0, "Custom", "Door"),
+			waypoint(8, 0, 0),
+		})
+		local navmesh = loadWithService(path).new({ Simplify = false })
+		local steps = navmesh:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any)
+		expect.equal(#steps, 3, "one Door step")
+		expect.equal(steps[2].Position, Vector3.new(2, 0, 0))
+
+		local raw = loadWithService(path).new({ Simplify = false, CollapseLabels = false })
+		expect.equal(#raw:FindPath(Vector3.new(0, 0, 0), Vector3.new(8, 0, 0), {} :: any), 4, "off on request")
 	end,
 }

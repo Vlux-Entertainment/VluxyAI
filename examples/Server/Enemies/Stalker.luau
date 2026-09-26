@@ -6,19 +6,22 @@
 	while walking toward the last place it saw you, and when it loses you it searches a few spots
 	around that place before going back to patrol. Attacks when close with a clear line.
 
-	Shows: Sight and Hearing writing the blackboard, blackboard memory (SeenPosition lingers,
-	HeardAt marks a noise as answered), declarative transitions ordered by priority, a state that
-	walks a list of points, and the Ladder trying a straight line before the navmesh.
+	Shows: the brain written with Interrupts, When and States, so the only hand-written state is
+	Hunt. Sight and Hearing write the blackboard; the interrupts read it from every state; the
+	ready-made Patrol, Investigate and Search states do the walking; When.New makes a noise fire
+	one investigation and not one per tick.
 
 	Blackboard (from Sight, Hearing): SeenTarget, SeenDistance, SeenPosition, HeardPosition,
-	HeardAt. Data: Nodes, Index, InvestigatedAt, LastSeen, SearchPoints, SearchIndex.
-	Timers: Attack, Search.
+	HeardAt. Data: Nodes, Random, LastSeen, Patrol, Search. Timers: Attack, States.Search.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Context = require(script.Parent.Parent.Context)
 local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
+
+local States = VluxyAI.States
+local When = VluxyAI.When
 
 local PATROL_SPEED = 10
 local HUNT_SPEED = 15
@@ -27,74 +30,30 @@ local SEARCH_RADIUS = 12
 local SEARCH_POINTS = 3
 local SEARCH_TIME = 14
 
-local function seesSomeone(agent: VluxyAI.Agent): boolean
-	return agent.Blackboard.SeenTarget ~= nil
-end
-
-local function forgot(agent: VluxyAI.Agent): boolean
-	return agent.Blackboard.SeenPosition == nil
-end
-
-local function inReach(agent: VluxyAI.Agent): boolean
-	return agent.Blackboard.SeenDistance <= ATTACK_RANGE
-end
-
---[[
-	A noise the stalker has not already gone to look at.
-]]
-local function newNoise(agent: VluxyAI.Agent): boolean
-	local heardAt = agent.Blackboard.HeardAt
-	return heardAt ~= nil and heardAt ~= agent.Data.InvestigatedAt
-end
-
-local function arrivedOrFailed(agent: VluxyAI.Agent): boolean
-	local status = agent:GetPathStatus()
-	return status == "Arrived" or status == "Failed"
-end
-
 local Brain: VluxyAI.Brain = {
 	Initial = "Patrol",
-	States = {
-		Patrol = {
-			Enter = function(agent: VluxyAI.Agent)
-				agent:SetSpeed(PATROL_SPEED)
-				agent:MoveTo(agent.Data.Nodes[agent.Data.Index])
-			end,
-			Transitions = {
-				{ To = "Hunt", When = seesSomeone },
-				{ To = "Investigate", When = newNoise },
-			},
-			Update = function(agent: VluxyAI.Agent)
-				if arrivedOrFailed(agent) then
-					agent.Data.Index = agent.Data.Index % #agent.Data.Nodes + 1
-					agent:MoveTo(agent.Data.Nodes[agent.Data.Index])
-				end
-				return nil
-			end,
-		},
 
-		Investigate = {
-			Enter = function(agent: VluxyAI.Agent)
-				agent:SetSpeed(PATROL_SPEED)
-				agent.Data.InvestigatedAt = agent.Blackboard.HeardAt
-				agent.Data.LastSeen = agent.Blackboard.HeardPosition
-				agent:MoveTo(agent.Blackboard.HeardPosition)
-			end,
-			Transitions = {
-				{ To = "Hunt", When = seesSomeone },
-				-- A newer noise re-enters this state at the new spot.
-				{ To = "Investigate", When = newNoise },
-				{ To = "Search", When = arrivedOrFailed },
-			},
-		},
+	-- From every state but the two that are already on it: hunt whoever is in sight, and go and
+	-- look at a noise nobody has looked at yet. Order matters: sight beats sound.
+	Interrupts = {
+		{ To = "Hunt", When = When.Has("SeenTarget"), Except = { "Hunt", "Attack" } },
+		{ To = "Investigate", When = When.New("HeardAt"), Except = { "Hunt", "Attack" } },
+	},
+
+	States = {
+		Patrol = States.Patrol({ Points = "Nodes", Speed = PATROL_SPEED }),
+
+		-- Walks to the noise, then searches around it. A newer noise re-enters through the
+		-- interrupt at the new spot.
+		Investigate = States.Investigate({ Target = "HeardPosition", Speed = PATROL_SPEED, Then = "Search" }),
 
 		Hunt = {
 			Enter = function(agent: VluxyAI.Agent)
 				agent:SetSpeed(HUNT_SPEED)
 			end,
 			Transitions = {
-				{ To = "Attack", When = inReach },
-				{ To = "Search", When = forgot },
+				{ To = "Attack", When = When.Below("SeenDistance", ATTACK_RANGE) },
+				{ To = "Search", When = When.Missing("SeenPosition") },
 			},
 			Update = function(agent: VluxyAI.Agent)
 				-- SeenPosition lingers for Sight's Memory after the target is lost, so this walks to
@@ -105,50 +64,14 @@ local Brain: VluxyAI.Brain = {
 			end,
 		},
 
-		Search = {
-			Enter = function(agent: VluxyAI.Agent)
-				agent:SetSpeed(PATROL_SPEED)
-				agent:StartTimer("Search", SEARCH_TIME)
-
-				local around = agent.Data.LastSeen or agent:GetPosition()
-				local random = agent.Data.Random :: Random
-				local points = {}
-				for _ = 1, SEARCH_POINTS do
-					local angle = random:NextNumber(0, math.pi * 2)
-					local distance = random:NextNumber(SEARCH_RADIUS / 2, SEARCH_RADIUS)
-					table.insert(
-						points,
-						around + Vector3.new(math.cos(angle) * distance, 0, math.sin(angle) * distance)
-					)
-				end
-				agent.Data.SearchPoints = points
-				agent.Data.SearchIndex = 1
-				agent:MoveTo(points[1])
-			end,
-			Transitions = {
-				{ To = "Hunt", When = seesSomeone },
-				{ To = "Investigate", When = newNoise },
-				{
-					To = "Patrol",
-					When = function(agent: VluxyAI.Agent)
-						return agent:TimerDone("Search")
-					end,
-				},
-			},
-			Update = function(agent: VluxyAI.Agent)
-				if not arrivedOrFailed(agent) then
-					return nil
-				end
-
-				local index = agent.Data.SearchIndex + 1
-				if index > #agent.Data.SearchPoints then
-					return "Patrol"
-				end
-				agent.Data.SearchIndex = index
-				agent:MoveTo(agent.Data.SearchPoints[index])
-				return nil
-			end,
-		},
+		Search = States.Search({
+			Around = "LastSeen",
+			Radius = SEARCH_RADIUS,
+			Points = SEARCH_POINTS,
+			Duration = SEARCH_TIME,
+			Speed = PATROL_SPEED,
+			Then = "Patrol",
+		}),
 
 		-- The finishing blow is a live kill: the stalker holds you while both animations play.
 		Attack = VluxyAI.Combat.Attack.State({
@@ -175,7 +98,8 @@ local function Stalker(model: Model, context: Context.Context): VluxyAI.Agent
 		:UseMover(VluxyAI.Movers.Humanoid.new(model, { Speed = PATROL_SPEED }))
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 45, FieldOfView = 120, Memory = 4 }))
 		:AddSense(VluxyAI.Senses.Hearing.new(context.Noises, { Range = 40, Memory = 6 }))
-		:SetData({ Nodes = context.Map.PatrolNodes, Index = 1, Random = context.Random })
+		:AddSense(context.Crowd)
+		:SetData({ Nodes = context.Map.PatrolNodes, Random = context.Random })
 		:SetNavigation({ RepathInterval = 0.25 })
 		:Build()
 end

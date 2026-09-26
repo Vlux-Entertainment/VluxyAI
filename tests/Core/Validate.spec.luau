@@ -259,6 +259,10 @@ return {
 			definition.Navigation = { ArriveDistance = -1 }
 		end, "Definition.Navigation.ArriveDistance must be a number of 0 or more, got -1")
 
+		failsWith(expect, function(definition)
+			definition.Navigation = { MaxPathAge = 0 }
+		end, "Definition.Navigation.MaxPathAge must be a number above 0, got 0")
+
 		local Validate = load()
 		local zeroes = goodDefinition()
 		zeroes.Navigation = { RepathDistance = 0, ArriveDistance = 0, ArriveHeight = 0 }
@@ -269,6 +273,17 @@ return {
 		end, "Definition.Navigation.Repath is not a field VluxyAI knows")
 	end,
 
+	["a pathfinder's Blocked, when present, must be a signal"] = function(expect)
+		failsWith(expect, function(definition)
+			definition.Pathfinder.Blocked = true
+		end, "Definition.Pathfinder.Blocked must be a signal with Connect, got true")
+
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Pathfinder.Blocked = Fakes.Signal().new()
+		Validate.Definition(definition)
+	end,
+
 	["Validate.Brain uses the given path prefix"] = function(expect)
 		local Validate = load()
 		local brain = goodBrain()
@@ -277,5 +292,74 @@ return {
 			Validate.Brain(brain, "Stalker.Brain")
 		end)
 		expect.includes(message, 'Stalker.Brain.Initial = "Gone" names no state')
+	end,
+
+	["Interrupts are checked like transitions, plus their Except list"] = function(expect)
+		local Validate = load()
+		local brain = goodBrain()
+		brain.Interrupts = {
+			{
+				To = "Chase",
+				When = function()
+					return false
+				end,
+				Except = { "Chase" },
+			},
+		}
+		Validate.Brain(brain)
+
+		local function brainFails(mutate: (brain: any) -> (), wanted: string)
+			local candidate = goodBrain()
+			mutate(candidate)
+			local message = expect.errors(function()
+				Validate.Brain(candidate)
+			end)
+			expect.includes(message, wanted)
+		end
+
+		brainFails(function(b)
+			b.Interrupts = { { To = "Nowhere", When = function() end } }
+		end, 'Brain.Interrupts[1].To = "Nowhere" names no state')
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase" } }
+		end, "Brain.Interrupts[1].When must be a function")
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase", When = function() end, Except = { "Gone" } } }
+		end, 'Brain.Interrupts[1].Except[1] = "Gone" names no state')
+		brainFails(function(b)
+			b.Interrupts = { { To = "Chase", When = function() end, Unless = {} } }
+		end, "Brain.Interrupts[1].Unless is not a field VluxyAI knows")
+		brainFails(function(b)
+			b.Interrupts = { first = { To = "Chase", When = function() end } }
+		end, "Brain.Interrupts[first] must be in a list")
+	end,
+
+	["Steps must be functions keyed by label"] = function(expect)
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Steps = { Door = function() end }
+		Validate.Definition(definition)
+
+		failsWith(expect, function(d)
+			d.Steps = { Door = true }
+		end, "Definition.Steps.Door must be a function, got true")
+		failsWith(expect, function(d)
+			d.Steps = { function() end }
+		end, "Definition.Steps[1] must be keyed by the step's Label")
+		failsWith(expect, function(d)
+			d.Steps = "Door"
+		end, "Definition.Steps must be a table")
+	end,
+
+	["a step registration is checked field by field"] = function(expect)
+		failsWith(expect, function(d)
+			d.Steps = { Door = { Tag = "AI_DOOR" } }
+		end, "Definition.Steps.Door.Handler must be a function")
+		failsWith(expect, function(d)
+			d.Steps = { Door = { Handler = function() end, Radius = 0 } }
+		end, "Definition.Steps.Door.Radius must be a number above 0")
+		failsWith(expect, function(d)
+			d.Steps = { Door = { Handler = function() end, Tags = "x" } }
+		end, "Definition.Steps.Door.Tags is not a field VluxyAI knows")
 	end,
 }

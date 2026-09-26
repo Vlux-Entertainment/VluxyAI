@@ -68,6 +68,80 @@ return {
 		expect.equal(#s.pathfinder.Calls, 1)
 	end,
 
+	["MaxPathAge re-plans a target that has not moved, on the cadence"] = function(expect)
+		local s = setup({ navigation = { MaxPathAge = 2, RepathInterval = 0.5 } })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.clock:Advance(1.9)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 1, "younger than MaxPathAge")
+
+		s.clock:Advance(0.2)
+		s.navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "aged out without a MoveTo")
+		expect.equal(#s.mover.Followed, 2, "the fresh path replaced the old one")
+		expect.equal(s.navigator:GetStatus(), "Moving")
+
+		s.clock:Advance(1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 2, "the age counts from the last plan")
+		s.clock:Advance(1.1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 3)
+	end,
+
+	["MaxPathAge does not re-plan after arriving"] = function(expect)
+		local s = setup({ navigation = { MaxPathAge = 1, ArriveDistance = 2 } })
+		local target = Vector3.new(10, 0, 0)
+
+		s.navigator:MoveTo(target)
+		s.mover.Position = Vector3.new(9, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(s.navigator:GetStatus(), "Arrived")
+
+		s.clock:Advance(5)
+		s.navigator:Step(0.1)
+		s.navigator:MoveTo(target)
+		expect.equal(#s.pathfinder.Calls, 1, "an arrived target is not re-planned by age")
+	end,
+
+	["a pathfinder's Blocked signal re-plans on the cadence"] = function(expect)
+		local s = setup({ navigation = { RepathInterval = 0.5 } })
+		s.pathfinder.Blocked = Fakes.Signal().new()
+		local navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+			.new(s.pathfinder, s.mover, Fakes.Agent(), { RepathInterval = 0.5 })
+		local target = Vector3.new(10, 0, 0)
+
+		navigator:MoveTo(target)
+		s.clock:Advance(0.2)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 1, "too soon after the last plan")
+		expect.equal(navigator:GetStatus(), "Moving")
+
+		s.clock:Advance(0.4)
+		navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 2, "re-planned once the interval elapsed, with no MoveTo")
+		expect.equal(#s.mover.Followed, 2)
+
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 3, "a block after the interval re-plans at once")
+
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(navigator:GetStatus(), "Arrived")
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 3, "a block after arriving is ignored")
+
+		navigator:Destroy()
+		s.clock:Advance(1)
+		s.pathfinder.Blocked:Fire()
+		expect.equal(#s.pathfinder.Calls, 3, "Destroy disconnects from Blocked")
+	end,
+
 	["a target that moved within RepathDistance does not re-plan"] = function(expect)
 		local s = setup({ navigation = { RepathDistance = 3 } })
 
@@ -632,5 +706,246 @@ return {
 		expect.equal(#s.pathfinder.Calls, 1, "2 stud distance")
 		s.navigator:MoveTo(Vector3.new(12.5, 0, 0))
 		expect.equal(#s.pathfinder.Calls, 2)
+	end,
+
+	["a labelled step with a handler holds the walk, runs it, then follows the rest of the path"] = function(expect)
+		local calls = {}
+		local statuses = {}
+		local door = { Name = "Door" }
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(5, 0, 0), Action = "Custom", Label = "Door", Instance = door },
+					{ Position = Vector3.new(8, 0, 0), Action = "Walk" },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+		})
+		local Navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+		local navigator = Navigator.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+			Door = function(agent, step, index)
+				table.insert(calls, { agent = agent, step = step, index = index })
+				task.wait(0.02)
+			end,
+		})
+		local reached = {}
+		navigator.StepReached:Connect(function(index, step)
+			table.insert(reached, `{index}{if step.Label then " " .. step.Label else ""}`)
+		end)
+		navigator.Arrived:Connect(function(ok)
+			table.insert(statuses, `arrived {tostring(ok)}`)
+		end)
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		local path = s.mover.Followed[1]
+		s.mover.StepReached:Fire(1, path[1])
+		expect.equal(#calls, 0, "a plain step is not handled")
+
+		s.mover.StepReached:Fire(2, path[2])
+		expect.equal(#calls, 1)
+		expect.equal(calls[1].step.Instance, door)
+		expect.equal(calls[1].index, 2)
+		expect.equal(navigator:GetStatus(), "Interacting")
+		expect.falsy(s.mover.Moving, "the mover was stopped at the step")
+		expect.equal(#statuses, 0, "the stop is not a give-up")
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.clock:Advance(1)
+		navigator:Step(0.1)
+		expect.equal(#s.pathfinder.Calls, 1, "the same target keeps waiting, with no re-plan")
+
+		task.wait(0.05)
+		expect.equal(navigator:GetStatus(), "Moving")
+		expect.equal(#s.mover.Followed, 2, "the rest of the path was handed to the mover")
+		local rest = s.mover.Followed[2]
+		expect.equal(#rest, 2)
+		expect.equal(rest[1].Position, Vector3.new(8, 0, 0))
+		expect.equal(navigator:GetPath(), path, "GetPath is still the whole path")
+
+		s.mover.StepReached:Fire(1, rest[1])
+		s.mover.StepReached:Fire(2, rest[2])
+		expect.sequence(reached, { "1", "2 Door", "3", "4" }, "indices are in the original path's numbering")
+
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover:Finish(true)
+		expect.equal(navigator:GetStatus(), "Arrived")
+		expect.sequence(statuses, { "arrived true" })
+		navigator:Destroy()
+	end,
+
+	["a handled last step arrives when the handler returns"] = function(expect)
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = to, Action = "Custom", Label = "Door" },
+				}
+			end,
+		})
+		local Navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+		local navigator = Navigator.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+			Door = function() end,
+		})
+		local arrivals = {}
+		navigator.Arrived:Connect(function(ok)
+			table.insert(arrivals, ok)
+		end)
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.Position = Vector3.new(10, 0, 0)
+		s.mover.StepReached:Fire(2, s.mover.Followed[1][2])
+		expect.equal(navigator:GetStatus(), "Arrived", "the handler returned at once; nothing left to walk")
+		expect.sequence(arrivals, { true })
+		navigator:Destroy()
+	end,
+
+	["Stop or a new target during a handler abandons the path, and an erroring handler warns"] = function(expect)
+		local warnings = {}
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(5, 0, 0), Action = "Custom", Label = "Door" },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+			warnings = warnings,
+		})
+		local Navigator = Harness.Load("lib/Navigator.luau", {
+			globals = { os = s.clock.os },
+			warn = function(message)
+				table.insert(warnings, tostring(message))
+			end,
+		})
+		local navigator = Navigator.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+			Door = function()
+				task.wait(0.02)
+				error("stuck door")
+			end,
+		})
+		local arrivals = {}
+		navigator.Arrived:Connect(function(ok)
+			table.insert(arrivals, ok)
+		end)
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.StepReached:Fire(2, s.mover.Followed[1][2])
+		expect.equal(navigator:GetStatus(), "Interacting")
+		navigator:Stop()
+		expect.sequence(arrivals, { false }, "Stop during a handler reports the path given up")
+		task.wait(0.05)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "stuck door")
+		expect.equal(#s.mover.Followed, 1, "the rest of the abandoned path was not followed")
+		expect.equal(navigator:GetStatus(), "Idle")
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.StepReached:Fire(2, s.mover.Followed[2][2])
+		s.clock:Advance(1)
+		navigator:MoveTo(Vector3.new(40, 0, 0))
+		expect.equal(#s.pathfinder.Calls, 3, "a new target re-plans at once")
+		task.wait(0.05)
+		expect.equal(#s.mover.Followed, 3, "the old path's rest was not followed after the new plan")
+		navigator:Destroy()
+	end,
+
+	["a registration with a Tag finds the door for a step that has none"] = function(expect)
+		local near = {
+			Name = "NearDoor",
+			Position = Vector3.new(6, 0, 0),
+			IsA = function(_self, className)
+				return className == "BasePart"
+			end,
+		}
+		local far = {
+			Name = "FarDoor",
+			Position = Vector3.new(40, 0, 0),
+			IsA = function(_self, className)
+				return className == "BasePart"
+			end,
+		}
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(5, 0, 0), Action = "Custom", Label = "Door" },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+		})
+		local Navigator = Harness.Load("lib/Navigator.luau", {
+			globals = { os = s.clock.os },
+			services = {
+				CollectionService = {
+					GetTagged = function(_self, tag)
+						return if tag == "AI_DOOR" then { far, near } else {}
+					end,
+				},
+			},
+		})
+		local seen = {}
+		local navigator = Navigator.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+			Door = {
+				Handler = function(_agent, step)
+					table.insert(seen, step.Instance)
+				end,
+				Tag = "AI_DOOR",
+				Radius = 8,
+			},
+		})
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.StepReached:Fire(2, s.mover.Followed[1][2])
+		expect.equal(seen[1], near, "the nearest tagged instance within Radius")
+		task.wait(0.02)
+		expect.equal(navigator:GetStatus(), "Moving")
+		navigator:Destroy()
+	end,
+
+	["a handler returning false fails the path and closes the step on the pathfinder"] = function(expect)
+		local door = { Name = "Door" }
+		local s = setup({
+			plan = function(from, to)
+				return {
+					{ Position = from, Action = "Walk" },
+					{ Position = Vector3.new(5, 0, 0), Action = "Custom", Label = "Door", Instance = door },
+					{ Position = to, Action = "Walk" },
+				}
+			end,
+		})
+		local closed = {}
+		s.pathfinder.Close = function(_self, step, seconds)
+			table.insert(closed, { step = step, seconds = seconds })
+		end
+		local Navigator = Harness.Load("lib/Navigator.luau", { globals = { os = s.clock.os } })
+		local answer: any = { false, 15 }
+		local navigator = Navigator.new(s.pathfinder, s.mover, Fakes.Agent(), nil, {
+			Door = function()
+				return answer[1], answer[2]
+			end,
+		})
+		local arrivals = {}
+		navigator.Arrived:Connect(function(ok)
+			table.insert(arrivals, ok)
+		end)
+
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		s.mover.StepReached:Fire(2, s.mover.Followed[1][2])
+		expect.equal(navigator:GetStatus(), "Failed")
+		expect.sequence(arrivals, { false })
+		expect.equal(#closed, 1)
+		expect.equal(closed[1].step.Instance, door)
+		expect.equal(closed[1].seconds, 15)
+		expect.equal(#s.mover.Followed, 1, "the rest of the path was not walked")
+
+		s.clock:Advance(1)
+		navigator:MoveTo(Vector3.new(10, 0, 0))
+		expect.equal(#s.pathfinder.Calls, 2, "a failed path is re-planned on the cadence")
+
+		answer = { false }
+		s.mover.StepReached:Fire(2, s.mover.Followed[2][2])
+		expect.equal(closed[2].seconds, 10, "the default closure")
+		navigator:Destroy()
 	end,
 }

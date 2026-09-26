@@ -3,7 +3,7 @@
 --[[
 	A small signal in plain Luau so the core never needs a BindableEvent. Handlers run through
 	`task.spawn`, so one handler erroring or yielding never blocks the others or the firer, which is
-	how RBXScriptSignal behaves. Trove accepts the connections it returns.
+	how RBXScriptSignal behaves. A Cleaner accepts the connections it returns.
 ]]
 
 local Types = require(script.Parent.Parent.Types)

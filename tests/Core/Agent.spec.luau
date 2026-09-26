@@ -2,7 +2,7 @@
 
 --[[
 	The agent as a whole, with a fake pathfinder, mover and senses: tick order, the heartbeat
-	accumulator, the shorthand methods and teardown. Trove is the real package, loaded through
+	accumulator, the shorthand methods and teardown. The cleaner is the package's own, loaded through
 	the harness the same way the agent loads it in a game.
 ]]
 
@@ -483,5 +483,214 @@ return {
 		agent:Step(0.1)
 		agent:Destroy()
 		expect.truthy(true)
+	end,
+
+	["Pause stops ticks and the mover; Resume shifts timers and TimeInState by the time paused"] = function(expect)
+		local clock = Harness.ManualClock(100)
+		local heartbeat = Harness.ManualHeartbeat()
+		local Agent = Harness.Load("lib/Agent.luau", {
+			globals = { os = clock.os },
+			services = { RunService = { Heartbeat = heartbeat } },
+		})
+		local log = {}
+		local mover = Fakes.Mover()
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, log),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+
+		expect.equal(agent:TimeInState(), 0, "before Start")
+		agent:Start()
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		agent:StartTimer("Attack", 2)
+		clock:Advance(1)
+		expect.near(agent:TimeInState(), 1)
+
+		agent:Pause()
+		expect.truthy(agent:IsPaused())
+		expect.falsy(mover.Moving, "the mover was halted")
+		expect.equal(agent:GetPathStatus(), "Moving", "the navigator keeps its target")
+		heartbeat:Fire(0.5)
+		heartbeat:Fire(0.5)
+		expect.sequence(log, { "enter Idle" }, "no ticks while paused")
+
+		clock:Advance(5)
+		expect.near(agent:TimeInState(), 1, 1e-6, "held while paused")
+		expect.near(agent:TimerLeft("Attack"), 1, 1e-6, "timers hold too")
+
+		agent:Resume()
+		expect.falsy(agent:IsPaused())
+		expect.near(agent:TimeInState(), 1)
+		expect.near(agent:TimerLeft("Attack"), 1)
+		clock:Advance(1)
+		expect.truthy(agent:TimerDone("Attack"))
+		heartbeat:Fire(0.5)
+		expect.sequence(log, { "enter Idle", "update Idle" }, "ticking again")
+		expect.equal(#mover.Followed, 2, "the navigator re-planned to its target")
+
+		agent:Pause()
+		agent:Pause()
+		agent:Resume()
+		agent:Resume()
+		expect.falsy(agent:IsPaused(), "idempotent")
+		agent:Destroy()
+	end,
+
+	["IsNew and Acknowledge track a blackboard value"] = function(expect)
+		local Agent = load()
+		local agent = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+
+		expect.falsy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = 5
+		expect.truthy(agent:IsNew("HeardAt"))
+		agent:Acknowledge("HeardAt")
+		expect.falsy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = 6
+		expect.truthy(agent:IsNew("HeardAt"))
+		agent.Blackboard.HeardAt = nil
+		expect.falsy(agent:IsNew("HeardAt"), "nothing there is not new")
+	end,
+
+	["Teleport drops the target and uses the mover's Teleport, else the entity's pivot"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		local teleported = {}
+		mover.Teleport = function(_self, position)
+			table.insert(teleported, position)
+		end
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:Start(true)
+		agent:MoveTo(Vector3.new(10, 0, 0))
+		agent:Teleport(Vector3.new(50, 0, 0))
+		expect.sequence(teleported, { Vector3.new(50, 0, 0) })
+		expect.equal(agent:GetPathStatus(), "Idle", "the target was dropped")
+		expect.equal(agent.Navigator:GetTarget(), nil)
+
+		local entity = Fakes.Entity()
+		local pivots = {}
+		entity.PivotTo = function(_self, cframe)
+			table.insert(pivots, cframe.Position)
+		end
+		local bare = Agent.new({ Entity = entity, Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:Teleport(Vector3.new(1, 2, 3))
+		expect.sequence(pivots, { Vector3.new(1, 2, 3) })
+	end,
+
+	["LookAt calls the mover's Face and is harmless without one"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		local faced = {}
+		mover.Face = function(_self, position)
+			table.insert(faced, if position == nil then "nil" else position)
+		end
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:LookAt(Vector3.new(3, 0, 3))
+		agent:LookAt(nil)
+		expect.sequence(faced, { Vector3.new(3, 0, 3), "nil" })
+
+		local bare = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:LookAt(Vector3.new(1, 0, 0))
+	end,
+
+	["SetSpeedScale layers on the base speed and survives SetSpeed"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		mover.Speed = 12
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+
+		expect.equal(agent:GetSpeed(), 12, "the base speed starts as the mover's")
+		expect.equal(agent:GetSpeedScale(), 1)
+		agent:SetSpeedScale(0.5)
+		expect.equal(mover.Speed, 6)
+		agent:SetSpeed(20)
+		expect.equal(mover.Speed, 10, "a state's speed is still scaled")
+		expect.equal(agent:GetSpeed(), 20)
+		agent:SetSpeedScale(1)
+		expect.equal(mover.Speed, 20)
+
+		local bare = Agent.new({ Entity = Fakes.Entity(), Brain = Fakes.Brain("Idle", { "Idle" }, {}) })
+		bare:SetSpeedScale(0.5)
+		bare:SetSpeed(3)
+		expect.equal(bare:GetSpeed(), 3, "harmless without a mover")
+	end,
+
+	["SetSpeed with seconds ramps the base speed over the ticks"] = function(expect)
+		local Agent = load()
+		local mover = Fakes.Mover()
+		mover.Speed = 10
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Pathfinder = Fakes.Pathfinder(),
+			Mover = mover,
+		})
+		agent:Start(true)
+
+		agent:SetSpeed(20, 1)
+		expect.equal(mover.Speed, 10, "nothing until a tick")
+		agent:Step(0.25)
+		expect.near(mover.Speed, 12.5)
+		expect.near(agent:GetSpeed(), 12.5)
+		agent:SetSpeedScale(0.5)
+		agent:Step(0.25)
+		expect.near(mover.Speed, 7.5, 1e-6, "scaled while ramping")
+		agent:Step(1)
+		expect.near(mover.Speed, 10, 1e-6, "arrived and clamped: 20 * 0.5")
+		agent:Step(1)
+		expect.near(mover.Speed, 10, 1e-6, "the ramp is over")
+
+		agent:SetSpeed(4, 2)
+		agent:SetSpeed(6)
+		agent:Step(1)
+		expect.near(mover.Speed, 3, 1e-6, "a plain SetSpeed replaces the ramp")
+	end,
+
+	["StrictBlackboard warns once for a read that misspells a known key"] = function(expect)
+		local warnings = {}
+		local Agent = load({ warnings = warnings })
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Blackboard = { Ready = true },
+			StrictBlackboard = true,
+		})
+
+		agent.Blackboard.SeenTarget = "root"
+		expect.equal(agent.Blackboard.SeenTarget, "root")
+		expect.equal(agent.Blackboard.Ready, true)
+		expect.equal(agent.Blackboard.HeardAt, nil, "an unrelated nil read is quiet")
+		expect.equal(#warnings, 0)
+
+		expect.equal(agent.Blackboard.SeenTaget, nil)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "SeenTaget")
+		expect.includes(warnings[1], "SeenTarget")
+		local _ = agent.Blackboard.SeenTaget
+		expect.equal(#warnings, 1, "once per key")
+		local _2 = agent.Blackboard.seentarget
+		expect.equal(#warnings, 2, "a case slip counts")
+
+		local count = 0
+		for _ in agent.Blackboard do
+			count += 1
+		end
+		expect.equal(count, 2, "iteration sees the real table")
 	end,
 }

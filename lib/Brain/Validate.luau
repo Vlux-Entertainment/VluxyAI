@@ -37,6 +37,8 @@ local DEFINITION_FIELDS = {
 	Data = true,
 	Tick = true,
 	Navigation = true,
+	Steps = true,
+	StrictBlackboard = true,
 	Name = true,
 }
 
@@ -44,6 +46,7 @@ local DEFINITION_FIELDS = {
 local NAVIGATION_FIELDS = {
 	RepathInterval = true,
 	RepathDistance = false,
+	MaxPathAge = true,
 	ArriveDistance = false,
 	ArriveHeight = false,
 }
@@ -170,12 +173,51 @@ function Validate.Brain(brain: any, path: string?)
 	local root = path or "Brain"
 
 	expectTable(brain, root)
-	expectKnownFields(brain, { Initial = true, States = true }, root)
+	expectKnownFields(brain, { Initial = true, States = true, Interrupts = true }, root)
 	expectString(brain.Initial, `{root}.Initial`)
 	expectTable(brain.States, `{root}.States`)
 
 	if next(brain.States) == nil then
 		fail(`{root}.States`, "has no states")
+	end
+
+	if brain.Interrupts ~= nil then
+		local interruptsPath = `{root}.Interrupts`
+		expectTable(brain.Interrupts, interruptsPath)
+
+		local count = 0
+		for index, interrupt in brain.Interrupts do
+			count += 1
+			local interruptPath = `{interruptsPath}[{tostring(index)}]`
+
+			if type(index) ~= "number" then
+				fail(interruptPath, "must be in a list, not keyed")
+			end
+
+			expectTable(interrupt, interruptPath)
+			expectKnownFields(interrupt, { To = true, When = true, Except = true }, interruptPath)
+			expectString(interrupt.To, `{interruptPath}.To`)
+			expectFunction(interrupt.When, `{interruptPath}.When`)
+
+			if brain.States[interrupt.To] == nil then
+				fail(`{interruptPath}.To`, `= "{interrupt.To}" names no state`)
+			end
+
+			if interrupt.Except ~= nil then
+				local exceptPath = `{interruptPath}.Except`
+				expectTable(interrupt.Except, exceptPath)
+				for exceptIndex, name in interrupt.Except do
+					expectString(name, `{exceptPath}[{tostring(exceptIndex)}]`)
+					if brain.States[name] == nil then
+						fail(`{exceptPath}[{tostring(exceptIndex)}]`, `= "{name}" names no state`)
+					end
+				end
+			end
+		end
+
+		if count ~= #brain.Interrupts then
+			fail(interruptsPath, "must be a list with no holes")
+		end
 	end
 
 	for name, state in brain.States do
@@ -278,6 +320,9 @@ function Validate.Definition(definition: any)
 
 	if hasPathfinder then
 		expectMethods(definition.Pathfinder, { "FindPath" }, `{root}.Pathfinder`)
+		if definition.Pathfinder.Blocked ~= nil then
+			expectSignals(definition.Pathfinder, { "Blocked" }, `{root}.Pathfinder`)
+		end
 		expectMethods(definition.Mover, MOVER_METHODS, `{root}.Mover`)
 		expectSignals(definition.Mover, MOVER_SIGNALS, `{root}.Mover`)
 	end
@@ -307,6 +352,28 @@ function Validate.Definition(definition: any)
 
 	if definition.Tick ~= nil then
 		expectPositiveNumber(definition.Tick, `{root}.Tick`)
+	end
+
+	if definition.Steps ~= nil then
+		local stepsPath = `{root}.Steps`
+		expectTable(definition.Steps, stepsPath)
+		for label, handler in definition.Steps do
+			if type(label) ~= "string" then
+				fail(`{stepsPath}[{describe(label)}]`, "must be keyed by the step's Label")
+			end
+			if type(handler) == "table" then
+				expectKnownFields(handler, { Handler = true, Tag = true, Radius = true }, `{stepsPath}.{label}`)
+				expectFunction(handler.Handler, `{stepsPath}.{label}.Handler`)
+				if handler.Tag ~= nil then
+					expectString(handler.Tag, `{stepsPath}.{label}.Tag`)
+				end
+				if handler.Radius ~= nil then
+					expectPositiveNumber(handler.Radius, `{stepsPath}.{label}.Radius`)
+				end
+			else
+				expectFunction(handler, `{stepsPath}.{label}`)
+			end
+		end
 	end
 
 	if definition.Navigation ~= nil then

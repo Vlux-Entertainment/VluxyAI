@@ -1,9 +1,10 @@
 --!strict
 
 --[[
-	Runs a Brain table: enters the initial state, checks each state's ordered transitions before
-	its Update every tick, and swaps states through Exit then Enter. Pure Luau with no notion of
-	time or Roblox; the Agent drives Step from its tick and tests drive it by hand.
+	Runs a Brain table: enters the initial state, checks the brain's interrupts and then each
+	state's ordered transitions before its Update every tick, and swaps states through Exit then
+	Enter. Pure Luau with no notion of time or Roblox; the Agent drives Step from its tick and
+	tests drive it by hand.
 
 	The brain is assumed valid: Validate ran on it before a Runner is made. The one check that is
 	only possible at runtime, an Update returning a state name that does not exist, warns and stays
@@ -128,8 +129,33 @@ function Runner.Transition(self: Runner, name: string)
 end
 
 --[[
-	One tick: the first true transition wins, otherwise Update runs and may name the next state.
-	Nothing happens when not running.
+	Checks one list of transitions in order. Returns true when the tick is over: a transition
+	fired, or a When forced a change through SetState, which wins.
+]]
+function Runner._check(self: Runner, transitions: { any }, current: string, generation: number): boolean
+	for _, transition in transitions do
+		local except = transition.Except
+		if except ~= nil and table.find(except, current) ~= nil then
+			continue
+		end
+
+		local fired = transition.When(self._agent)
+
+		if self._generation ~= generation then
+			return true
+		end
+		if fired then
+			self:Transition(transition.To)
+			return true
+		end
+	end
+
+	return false
+end
+
+--[[
+	One tick: the first true interrupt wins, then the first true transition of the current state,
+	otherwise Update runs and may name the next state. Nothing happens when not running.
 ]]
 function Runner.Step(self: Runner, deltaTime: number)
 	local current = self._current
@@ -140,19 +166,13 @@ function Runner.Step(self: Runner, deltaTime: number)
 	local state = self._brain.States[current]
 	local generation = self._generation
 
-	if state.Transitions then
-		for _, transition in state.Transitions do
-			local fired = transition.When(self._agent)
+	local interrupts = self._brain.Interrupts
+	if interrupts and self:_check(interrupts, current, generation) then
+		return
+	end
 
-			-- When may have forced a state change through SetState; that wins and this tick is over.
-			if self._generation ~= generation then
-				return
-			end
-			if fired then
-				self:Transition(transition.To)
-				return
-			end
-		end
+	if state.Transitions and self:_check(state.Transitions, current, generation) then
+		return
 	end
 
 	if state.Update then

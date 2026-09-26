@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 # Extension
@@ -11,9 +11,13 @@ module exists: you pass it into the builder, `Build()` checks its shape, and the
 
 Anything with `Tick(self, agent, deltaTime)`, called with a colon once per tick before the brain.
 The built-ins are [Sight](/api/Sight), [Proximity](/api/Proximity), [Hearing](/api/Hearing),
-[Watched](/api/Watched) and [Surroundings](/api/Surroundings) (a ring of rays for the nearest
-obstacle and the most open direction); the playground's Hunter carries a stamina sense written
-in a dozen lines.
+[Sounds](/api/Sounds) (the tagged `Sound` instances the world is playing, rolled off by distance),
+[Awareness](/api/Awareness) (a detection meter fed by the others), [Watched](/api/Watched),
+[Surroundings](/api/Surroundings) (a ring of rays for the nearest obstacle and the most open
+direction) and [Neighbours](/api/Neighbours) (the other agents of a group, with an optional
+speed ease and sideways nudge), plus [Throttle](/api/Throttle) to run any of them less often; the playground's
+Hunter carries a stamina sense written in a dozen lines. Every built-in takes a `Prefix` so two
+of a kind can coexist, and has `Configure` to change its options after construction.
 It writes to `agent.Blackboard` and reads nothing from states. Document the keys you write, use
 `math.huge` for a distance with nothing to measure, and keep memory (a `SeenAt`-style timestamp)
 on the blackboard rather than in the sense, so one instance can serve many agents. The agent's
@@ -50,6 +54,11 @@ agent, so a sense that holds something outside itself (a signal connection, as
 Anything with `FindPath(self, from, to, agent) -> (Path?, reason?)`. It may yield. `from` is the
 mover's root position and `to` is wherever the state asked to go; return a list of steps whose
 `Position` is a **floor** position, or `nil` and a short reason.
+
+A pathfinder that can tell when the world changes under its last path may also carry a `Blocked`
+signal (`VluxyAI.Signal.new()`). Fire it with no arguments and the navigator re-plans on its next
+cadence tick instead of waiting for the mover's stuck check. [Navmesh](/api/Navmesh) relays the
+`Path.Blocked` event this way; a pathfinder that cannot know simply leaves the field out.
 
 ```lua
 local Teleporters = {}
@@ -130,10 +139,30 @@ complete one; it is what a server-side "logical position" agent with no rig uses
 
 ## Doors and other scripted steps
 
-A pathfinder may emit a step with `Action = "Custom"` and a `Label`. Movers walk to it like any
-other step, and `agent.Navigator.StepReached` fires with the index and the step when they get
-there. Stop the agent, run your door interaction, and call `MoveTo` again; nothing in the package
-knows what a door is.
+A pathfinder may emit a step with a `Label` (and usually `Action = "Custom"`): a `PathfindingModifier`
+label from the navmesh, or a [Graph](/api/Graph) link written as `{ To = 7, Label = "Door", Instance = door }`.
+Register what to do there with [Builder:OnStep](/api/Builder#OnStep):
+
+```lua
+:OnStep("Door", function(agent, step)
+	Doors.Open(step.Instance)
+	task.wait(0.4)
+end)
+```
+
+When the mover reaches the step the navigator stops it, reports `Interacting` through
+`agent:GetPathStatus()`, runs the handler in its own thread, and walks the rest of the path when
+it returns. A state that calls `MoveTo` every tick with the same target keeps waiting; a new
+target or `Stop` abandons the path. Nothing in the package knows what a door is; it only knows
+where to pause. `agent.Navigator.StepReached` still fires for every step, handled or not.
+
+A handler returning `false` (and optionally a number of seconds) means the step could not be
+taken: the path is `Failed` and the pathfinder's optional `Close(step, seconds)` is called so
+the next plan avoids it. A navmesh step has no `Instance`; pass `{ Tag = "AI_DOOR" }` as the
+third argument of `OnStep` and the nearest tagged instance is filled in first.
+
+In a place, a `Link` ObjectValue under a graph node takes `Action` and `Label` attributes and an
+`Instance` ObjectValue child pointing at the door, and `Graph.FromInstances` reads them.
 
 ## Content modules
 

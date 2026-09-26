@@ -219,6 +219,7 @@ local function Hunter(model: Model, context: Context.Context): VluxyAI.Agent
 		:AddSense(VluxyAI.Senses.Sight.new({ Range = 50, FieldOfView = 140, Memory = 3 }))
 		:AddSense(VluxyAI.Senses.Proximity.new({ Range = 60 }))
 		:AddSense(Stamina.new())
+		:AddSense(context.Crowd)
 		:SetBlackboard({ Stamina = 1 })
 		:SetData({ Nodes = context.Map.PatrolNodes, VisitedAt = {}, Random = context.Random })
 		:SetNavigation({ RepathInterval = 0.25 })

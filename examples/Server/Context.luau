@@ -1,8 +1,9 @@
 --!strict
 
 --[[
-	What the playground hands every example enemy: the package, the map, a shared noise signal
-	and a seeded Random. Kept in one place so the enemy modules read the same.
+	What the playground hands every example enemy: the package, the map, a shared noise signal,
+	the group's Neighbours sense and a seeded Random. Kept in one place so the enemy modules read
+	the same.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +14,7 @@ local VluxyAI = require(ReplicatedStorage.Packages.VluxyAI)
 export type Context = {
 	Map: Map.BuiltMap,
 	Noises: VluxyAI.Signal<(Vector3, number?)>,
+	Crowd: VluxyAI.Sense,
 	Random: Random,
 }
 

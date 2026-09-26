@@ -181,6 +181,36 @@ return {
 		expect.truthy(last.Destroyed)
 	end,
 
+	["Blocked is forwarded only from the rung that produced the current path"] = function(expect)
+		local Ladder = load()
+		local Signal = Fakes.Signal()
+		local log = {}
+		local first = rung("A", log, "no") :: any
+		first.Blocked = Signal.new()
+		local second = rung("B", log) :: any
+		second.Blocked = Signal.new()
+		local ladder = Ladder.new({ first, second })
+
+		local fired = 0
+		ladder.Blocked:Connect(function()
+			fired += 1
+		end)
+
+		first.Blocked:Fire()
+		second.Blocked:Fire()
+		expect.equal(fired, 0, "nothing planned yet")
+
+		ladder:FindPath(FROM, TO, {} :: any)
+		first.Blocked:Fire()
+		expect.equal(fired, 0, "A did not produce the path")
+		second.Blocked:Fire()
+		expect.equal(fired, 1, "B did")
+
+		ladder:Destroy()
+		second.Blocked:Fire()
+		expect.equal(fired, 1, "disconnected on Destroy")
+	end,
+
 	["a yielding rung is waited for and the next rung runs after it"] = function(expect)
 		local Ladder = load()
 		local log = {}
@@ -214,5 +244,18 @@ return {
 
 		local _, reason = outer:FindPath(FROM, TO, Fakes.Agent())
 		expect.equal(reason, "Ladder: Straight: blocked; Graph: unreachable")
+	end,
+
+	["Close is passed to every rung that has it"] = function(expect)
+		local Ladder = load()
+		local log = {}
+		local first = rung("A", log) :: any
+		first.Close = function(_self, step, seconds)
+			table.insert(log, `A closed {step.Label} for {seconds}`)
+		end
+		local second = rung("B", log) :: any
+		local ladder = Ladder.new({ first, second })
+		ladder:Close({ Position = FROM, Action = "Custom", Label = "Door" }, 3)
+		expect.sequence(log, { "A closed Door for 3" })
 	end,
 }

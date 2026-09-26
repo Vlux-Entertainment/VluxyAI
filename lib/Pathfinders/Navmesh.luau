@@ -8,9 +8,13 @@
 	line, so a mover turns fewer corners. It keeps every Jump, Custom or labelled step and the step
 	right before a Jump, because those carry meaning a straight line does not. Both `Simplify` and
 	`FromWaypoints` are pure so they are specced under Lune; the service call is play-tested.
+
+	`Blocked` relays the Path instance's own `Blocked` event without the waypoint index, because
+	`Simplify` renumbers the steps and the Navigator re-plans either way.
 ]]
 
 local Options = require(script.Parent.Parent.Utility.Options)
+local Signal = require(script.Parent.Parent.Utility.Signal)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -28,6 +32,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	WaypointSpacing = 2,
 	Costs = {} :: { [string]: number },
 	Simplify = true,
+	CollapseLabels = true,
 })
 
 --[=[
@@ -41,6 +46,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.WaypointSpacing number? -- Passed to `CreatePath`. Default `2`.
 	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`.
 	.Simplify boolean? -- Run [Navmesh.Simplify] over every path. Default `true`.
+	.CollapseLabels boolean? -- Run [Navmesh.CollapseLabels] over every path, so a `PathfindingModifier` volume that labels several waypoints in a row yields one labelled step, like a link. Default `true`.
 ]=]
 export type Options = {
 	AgentRadius: number?,
@@ -50,6 +56,7 @@ export type Options = {
 	WaypointSpacing: number?,
 	Costs: { [string]: number }?,
 	Simplify: boolean?,
+	CollapseLabels: boolean?,
 }
 
 type ResolvedOptions = {
@@ -60,13 +67,24 @@ type ResolvedOptions = {
 	WaypointSpacing: number,
 	Costs: { [string]: number },
 	Simplify: boolean,
+	CollapseLabels: boolean,
+}
+
+type Closure = {
+	Label: string?,
+	Instance: Instance?,
+	Position: Vector3,
+	Until: number,
 }
 
 type self = {
 	Name: string,
+	Blocked: Types.Signal<()>,
 
 	_options: ResolvedOptions,
 	_path: Path,
+	_blockedConnection: RBXScriptConnection,
+	_closed: { Closure },
 	_destroyed: boolean,
 }
 
@@ -85,7 +103,9 @@ export type Navmesh = typeof(setmetatable({} :: self, Navmesh))
 	than one per plan. Never share one between agents: `ComputeAsync` yields, so a second agent's
 	plan would overwrite the waypoints the first is about to read.
 
-	`Name` is `"Navmesh"`, which [Ladder] uses in its reasons.
+	`Name` is `"Navmesh"`, which [Ladder] uses in its reasons. `Blocked` fires whenever the
+	`Path` instance reports its last computed path blocked, so a [Navigator] re-plans when a door
+	closes or a part moves into the way instead of waiting for the mover's stuck check.
 ]=]
 
 --[=[
@@ -109,11 +129,18 @@ function Navmesh.new(options: Options?): Types.Pathfinder
 		Costs = resolved.Costs,
 	})
 
+	local blocked = Signal.new()
+
 	local self: self = {
 		Name = "Navmesh",
+		Blocked = blocked,
 
 		_options = resolved,
 		_path = path,
+		_blockedConnection = path.Blocked:Connect(function()
+			blocked:Fire()
+		end),
+		_closed = {},
 		_destroyed = false,
 	}
 
@@ -178,6 +205,32 @@ end
 
 --[=[
 	@within Navmesh
+	@param path Path
+	@return Path -- A new path; the input is not modified.
+
+	Merges each run of consecutive steps that share a `Label` into the first of them, keeping
+	its position. A `PathfindingModifier` labels every waypoint inside its volume, and waypoints
+	sit a couple of studs apart, so a doorway would otherwise be two or three "Door" steps and a
+	handler would run at each. A run is broken by an unlabelled step or a different label. Pure.
+]=]
+function Navmesh.CollapseLabels(path: Types.Path): Types.Path
+	local collapsed: Types.Path = {}
+	local previousLabel: string? = nil
+
+	for index, step in path do
+		local label = step.Label
+		local continues = label ~= nil and label == previousLabel and index > 1
+		if not continues then
+			table.insert(collapsed, step)
+		end
+		previousLabel = label
+	end
+
+	return collapsed
+end
+
+--[=[
+	@within Navmesh
 	@param waypoints { PathWaypoint }
 	@return Path
 
@@ -230,17 +283,82 @@ function Navmesh.FindPath(self: Navmesh, from: Vector3, to: Vector3, agent: Type
 	end
 
 	local steps = Navmesh.FromWaypoints(path:GetWaypoints())
+	if self._options.CollapseLabels then
+		steps = Navmesh.CollapseLabels(steps)
+	end
 	if self._options.Simplify then
 		steps = Navmesh.Simplify(steps)
+	end
+
+	local closed = self:_closedStep(steps)
+	if closed ~= nil then
+		return nil, `closed {closed.Label or "step"} at {closed.Position}`
 	end
 
 	return steps, nil
 end
 
+-- A labelled waypoint this near a closed one is the same crossing.
+local CLOSE_MATCH_DISTANCE = 4
+
+--[[
+	The first step of a path that crosses a closed labelled step, if any. Expired closures are
+	dropped on the way.
+]]
+function Navmesh._closedStep(self: Navmesh, steps: Types.Path): Types.Step?
+	if #self._closed == 0 then
+		return nil
+	end
+
+	local now = os.clock()
+	for index = #self._closed, 1, -1 do
+		if now >= self._closed[index].Until then
+			table.remove(self._closed, index)
+		end
+	end
+
+	for _, step in steps do
+		if step.Label == nil then
+			continue
+		end
+		for _, closure in self._closed do
+			local same = if closure.Instance ~= nil and step.Instance ~= nil
+				then closure.Instance == step.Instance
+				else closure.Label == step.Label
+					and (closure.Position - step.Position).Magnitude <= CLOSE_MATCH_DISTANCE
+			if same then
+				return step
+			end
+		end
+	end
+
+	return nil
+end
+
+--[=[
+	@within Navmesh
+	@param step Step -- The step a handler refused.
+	@param seconds number -- How long to refuse paths through it.
+
+	The navmesh is Roblox's, so a link cannot be closed for one agent; instead, for `seconds`,
+	any path this pathfinder computes that crosses a step with the same label within a few
+	studs (or the same `Instance`) is reported as no path, `closed <label> at <position>`. The
+	[Navigator] calls this when a step handler returns `false`.
+]=]
+function Navmesh.Close(self: Navmesh, step: Types.Step, seconds: number)
+	table.insert(self._closed, {
+		Label = step.Label,
+		Instance = step.Instance,
+		Position = step.Position,
+		Until = os.clock() + seconds,
+	})
+end
+
 --[=[
 	@within Navmesh
 
-	Destroys the `Path` instance. `FindPath` after this returns `nil, "destroyed"`.
+	Destroys the `Path` instance and the `Blocked` signal. `FindPath` after this returns
+	`nil, "destroyed"`.
 ]=]
 function Navmesh.Destroy(self: Navmesh)
 	if self._destroyed then
@@ -248,7 +366,9 @@ function Navmesh.Destroy(self: Navmesh)
 	end
 
 	self._destroyed = true
+	self._blockedConnection:Disconnect()
 	self._path:Destroy()
+	self.Blocked:Destroy()
 end
 
 return Navmesh

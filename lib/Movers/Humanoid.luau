@@ -14,11 +14,11 @@
 	round-trip. `HumanoidMover.ChooseStart` is that decision as a pure function, so it is specced.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -32,6 +32,7 @@ local DEFAULT_OPTIONS = table.freeze({
 })
 
 type ResolvedOptions = {
+	Noise: MoverNoise?,
 	Speed: number,
 	StuckTimeout: number,
 	StuckDistance: number,
@@ -53,10 +54,14 @@ type self = {
 	_index: number,
 	_bestDistance: number,
 	_stuckTime: number,
+	_facing: Vector3?,
+	_nudge: Vector3?,
+	_noiseClock: number,
 	_destroyed: boolean,
 
-	_trove: Trove.Trove,
-	_moveTrove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
+	_moveCleaner: Cleaner.Cleaner,
+	_faceCleaner: Cleaner.Cleaner,
 }
 
 local HumanoidMover = {}
@@ -73,8 +78,24 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 	.StuckDistance number? -- Studs the root must move within `StuckTimeout` to count as progress. Default `0.5`.
 	.SkipDistance number? -- Leading plain Walk steps within this horizontal distance of the rig are skipped. Default `1`.
 	.ServerOwned boolean? -- Set the root's network owner to the server in `new`. Default `true`.
+	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
 ]=]
+--[=[
+	@interface MoverNoise
+	@within HumanoidMover
+
+	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Interval number? -- Seconds between noises while moving. Default `0.5`.
+	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
+]=]
+export type MoverNoise = {
+	Signal: Types.Signal<(Vector3, number?)>,
+	Interval: number?,
+	Loudness: (number | (speed: number) -> number)?,
+}
+
 export type HumanoidOptions = {
+	Noise: MoverNoise?,
 	Speed: number?,
 	StuckTimeout: number?,
 	StuckDistance: number?,
@@ -152,7 +173,8 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		return FormatMessage.Error(`{model:GetFullName()} has no Humanoid; the Humanoid mover needs one`, 2)
 	end
 
-	local resolved = Options.Resolve("HumanoidMover.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
+	local resolved =
+		Options.Resolve("HumanoidMover.new", DEFAULT_OPTIONS, options :: any, { "Noise" }) :: ResolvedOptions
 
 	humanoid.WalkSpeed = resolved.Speed
 
@@ -169,7 +191,7 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		end
 	end
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 
 	local self: self = {
 		StepReached = Signal.new(),
@@ -185,10 +207,14 @@ function HumanoidMover.new(model: Model, options: HumanoidOptions?): Types.Mover
 		_index = 0,
 		_bestDistance = math.huge,
 		_stuckTime = 0,
+		_facing = nil,
+		_nudge = nil,
+		_noiseClock = 0,
 		_destroyed = false,
 
-		_trove = trove,
-		_moveTrove = trove:Extend(),
+		_cleaner = cleaner,
+		_moveCleaner = cleaner:Extend(),
+		_faceCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, HumanoidMover) :: any
@@ -208,13 +234,25 @@ function HumanoidMover._finish(self: HumanoidMover, reached: boolean)
 
 	self._path = nil
 	self._index = 0
-	self._moveTrove:Clean()
+	self._moveCleaner:Clean()
 
 	if not reached then
 		self._humanoid:MoveTo(self._root.Position)
 	end
 
 	self.Arrived:Fire(reached)
+end
+
+--[[
+	Where the rig is told to go for step `index`: the step, nudged sideways unless it is the last.
+]]
+function HumanoidMover._goalOf(self: HumanoidMover, path: Types.Path, index: number): Vector3
+	local position = path[index].Position
+	local nudge = self._nudge
+	if nudge ~= nil and index < #path then
+		return position + nudge
+	end
+	return position
 end
 
 --[[
@@ -237,7 +275,7 @@ function HumanoidMover._walkTo(self: HumanoidMover, index: number)
 		self._humanoid.Jump = true
 	end
 
-	self._humanoid:MoveTo(step.Position)
+	self._humanoid:MoveTo(self:_goalOf(path, index))
 end
 
 --[[
@@ -280,7 +318,7 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 		if self:_isStuck() then
 			self:_finish(false)
 		else
-			self._humanoid:MoveTo(path[self._index].Position)
+			self._humanoid:MoveTo(self:_goalOf(path, self._index))
 		end
 		return
 	end
@@ -302,6 +340,26 @@ function HumanoidMover._onMoveToFinished(self: HumanoidMover, reached: boolean)
 end
 
 --[[
+	Fires the Noise signal every Interval seconds of walking, with the loudness for this speed.
+]]
+function HumanoidMover._makeNoise(self: HumanoidMover, deltaTime: number)
+	local noise = self._options.Noise
+	if noise == nil then
+		return
+	end
+
+	self._noiseClock += deltaTime
+	if self._noiseClock < (noise.Interval or 0.5) then
+		return
+	end
+	self._noiseClock = 0
+
+	local loudness = noise.Loudness
+	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
+	noise.Signal:Fire(self._root.Position, amount)
+end
+
+--[[
 	Advances the stuck clock; `StuckTimeout` seconds without the root moving `StuckDistance` is a
 	give-up.
 ]]
@@ -309,6 +367,8 @@ function HumanoidMover._onHeartbeat(self: HumanoidMover, deltaTime: number)
 	if self._path == nil then
 		return
 	end
+
+	self:_makeNoise(deltaTime)
 
 	self._stuckTime += deltaTime
 	if self:_isStuck() then
@@ -339,17 +399,17 @@ function HumanoidMover.Follow(self: HumanoidMover, path: Types.Path)
 
 	if #path == 0 then
 		-- Nowhere to walk. Report it on the next frame rather than from inside Follow.
-		self._moveTrove:Connect(RunService.Heartbeat, function()
+		self._moveCleaner:Connect(RunService.Heartbeat, function()
 			self:_finish(false)
 		end)
 		return
 	end
 
-	self._moveTrove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		self:_onHeartbeat(deltaTime)
 	end)
 
-	self._moveTrove:Connect(self._humanoid.MoveToFinished, function(reached: boolean)
+	self._moveCleaner:Connect(self._humanoid.MoveToFinished, function(reached: boolean)
 		self:_onMoveToFinished(reached)
 	end)
 
@@ -363,6 +423,75 @@ end
 ]=]
 function HumanoidMover.Stop(self: HumanoidMover)
 	self:_finish(false)
+end
+
+--[=[
+	@within HumanoidMover
+	@param position Vector3? -- Where to face; `nil` to stop.
+
+	Turns the root toward `position` every Heartbeat while no path is in progress, so a rig can
+	stare at a player without walking. `MoveTo` steers while walking, so a path takes over and
+	the facing resumes when it ends. Sets the root's `CFrame`, which is what a server-owned rig
+	standing still expects.
+]=]
+function HumanoidMover.Face(self: HumanoidMover, position: Vector3?)
+	self._facing = position
+	self._faceCleaner:Clean()
+	if position == nil or self._destroyed then
+		return
+	end
+
+	local RunService = game:GetService("RunService")
+	self._faceCleaner:Connect(RunService.Heartbeat, function()
+		if self._path ~= nil then
+			return
+		end
+
+		local root = self._root
+		local from = root.Position
+		local offset = Vector3.new(position.X - from.X, 0, position.Z - from.Z)
+		if offset.Magnitude < 1e-3 then
+			return
+		end
+
+		local yaw = math.atan2(-offset.X, -offset.Z)
+		root.CFrame = CFrame.new(from) * CFrame.Angles(0, yaw, 0)
+	end)
+end
+
+--[=[
+	@within HumanoidMover
+	@param offset Vector3? -- Added to every step but the last; `nil` clears.
+
+	A sideways push from a steering sense such as [Neighbours]. Re-issues the current `MoveTo`
+	when the nudge changes, so the rig turns at once.
+]=]
+function HumanoidMover.SetNudge(self: HumanoidMover, offset: Vector3?)
+	if offset == self._nudge then
+		return
+	end
+	self._nudge = offset
+
+	local path = self._path
+	if path ~= nil and self._index >= 1 and self._index <= #path then
+		self._humanoid:MoveTo(self:_goalOf(path, self._index))
+	end
+end
+
+--[=[
+	@within HumanoidMover
+	@param position Vector3 -- Where the root goes.
+
+	Drops the current path (`Arrived(false)` if one was in progress) and pivots the model so its
+	root sits at `position`, keeping its facing.
+]=]
+function HumanoidMover.Teleport(self: HumanoidMover, position: Vector3)
+	self:_finish(false)
+
+	local model = self._model :: any
+	local pivot = model:GetPivot()
+	local shift = position - self._root.Position
+	model:PivotTo(pivot + shift)
 end
 
 --[=[
@@ -410,7 +539,7 @@ function HumanoidMover.Destroy(self: HumanoidMover)
 
 	self:Stop()
 	self._destroyed = true
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	self.StepReached:Destroy()
 	self.Arrived:Destroy()

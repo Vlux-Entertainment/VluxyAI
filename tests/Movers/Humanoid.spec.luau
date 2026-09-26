@@ -10,6 +10,7 @@ local Fakes = require("../Support/Fakes")
 local Harness = require("../Support/Harness")
 
 local roblox = require("@lune/roblox")
+local CFrame = roblox.CFrame
 local Vector3 = roblox.Vector3
 
 local function load(heartbeat: any?, warnings: { string }?)
@@ -454,5 +455,98 @@ return {
 		expect.falsy(s.mover:IsMoving())
 		expect.equal(#s.humanoid.MoveTos, 2, "no new MoveTo after Destroy")
 		s.mover:Destroy()
+	end,
+
+	["Face turns the root toward a position while idle and lets a path take over"] = function(expect)
+		local s = setup()
+		s.root.CFrame = nil
+
+		s.mover:Face(Vector3.new(0, 0, -10))
+		s.heartbeat:Fire(0.1)
+		expect.truthy(s.root.CFrame ~= nil, "faced")
+		local look = s.root.CFrame.LookVector
+		expect.near(look.Z, -1, 1e-4)
+
+		s.mover:Face(Vector3.new(10, 0, 0))
+		s.heartbeat:Fire(0.1)
+		expect.near(s.root.CFrame.LookVector.X, 1, 1e-4)
+
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
+		s.root.CFrame = nil
+		s.heartbeat:Fire(0.1)
+		expect.equal(s.root.CFrame, nil, "no facing while walking")
+
+		s.mover:Stop()
+		s.mover:Face(nil)
+		s.heartbeat:Fire(0.1)
+		expect.equal(s.root.CFrame, nil, "facing cleared")
+	end,
+
+	["Teleport drops the path and pivots the model so the root lands on the position"] = function(expect)
+		local s = setup(nil, Vector3.new(2, 3, 2))
+		local pivots = {}
+		local model = s.model :: any
+		model.GetPivot = function()
+			return CFrame.new(Vector3.new(2, 3, 2))
+		end
+		model.PivotTo = function(_self, cframe)
+			table.insert(pivots, cframe.Position)
+		end
+
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
+		s.mover:Teleport(Vector3.new(50, 3, 50))
+		expect.sequence(s.events, { "arrived false" })
+		expect.falsy(s.mover:IsMoving())
+		expect.sequence(pivots, { Vector3.new(50, 3, 50) })
+	end,
+
+	["SetNudge aims MoveTo at the step plus the offset, never at the last step"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0), step(8, 0, 0) })
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0))
+
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 2), "re-issued at once")
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		local count = #s.humanoid.MoveTos
+		expect.equal(count, 2, "the same nudge is not re-issued")
+
+		s.humanoid.MoveToFinished:Fire(true)
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(8, 0, 0), "the last step is exact")
+
+		s.mover:SetNudge(nil)
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0) })
+		expect.equal(s.humanoid.MoveTos[#s.humanoid.MoveTos], Vector3.new(4, 0, 0), "cleared")
+	end,
+
+	["Noise fires the signal every Interval while walking, with the loudness for the speed"] = function(expect)
+		local Signal = Fakes.Signal()
+		local noises = Signal.new()
+		local heard = {}
+		noises:Connect(function(position, loudness)
+			table.insert(heard, { position, loudness })
+		end)
+		local s = setup({
+			Speed = 16,
+			Noise = {
+				Signal = noises,
+				Interval = 0.5,
+				Loudness = function(speed)
+					return speed / 8
+				end,
+			},
+		})
+
+		s.heartbeat:Fire(0.4)
+		expect.equal(#heard, 0, "silent while standing")
+		s.mover:Follow({ step(0, 0, 0), step(10, 0, 0) })
+		s.heartbeat:Fire(0.3)
+		expect.equal(#heard, 0)
+		s.heartbeat:Fire(0.3)
+		expect.equal(#heard, 1)
+		expect.equal(heard[1][1], s.root.Position)
+		expect.near(heard[1][2], 2)
+		s.heartbeat:Fire(0.5)
+		expect.equal(#heard, 2)
 	end,
 }

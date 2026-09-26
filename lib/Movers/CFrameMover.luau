@@ -17,11 +17,11 @@
 	than sinking the body to floor level.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -38,13 +38,14 @@ local DEFAULT_OPTIONS = table.freeze({
 local PROGRESS_EPSILON = 0.05
 
 -- Keys with no default value, so the resolver still accepts them.
-local OPTIONAL_KEYS = { "HeightOffset" }
+local OPTIONAL_KEYS = { "HeightOffset", "Noise" }
 
 -- Below this distance a move is treated as zero-length: the pivot snaps to the target and keeps
 -- its facing, because a direction cannot be read from a vector this short.
 local EPSILON = 1e-5
 
 type ResolvedOptions = {
+	Noise: MoverNoise?,
 	Speed: number,
 	TurnSpeed: number,
 	HeightOffset: number?,
@@ -65,10 +66,14 @@ type self = {
 	_index: number,
 	_bestDistance: number,
 	_stuckTime: number,
+	_facing: Vector3?,
+	_nudge: Vector3?,
+	_noiseClock: number,
 	_destroyed: boolean,
 
-	_trove: Trove.Trove,
-	_moveTrove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
+	_moveCleaner: Cleaner.Cleaner,
+	_faceCleaner: Cleaner.Cleaner,
 }
 
 local CFrameMover = {}
@@ -85,8 +90,24 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	.HeightOffset number? -- Added to every step's Y, so a body rides above floor steps. A number is used as given; leave it out and the first `Follow` measures the pivot's height above the first step (never below `0`) and keeps that for the life of the mover. Default: measured.
 	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
 	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`. Progress under 0.05 studs per check does not count, so speeds below about 0.01 studs per second read as stuck.
+	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
 ]=]
+--[=[
+	@interface MoverNoise
+	@within CFrameMover
+
+	.Signal Signal<(Vector3, number?)> -- The noise signal a [Hearing] sense listens to.
+	.Interval number? -- Seconds between noises while moving. Default `0.5`.
+	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
+]=]
+export type MoverNoise = {
+	Signal: Types.Signal<(Vector3, number?)>,
+	Interval: number?,
+	Loudness: (number | (speed: number) -> number)?,
+}
+
 export type CFrameMoverOptions = {
+	Noise: MoverNoise?,
 	Speed: number?,
 	TurnSpeed: number?,
 	HeightOffset: number?,
@@ -230,7 +251,7 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		FormatMessage.Error(`CFrameMover.new: StuckTimeout must be above 0, got {resolved.StuckTimeout}`, 2)
 	end
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 
 	local self: self = {
 		StepReached = Signal.new(),
@@ -245,10 +266,14 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_index = 0,
 		_bestDistance = math.huge,
 		_stuckTime = 0,
+		_facing = nil,
+		_nudge = nil,
+		_noiseClock = 0,
 		_destroyed = false,
 
-		_trove = trove,
-		_moveTrove = trove:Extend(),
+		_cleaner = cleaner,
+		_moveCleaner = cleaner:Extend(),
+		_faceCleaner = cleaner:Extend(),
 	}
 
 	return setmetatable(self, CFrameMover) :: any
@@ -267,9 +292,29 @@ function CFrameMover._finish(self: CFrameMover, reached: boolean)
 
 	self._path = nil
 	self._index = 0
-	self._moveTrove:Clean()
+	self._moveCleaner:Clean()
 
 	self.Arrived:Fire(reached)
+end
+
+--[[
+	Fires the Noise signal every Interval seconds of walking, with the loudness for this speed.
+]]
+function CFrameMover._makeNoise(self: CFrameMover, deltaTime: number)
+	local noise = self._options.Noise
+	if noise == nil then
+		return
+	end
+
+	self._noiseClock += deltaTime
+	if self._noiseClock < (noise.Interval or 0.5) then
+		return
+	end
+	self._noiseClock = 0
+
+	local loudness = noise.Loudness
+	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
+	noise.Signal:Fire(self._target:GetPivot().Position, amount)
 end
 
 --[[
@@ -289,7 +334,12 @@ function CFrameMover._onHeartbeat(self: CFrameMover, deltaTime: number)
 		return
 	end
 
+	self:_makeNoise(deltaTime)
+
 	local goal = step.Position + Vector3.new(0, self._heightOffset or 0, 0)
+	if self._nudge ~= nil and index < #path then
+		goal += self._nudge
+	end
 	local pivot, reached =
 		CFrameMover.Advance(self._target:GetPivot(), goal, self._speed, self._options.TurnSpeed, deltaTime)
 	self._target:PivotTo(pivot)
@@ -354,7 +404,7 @@ function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	self._index = 1
 
 	local RunService = game:GetService("RunService")
-	self._moveTrove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		self:_onHeartbeat(deltaTime)
 	end)
 end
@@ -366,6 +416,59 @@ end
 ]=]
 function CFrameMover.Stop(self: CFrameMover)
 	self:_finish(false)
+end
+
+--[=[
+	@within CFrameMover
+	@param position Vector3? -- Where to face; `nil` to stop.
+
+	Turns the yaw toward `position` at `TurnSpeed` every Heartbeat while no path is in progress,
+	through `Advance` with a speed of zero. A path takes over while it runs; the facing resumes
+	when it ends.
+]=]
+function CFrameMover.Face(self: CFrameMover, position: Vector3?)
+	self._facing = position
+	self._faceCleaner:Clean()
+	if position == nil or self._destroyed then
+		return
+	end
+
+	local RunService = game:GetService("RunService")
+	self._faceCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
+		if self._path ~= nil then
+			return
+		end
+
+		local pivot = self._target:GetPivot()
+		local goal = Vector3.new(position.X, pivot.Position.Y, position.Z)
+		local turned = CFrameMover.Advance(pivot, goal, 0, self._options.TurnSpeed, deltaTime)
+		self._target:PivotTo(turned)
+	end)
+end
+
+--[=[
+	@within CFrameMover
+	@param offset Vector3? -- Added to every step but the last; `nil` clears.
+
+	A sideways push from a steering sense such as [Neighbours]. Takes effect on the next
+	Heartbeat.
+]=]
+function CFrameMover.SetNudge(self: CFrameMover, offset: Vector3?)
+	self._nudge = offset
+end
+
+--[=[
+	@within CFrameMover
+	@param position Vector3 -- Where the pivot goes.
+
+	Drops the current path (`Arrived(false)` if one was in progress) and moves the pivot to
+	`position`, keeping its facing.
+]=]
+function CFrameMover.Teleport(self: CFrameMover, position: Vector3)
+	self:_finish(false)
+
+	local pivot = self._target:GetPivot()
+	self._target:PivotTo(pivot - pivot.Position + position)
 end
 
 --[=[
@@ -415,7 +518,7 @@ function CFrameMover.Destroy(self: CFrameMover)
 
 	self:Stop()
 	self._destroyed = true
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	self.StepReached:Destroy()
 	self.Arrived:Destroy()

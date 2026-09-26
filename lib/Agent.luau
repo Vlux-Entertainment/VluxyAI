@@ -10,12 +10,12 @@
 	fake mover and a fake pathfinder.
 ]]
 
+local Cleaner = require(script.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Utility.FormatMessage)
 local Navigator = require(script.Parent.Navigator)
 local Runner = require(script.Parent.Brain.Runner)
 local Signal = require(script.Parent.Utility.Signal)
 local Tables = require(script.Parent.Utility.Tables)
-local Trove = require(script.Parent.Utility.Trove)
 local Types = require(script.Parent.Types)
 local Validate = require(script.Parent.Brain.Validate)
 
@@ -45,7 +45,14 @@ type self = {
 	_destroyed: boolean,
 	_eventsClosed: boolean,
 	_timers: { [string]: number },
-	_trove: Trove.Trove,
+	_acknowledged: { [string]: any },
+	_baseSpeed: number,
+	_speedScale: number,
+	_ramp: { From: number, To: number, Duration: number, Elapsed: number }?,
+	_stateEnteredAt: number?,
+	_paused: boolean,
+	_pausedAt: number,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local Agent = {}
@@ -76,10 +83,15 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	local entity = definition.Entity
 	local name = definition.Name or (entity :: any).Name or "Agent"
 
+	local blackboard = Tables.DeepCopy(definition.Blackboard or {})
+	if definition.StrictBlackboard then
+		blackboard = Agent.StrictBlackboard(blackboard, name)
+	end
+
 	local self: self = {
 		Entity = entity,
 		Name = name,
-		Blackboard = Tables.DeepCopy(definition.Blackboard or {}),
+		Blackboard = blackboard,
 		Data = Tables.DeepCopy(definition.Data or {}),
 		Brain = definition.Brain,
 		Senses = table.clone(definition.Senses or {}),
@@ -98,18 +110,27 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 		_destroyed = false,
 		_eventsClosed = false,
 		_timers = {},
-		_trove = Trove.new(),
+		_acknowledged = {},
+		_baseSpeed = if definition.Mover then definition.Mover:GetSpeed() else 0,
+		_speedScale = 1,
+		_ramp = nil,
+		_stateEnteredAt = nil,
+		_paused = false,
+		_pausedAt = 0,
+		_cleaner = Cleaner.new(),
 	}
 
 	local agent = setmetatable(self, Agent)
 	local asContract = (agent :: any) :: Types.Agent
 
 	self._runner = Runner.new(definition.Brain, asContract, function(new: string, old: string?)
+		self._stateEnteredAt = os.clock()
 		self.StateChanged:Fire(new, old)
 	end)
 
 	if definition.Pathfinder and definition.Mover then
-		local navigator = Navigator.new(definition.Pathfinder, definition.Mover, asContract, definition.Navigation)
+		local navigator =
+			Navigator.new(definition.Pathfinder, definition.Mover, asContract, definition.Navigation, definition.Steps)
 		self._navigator = navigator
 		self.Navigator = navigator :: any
 	end
@@ -120,6 +141,55 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 end
 
 ------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Agent
+	@param blackboard Blackboard -- The real table; initial keys count as known.
+	@param name string -- For the warning.
+	@return Blackboard -- A view that warns once per key that reads as a misspelling of a known one.
+
+	What `StrictBlackboard` on the definition installs. Writes go through and make the key
+	known; a read of an unknown key whose spelling is within two edits (or a case change) of a
+	known key warns, naming both. Any other unknown read is an ordinary `nil`, since memory keys
+	are `nil` most of the time by design.
+]=]
+function Agent.StrictBlackboard(blackboard: Types.Blackboard, name: string): Types.Blackboard
+	local known: { [string]: boolean } = {}
+	for key in blackboard do
+		if type(key) == "string" then
+			known[key] = true
+		end
+	end
+	local warned: { [string]: boolean } = {}
+
+	return setmetatable({}, {
+		__index = function(_view, key: any)
+			local value = blackboard[key]
+			if value ~= nil or type(key) ~= "string" or known[key] or warned[key] then
+				return value
+			end
+			for candidate in known do
+				local close = string.lower(candidate) == string.lower(key)
+					or (#key >= 4 and Tables.EditDistance(candidate, key) <= 2)
+				if close then
+					warned[key] = true
+					FormatMessage.Warn(`{name}: Blackboard.{key} is never written; did you mean {candidate}?`)
+					break
+				end
+			end
+			return nil
+		end,
+		__newindex = function(_view, key: any, value: any)
+			if type(key) == "string" then
+				known[key] = true
+			end
+			blackboard[key] = value
+		end,
+		__iter = function()
+			return next, blackboard
+		end,
+	}) :: any
+end
 
 --[=[
 	@within Agent
@@ -149,6 +219,14 @@ function Agent.SetState(self: Agent, name: string)
 	self._runner:Transition(name)
 end
 
+--[[
+	The agent's clock: the wall clock, frozen at the moment of Pause while paused, so timers and
+	TimeInState hold still.
+]]
+function Agent._now(self: Agent): number
+	return if self._paused then self._pausedAt else os.clock()
+end
+
 --[=[
 	@within Agent
 	@param name string -- Any name; `"Attack"`, `"Look"`.
@@ -168,7 +246,7 @@ end
 ]=]
 function Agent.TimerDone(self: Agent, name: string): boolean
 	local endsAt = self._timers[name]
-	return endsAt == nil or os.clock() >= endsAt
+	return endsAt == nil or self:_now() >= endsAt
 end
 
 --[=[
@@ -182,7 +260,138 @@ function Agent.TimerLeft(self: Agent, name: string): number
 		return 0
 	end
 
-	return math.max(0, endsAt - os.clock())
+	return math.max(0, endsAt - self:_now())
+end
+
+--[=[
+	@within Agent
+	@return number -- Seconds since the current state was entered, not counting time paused. `0` before `Start`.
+]=]
+function Agent.TimeInState(self: Agent): number
+	local enteredAt = self._stateEnteredAt
+	if enteredAt == nil then
+		return 0
+	end
+	return self:_now() - enteredAt
+end
+
+--[=[
+	@within Agent
+
+	Freezes the agent: ticks stop, so senses, navigator and brain stand still; the mover halts;
+	timers and `TimeInState` hold. For a cutscene, a jumpscare, or a director backing an enemy
+	off. The navigator keeps its target and re-plans on the first tick after [Agent:Resume]. Does
+	nothing when not running or already paused.
+]=]
+function Agent.Pause(self: Agent)
+	if not self._running or self._paused then
+		return
+	end
+
+	self._paused = true
+	self._pausedAt = os.clock()
+
+	-- Stopping the mover directly, not through the navigator, keeps the target: the navigator
+	-- sees a mover that gave up and re-plans on its cadence once ticks resume.
+	local mover = self.Mover
+	if mover and mover:IsMoving() then
+		mover:Stop()
+	end
+end
+
+--[=[
+	@within Agent
+
+	Undoes [Agent:Pause]. Every running timer and `TimeInState` are pushed forward by the time
+	spent paused, so a timer with two seconds left still has two seconds left.
+]=]
+function Agent.Resume(self: Agent)
+	if not self._paused then
+		return
+	end
+
+	local pausedFor = os.clock() - self._pausedAt
+	self._paused = false
+
+	for name, endsAt in self._timers do
+		self._timers[name] = endsAt + pausedFor
+	end
+	if self._stateEnteredAt ~= nil then
+		self._stateEnteredAt += pausedFor
+	end
+end
+
+--[=[
+	@within Agent
+	@return boolean
+]=]
+function Agent.IsPaused(self: Agent): boolean
+	return self._paused
+end
+
+--[=[
+	@within Agent
+	@param position Vector3? -- Where to face; `nil` to stop facing anything.
+
+	Turns the body toward `position` while it stands still, so an enemy can stare at a player
+	without walking. Calls the mover's optional `Face`; a mover without one ignores this.
+]=]
+function Agent.LookAt(self: Agent, position: Vector3?)
+	local mover = self.Mover
+	local face = if mover then (mover :: any).Face else nil
+	if type(face) == "function" then
+		face(mover, position)
+	end
+end
+
+--[=[
+	@within Agent
+	@param position Vector3 -- Where the body goes: the root or pivot position, not a floor position.
+
+	Puts the agent somewhere else at once and forgets the current target, so the next `MoveTo`
+	plans from the new place. Uses the mover's optional `Teleport`, else pivots the entity. For a
+	stalker that vanishes and reappears out of sight; pair it with [Perception.SeenByAnyone].
+]=]
+function Agent.Teleport(self: Agent, position: Vector3)
+	if self._navigator then
+		self._navigator:Stop()
+	end
+
+	local mover = self.Mover
+	local teleport = if mover then (mover :: any).Teleport else nil
+	if type(teleport) == "function" then
+		teleport(mover, position)
+		return
+	end
+
+	local entity = self.Entity :: any
+	local pivot = entity:GetPivot()
+	entity:PivotTo(pivot - pivot.Position + position)
+end
+
+--[=[
+	@within Agent
+	@param key string -- A blackboard key, usually a memory such as `HeardAt` or `HeardSoundAt`.
+	@return boolean -- `true` while `Blackboard[key]` is non-nil and differs from the value last acknowledged.
+
+	"Is there something here I have not dealt with yet?" A transition that investigates every
+	new noise reads `agent:IsNew("HeardAt")` and calls [Agent:Acknowledge] when it acts, so the
+	same noise is not investigated twice. [When.New] does both in one predicate.
+]=]
+function Agent.IsNew(self: Agent, key: string): boolean
+	local value = self.Blackboard[key]
+	return value ~= nil and value ~= self._acknowledged[key]
+end
+
+--[=[
+	@within Agent
+	@param key string
+
+	Records the current `Blackboard[key]` as dealt with. [Agent:IsNew] is `false` for it until
+	the value changes.
+]=]
+function Agent.Acknowledge(self: Agent, key: string)
+	self._acknowledged[key] = self.Blackboard[key]
 end
 
 --[=[
@@ -251,14 +460,82 @@ end
 
 --[=[
 	@within Agent
-	@param speed number -- Studs per second.
+	@param speed number -- Studs per second, before the speed scale.
+	@param seconds number? -- Ramp to it over this long instead of at once, so a lunge builds and a stop settles.
 
-	Shorthand for `agent.Mover:SetSpeed(speed)`. Does nothing without a mover.
+	The agent's base speed: what a state asks for. The mover gets `speed` times the speed scale
+	([Agent:SetSpeedScale]), so a crowd ease or a slow-motion effect layered on top survives a
+	state changing its own speed. With `seconds` the base speed moves there over the agent's
+	ticks; a new `SetSpeed` replaces the ramp. Does nothing without a mover.
 ]=]
-function Agent.SetSpeed(self: Agent, speed: number)
-	if self.Mover then
-		self.Mover:SetSpeed(speed)
+function Agent.SetSpeed(self: Agent, speed: number, seconds: number?)
+	if seconds ~= nil and seconds > 0 and speed ~= self._baseSpeed then
+		self._ramp = { From = self._baseSpeed, To = speed, Duration = seconds, Elapsed = 0 }
+		return
 	end
+
+	self._ramp = nil
+	self:_applySpeed(speed)
+end
+
+--[[
+	Sets the base speed and hands the mover the scaled value.
+]]
+function Agent._applySpeed(self: Agent, speed: number)
+	self._baseSpeed = speed
+	if self.Mover then
+		self.Mover:SetSpeed(speed * self._speedScale)
+	end
+end
+
+--[[
+	One tick of a speed ramp, if one is running.
+]]
+function Agent._stepRamp(self: Agent, deltaTime: number)
+	local ramp = self._ramp
+	if ramp == nil then
+		return
+	end
+
+	ramp.Elapsed += deltaTime
+	local t = math.clamp(ramp.Elapsed / ramp.Duration, 0, 1)
+	self:_applySpeed(ramp.From + (ramp.To - ramp.From) * t)
+	if t >= 1 then
+		self._ramp = nil
+	end
+end
+
+--[=[
+	@within Agent
+	@param scale number -- A multiplier on the base speed; `1` is none, `0.5` half speed.
+
+	Layered on top of whatever [Agent:SetSpeed] asked for, and kept across state changes. The
+	[Neighbours] sense eases through this; a director or a stun can too.
+]=]
+function Agent.SetSpeedScale(self: Agent, scale: number)
+	if scale == self._speedScale then
+		return
+	end
+	self._speedScale = scale
+	if self.Mover then
+		self.Mover:SetSpeed(self._baseSpeed * scale)
+	end
+end
+
+--[=[
+	@within Agent
+	@return number -- The current speed scale, `1` unless something set it.
+]=]
+function Agent.GetSpeedScale(self: Agent): number
+	return self._speedScale
+end
+
+--[=[
+	@within Agent
+	@return number -- The base speed the last `SetSpeed` asked for, before the scale.
+]=]
+function Agent.GetSpeed(self: Agent): number
+	return self._baseSpeed
 end
 
 --[=[
@@ -269,11 +546,13 @@ end
 	Heartbeat loop calls this; a test or a custom scheduler calls it directly.
 ]=]
 function Agent.Step(self: Agent, deltaTime: number)
-	if not self._running then
+	if not self._running or self._paused then
 		return
 	end
 
 	local asContract = (self :: any) :: Types.Agent
+
+	self:_stepRamp(deltaTime)
 
 	-- A sense or a state may Destroy the agent mid-tick; nothing after it may run.
 	for _, sense in self.Senses do
@@ -303,6 +582,10 @@ end
 	most, so a long frame never runs the brain several times to catch up.
 ]]
 function Agent._onHeartbeat(self: Agent, deltaTime: number)
+	if self._paused then
+		return
+	end
+
 	self._accumulator += deltaTime
 	if self._accumulator < self._tick then
 		return
@@ -335,7 +618,7 @@ function Agent.Start(self: Agent, manual: boolean?): Agent
 	-- The initial Enter may have destroyed the agent; a heartbeat would then outlive it.
 	if not manual and self._running then
 		local RunService = game:GetService("RunService")
-		self._trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+		self._cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 			self:_onHeartbeat(deltaTime)
 		end)
 	end
@@ -393,7 +676,7 @@ function Agent.Destroy(self: Agent)
 
 	self._destroyed = true
 	self._running = false
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 
 	-- Every step is protected: one part failing to tear down must not keep the others alive.
 	local function guard(what: string, callback: () -> ())

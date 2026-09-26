@@ -144,6 +144,67 @@ function Builder.SetNavigation(self: Builder, options: Types.NavigationOptions):
 end
 
 --[=[
+	@interface OnStepOptions
+	@within Builder
+
+	.Tag string? -- Find the door for a step that has no `Instance`: the nearest instance with this `CollectionService` tag within `Radius` of the step. Default none.
+	.Radius number? -- Studs. Default `8`.
+]=]
+export type OnStepOptions = {
+	Tag: string?,
+	Radius: number?,
+}
+
+--[=[
+	@within Builder
+	@param label string -- The step `Label` this handles: `"Door"`, `"Ladder"`, `"Vault"`.
+	@param handler StepHandler -- Runs when a step with that label is reached; may yield. Return `false` when the step could not be taken.
+	@param options OnStepOptions? -- How to find the instance for a step that lacks one.
+	@return Builder
+
+	What the agent does at a labelled step. The navigator holds the mover there, reports
+	`Interacting`, runs the handler in its own thread, and walks on when it returns. A graph
+	link brings its `Instance` along; a navmesh `PathfindingLink` or modifier does not, so give
+	`Tag` and the nearest tagged instance is looked up for it, and the handler is the same for
+	both.
+
+	```lua
+	:OnStep("Door", function(agent, step)
+		if step.Instance:GetAttribute("Locked") then
+			return false, 15 -- go another way for a while
+		end
+		Doors.Open(step.Instance)
+		task.wait(0.4)
+		return true
+	end, { Tag = "AI_DOOR" })
+	```
+]=]
+function Builder.OnStep(self: Builder, label: string, handler: Types.StepHandler, options: OnStepOptions?): Builder
+	local steps: { [string]: Types.StepHandler | Types.StepRegistration } = self._definition.Steps or {}
+	self._definition.Steps = steps
+	if options ~= nil then
+		steps[label] = { Handler = handler, Tag = options.Tag, Radius = options.Radius }
+	else
+		steps[label] = handler
+	end
+	return self
+end
+
+--[=[
+	@within Builder
+	@param enabled boolean? -- Default `true`.
+	@return Builder
+
+	Development aid: the agent warns once for a blackboard read that looks like a typo of a key
+	something has written (`SeenTaget` for `SeenTarget`). Nothing is typed; the check is by
+	spelling, so a legitimate `nil` read of a real key stays quiet.
+]=]
+function Builder.SetStrictBlackboard(self: Builder, enabled: boolean?): Builder
+	self._definition.StrictBlackboard = if enabled == nil then true else enabled
+	return self
+end
+
+--[=[
 	@within Builder
 	@param name string -- Used in warnings and errors. Default the entity's name.
 	@return Builder
@@ -163,6 +224,9 @@ function Builder.GetDefinition(self: Builder): Types.AgentDefinition
 	local copy = table.clone(self._definition)
 	if copy.Senses then
 		copy.Senses = table.clone(copy.Senses)
+	end
+	if copy.Steps then
+		copy.Steps = table.clone(copy.Steps)
 	end
 	return copy
 end

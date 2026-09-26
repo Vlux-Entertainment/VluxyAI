@@ -8,6 +8,10 @@
 	furniture while the middle trusts the authored nodes. Every fallback is deterministic: when the
 	graph has no route the local pathfinder is tried anyway, and when a leg cannot be refined the
 	node itself is the step.
+
+	`Blocked` is the local pathfinder's own signal, shared rather than forwarded: the graph never
+	blocks, and a [Navmesh] local only knows about the last leg it computed, which is the tail of
+	a long route or the whole of a short one.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
@@ -47,6 +51,7 @@ type ResolvedOptions = {
 
 type self = {
 	Name: string,
+	Blocked: Types.Signal<()>?,
 	_graph: Types.Pathfinder,
 	_local: Types.Pathfinder,
 	_options: ResolvedOptions,
@@ -61,7 +66,8 @@ type HybridClass = typeof(setmetatable({} :: self, Hybrid))
 	@class Hybrid
 
 	A [Types.Pathfinder] that composes a [Graph] for the level and a local pathfinder for the
-	geometry, the way the design plan lays it out. `Name` is `"Hybrid"`.
+	geometry, the way the design plan lays it out. `Name` is `"Hybrid"`. `Blocked` is the local
+	pathfinder's `Blocked` when it has one, so a blocked local leg re-plans the whole route.
 ]=]
 
 --[=[
@@ -90,6 +96,7 @@ function Hybrid.new(options: HybridOptions): Types.Pathfinder
 
 	local self: self = {
 		Name = "Hybrid",
+		Blocked = (localPathfinder :: any).Blocked,
 		_graph = graph,
 		_local = localPathfinder,
 		_options = resolved,
@@ -182,6 +189,22 @@ function Hybrid.FindPath(self: HybridClass, from: Vector3, to: Vector3, agent: T
 	end
 
 	return path, nil
+end
+
+--[=[
+	@within Hybrid
+	@param step Step
+	@param seconds number
+
+	Passes the closure to the graph and the local pathfinder, whichever has `Close`.
+]=]
+function Hybrid.Close(self: HybridClass, step: Types.Step, seconds: number)
+	for _, pathfinder in { self._graph, self._local } do
+		local close = (pathfinder :: any).Close
+		if type(close) == "function" then
+			close(pathfinder, step, seconds)
+		end
+	end
 end
 
 --[=[

@@ -35,11 +35,13 @@
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Perception = require(script.Parent.Perception)
+local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local DEFAULT_OPTIONS = table.freeze({
+	Prefix = "",
 	Range = 60,
 	FieldOfView = 90,
 	RequireLineOfSight = true,
@@ -55,8 +57,10 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Targets ((agent: Agent) -> { BasePart })? -- Who might be looking. Default [Perception.AliveRoots], every alive player's root.
 	.Ignore ((agent: Agent) -> { Instance })? -- Extra instances the observer's ray passes through, on top of the observer's own character. Default none.
 	.Eye ((root: BasePart) -> CFrame?)? -- Where an observer looks from and which way: a replicated camera, say. `nil` falls back to the default. Default the head's CFrame when the character has one, else the root's.
+	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type WatchedOptions = {
+	Prefix: string?,
 	Range: number?,
 	FieldOfView: number?,
 	RequireLineOfSight: boolean?,
@@ -66,6 +70,7 @@ export type WatchedOptions = {
 }
 
 type ResolvedOptions = {
+	Prefix: string,
 	Range: number,
 	FieldOfView: number,
 	RequireLineOfSight: boolean,
@@ -149,7 +154,7 @@ end
 function Watched.Tick(self: Watched, agent: Types.Agent, deltaTime: number)
 	local _ = deltaTime
 	local options = self._options
-	local blackboard = agent.Blackboard
+	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
 	local position = agent.Entity:GetPivot().Position
 	local extraIgnore = options.Ignore(agent)
@@ -198,10 +203,26 @@ end
 --[=[
 	@within Watched
 
-	Nothing to release; present so the sense satisfies [Types.Sense] and Trove.
+	Nothing to release; present so the sense satisfies [Types.Sense] and any cleanup helper.
 ]=]
 function Watched.Destroy(self: Watched)
 	local _ = self
+end
+
+--[=[
+	@within Watched
+	@param patch WatchedOptions -- The options to change; the rest keep their values.
+	@error "unknown option"
+
+	Changes options after construction, for difficulty and pacing: a director widening the cone
+	or shortening the memory mid-round. The same rules as `new` apply.
+]=]
+function Watched.Configure(self: Watched, patch: WatchedOptions)
+	self._options =
+		Options.Resolve("Watched.Configure", self._options, patch :: any, { "Targets", "Ignore", "Eye" }) :: ResolvedOptions
+	if self._options.Range < 0 then
+		FormatMessage.Error("Watched: Range must be zero or more", 3)
+	end
 end
 
 return Watched

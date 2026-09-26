@@ -426,12 +426,69 @@ return {
 		expect.includes(message, "[VluxyAI]")
 		expect.includes(
 			message,
-			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Speed, StepDistance, StuckTimeout, TurnSpeed'
+			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Noise, Speed, StepDistance, StuckTimeout, TurnSpeed'
 		)
 
 		local message2 = expect.errors(function()
 			CFrameMover.new(fakePivot(Vector3.new(0, 0, 0)) :: any, { ArriveDistance = 1 } :: any)
 		end)
 		expect.includes(message2, "ArriveDistance", "the old per-step name is the navigator's, not the mover's")
+	end,
+
+	["Face turns the pivot toward a position at TurnSpeed while idle"] = function(expect)
+		local s = setup({ TurnSpeed = math.pi })
+		s.mover:Face(Vector3.new(10, 0, 0))
+		s.heartbeat:Fire(0.25)
+		expectVector(expect, s.pivot.Pivot.Position, 0, 0, 0, "did not move")
+		expect.near(s.pivot.Pivot.LookVector.X, math.sin(math.pi / 4), 1e-4, "a quarter turn so far")
+		s.heartbeat:Fire(1)
+		expect.near(s.pivot.Pivot.LookVector.X, 1, 1e-4, "facing +X")
+
+		s.mover:Face(nil)
+		local moves = s.pivot.Moves
+		s.heartbeat:Fire(1)
+		expect.equal(s.pivot.Moves, moves, "cleared")
+	end,
+
+	["Teleport drops the path and moves the pivot, keeping its facing"] = function(expect)
+		local s = setup()
+		s.mover:Follow({ step(0, 0, 0), step(0, 0, -10) })
+		s.heartbeat:Fire(0.5)
+		local look = s.pivot.Pivot.LookVector
+
+		s.mover:Teleport(Vector3.new(20, 5, 20))
+		expect.sequence(s.events, { "step 1", "arrived false" })
+		expectVector(expect, s.pivot.Pivot.Position, 20, 5, 20, "position")
+		expectVector(expect, s.pivot.Pivot.LookVector, look.X, look.Y, look.Z, "facing kept")
+		expect.falsy(s.mover:IsMoving())
+	end,
+
+	["SetNudge offsets every step but the last"] = function(expect)
+		local s = setup({ Speed = 100, HeightOffset = 0 })
+		s.mover:SetNudge(Vector3.new(0, 0, 2))
+		s.mover:Follow({ step(0, 0, 0), step(4, 0, 0), step(8, 0, 0) })
+		s.heartbeat:Fire(0.1)
+		s.heartbeat:Fire(0.1)
+		expectVector(expect, s.pivot.Pivot.Position, 4, 0, 2, "the middle step is nudged")
+		s.heartbeat:Fire(0.1)
+		expectVector(expect, s.pivot.Pivot.Position, 8, 0, 0, "the last step is exact")
+	end,
+
+	["Noise fires the signal every Interval while moving"] = function(expect)
+		local Fakes = require("../Support/Fakes")
+		local noises = Fakes.Signal().new()
+		local heard = {}
+		noises:Connect(function(_position, loudness)
+			table.insert(heard, loudness)
+		end)
+		local s = setup({ Noise = { Signal = noises, Interval = 0.2 } })
+
+		s.mover:Follow({ step(0, 0, 0), step(0, 0, -50) })
+		s.heartbeat:Fire(0.1)
+		expect.equal(#heard, 0)
+		s.heartbeat:Fire(0.1)
+		expect.sequence(heard, { 1 }, "the default loudness")
+		s.heartbeat:Fire(0.2)
+		expect.equal(#heard, 2)
 	end,
 }

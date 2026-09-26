@@ -1,0 +1,40 @@
+# Builds the Moonwave site from lib/ and docs/ and publishes it to the gh-pages branch, which
+# GitHub Pages serves at https://Vlux-Entertainment.github.io/VluxyAI/. Runs on every push to
+# master and by hand from the Actions tab.
+
+name: Docs
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Moonwave
+        run: npm install -g moonwave@1
+
+      - name: Build the site
+        run: moonwave build --code lib
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
+          force_orphan: true

@@ -130,6 +130,8 @@ end
 local context: Context.Context = {
 	Map = map,
 	Noises = noises,
+	-- One instance is one group: every enemy that adds it keeps out of the others' way.
+	Crowd = VluxyAI.Senses.Neighbours.new({ Range = 10, Slow = { Distance = 5, Min = 0.5 }, Avoid = { Radius = 4 } }),
 	Random = Random.new(7),
 }
 

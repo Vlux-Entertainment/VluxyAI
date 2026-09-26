@@ -37,7 +37,7 @@ local Types = {}
 	.Connected boolean -- `false` once disconnected.
 	.Disconnect (self: Connection) -> () -- Disconnects the handler.
 
-	What [Types.Signal] `Connect` returns. Trove accepts it directly.
+	What [Types.Signal] `Connect` returns. Any cleanup helper that calls `Disconnect` accepts it.
 ]=]
 export type Connection = {
 	Connected: boolean,
@@ -56,7 +56,7 @@ export type Connection = {
 	.Destroy (self: Signal<T...>) -> () -- Drops every handler and refuses new ones.
 
 	A small signal with the same surface as `RBXScriptSignal`, implemented in plain Luau so the
-	core runs outside Roblox. Movers and agents expose these; Trove can clean them up.
+	core runs outside Roblox. Movers and agents expose these; a [Cleaner] releases their connections.
 ]=]
 export type Signal<T...> = {
 	Connect: (self: Signal<T...>, handler: (T...) -> ()) -> Connection,
@@ -88,7 +88,8 @@ export type StepAction = "Walk" | "Jump" | "Custom"
 
 	.Position Vector3 -- Where to go, as a floor position. Movers add their own height.
 	.Action StepAction -- What to do on the way there.
-	.Label string? -- The `PathfindingModifier` label, or whatever your pathfinder attaches.
+	.Label string? -- The `PathfindingModifier` label, or whatever your pathfinder attaches. A [Types.StepHandler] registered for it runs when the step is reached.
+	.Instance Instance? -- What the step is about, when the pathfinder knows: the door on a [Graph] link.
 
 	One point along a [Types.Path].
 ]=]
@@ -96,6 +97,41 @@ export type Step = {
 	Position: Vector3,
 	Action: StepAction,
 	Label: string?,
+	Instance: Instance?,
+}
+
+--[=[
+	@type StepHandler (agent: Agent, step: Step, index: number) -> (boolean?, number?)
+	@within Types
+
+	What happens at a labelled step: open the door, climb the ladder, play the vault. Registered
+	with [Builder:OnStep] under the step's `Label`. Runs in its own thread and may yield; the
+	navigator holds the mover at the step, reports `Interacting`, and walks the rest of the path
+	when the handler returns. A new target or `Stop` while it runs abandons the path; the handler
+	should check [Agent:IsDestroyed] after a long yield.
+
+	Return `false` to say the step could not be taken (a locked door). The path is given up as
+	`Failed`, and the pathfinder is told to `Close` that step for the seconds given as the second
+	return (default `10`), so the next plan goes another way. Returning nothing or `true` means
+	the step was taken.
+]=]
+export type StepHandler = (agent: Agent, step: Step, index: number) -> (boolean?, number?)
+
+--[=[
+	@interface StepRegistration
+	@within Types
+
+	.Handler StepHandler
+	.Tag string? -- When the step arrives without an `Instance` (a navmesh link or modifier), the nearest instance carrying this `CollectionService` tag within `Radius` of the step is put in `step.Instance` before the handler runs.
+	.Radius number? -- Studs. Default `8`.
+
+	What [Builder:OnStep] stores for a label: the handler, and how to find the door for a step
+	that does not already know it. A plain [Types.StepHandler] is accepted wherever this is.
+]=]
+export type StepRegistration = {
+	Handler: StepHandler,
+	Tag: string?,
+	Radius: number?,
 }
 
 --[=[
@@ -118,6 +154,8 @@ export type Path = { Step }
 	.FindPath (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?) -- Returns a path, or `nil` and a reason. May yield.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
 	.Name string? -- Used in messages, such as a [Ladder]'s joined reasons.
+	.Blocked Signal<()>? -- Optional. Fired when the world changes under the last path returned; the [Navigator] re-plans on its cadence.
+	.Close ((self: any, step: Step, seconds: number) -> ())? -- Optional. A labelled step could not be taken (a locked door): plan around it for `seconds`. [Graph] closes the link, [Navmesh] refuses paths through it; [Ladder] and [Hybrid] pass it on.
 
 	Plans and nothing else. A pathfinder never moves the agent, never creates parts and never keeps
 	a target. `from` and `to` may be at any height: `from` is the mover's root and `to` is often a
@@ -125,11 +163,19 @@ export type Path = { Step }
 	as a failure. `FindPath` runs in its own thread and may yield or error; an error is treated as a
 	failed plan and warned about once. `VluxyAI.Pathfinders` ships `Navmesh`, `Straight` and
 	`Ladder`; your own is any table with `FindPath`.
+
+	`Blocked` is how a pathfinder that watches the world ([Navmesh] listens to its `Path.Blocked`)
+	tells the navigator that the path being walked is no longer good, so the agent re-plans as soon
+	as the cadence allows instead of walking into the obstacle and waiting for the mover's stuck
+	check. A pathfinder that cannot know leaves it out; [Ladder] and [Hybrid] forward it from the
+	rung that produced the current path.
 ]=]
 export type Pathfinder = {
 	FindPath: (self: any, from: Vector3, to: Vector3, agent: Agent) -> (Path?, string?),
 	Destroy: ((self: any) -> ())?,
 	Name: string?,
+	Blocked: Signal<()>?,
+	Close: ((self: any, step: Step, seconds: number) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -149,6 +195,9 @@ export type Pathfinder = {
 	.StepReached Signal<(number, Step)> -- Fired with the index and step each time one is reached.
 	.Arrived Signal<boolean> -- Fired once per `Follow`: `true` at the end of the path, `false` if stopped, replaced or stuck.
 	.Destroy ((self: any) -> ())? -- Optional cleanup. Called when the agent is destroyed.
+	.Face ((self: any, position: Vector3?) -> ())? -- Optional. Turn toward `position` while standing still; `nil` stops. [Agent:LookAt] calls it.
+	.Teleport ((self: any, position: Vector3) -> ())? -- Optional. Put the body at `position` at once, dropping any path. [Agent:Teleport] calls it.
+	.SetNudge ((self: any, offset: Vector3?) -> ())? -- Optional. Aim at each step plus `offset` (never the last step), so a steering sense can push the body sideways; `nil` clears. [Neighbours] calls it.
 
 	Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:
 
@@ -173,6 +222,9 @@ export type Mover = {
 	StepReached: Signal<(number, Step)>,
 	Arrived: Signal<boolean>,
 	Destroy: ((self: any) -> ())?,
+	Face: ((self: any, position: Vector3?) -> ())?,
+	Teleport: ((self: any, position: Vector3) -> ())?,
+	SetNudge: ((self: any, offset: Vector3?) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -195,17 +247,19 @@ export type Blackboard = { [string]: any }
 
 	.Tick (self: any, agent: Agent, deltaTime: number) -> () -- Called once per agent tick. Writes to `agent.Blackboard`.
 	.Destroy ((self: any, agent: Agent?) -> ())? -- Optional cleanup, called with each agent that is destroyed. A shared sense releases that agent's state and tears down only when none remain; called with no agent it tears down outright.
+	.Configure ((self: any, patch: { [string]: any }) -> ())? -- Optional. Changes options after construction; every built-in has it, so a director can widen a cone or shorten a memory mid-round.
 
 	Perceives and nothing else. Senses tick in the order they were added, before the navigator and
 	the brain. A sense keeps no per-agent state of its own: memory (`SeenAt`, `HeardAt`) lives on
 	the blackboard, so one instance may serve many agents and a state may clear a memory early by
 	setting the key to `nil`. Distances are `math.huge` when there is nothing to measure.
-	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing` and `Watched`; your own is any table
-	with `Tick`.
+	`VluxyAI.Senses` ships `Sight`, `Proximity`, `Hearing`, `Sounds`, `Awareness`, `Watched`,
+	`Surroundings` and `Neighbours`; your own is any table with `Tick`.
 ]=]
 export type Sense = {
 	Tick: (self: any, agent: Agent, deltaTime: number) -> (),
 	Destroy: ((self: any, agent: Agent?) -> ())?,
+	Configure: ((self: any, patch: { [string]: any }) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -227,6 +281,25 @@ export type Sense = {
 export type Transition = {
 	To: string,
 	When: (agent: Agent) -> boolean,
+}
+
+--[=[
+	@interface Interrupt
+	@within Types
+
+	.To string -- The state to enter. Must exist in the brain; `Build()` checks.
+	.When (agent: Agent) -> boolean -- Checked every tick, in order, before the current state's own transitions.
+	.Except { string }? -- States in which this interrupt is not checked, such as the one it leads to or an attack that must finish.
+
+	A [Types.Transition] that applies from every state: "hunt whoever I see", "freeze when lit",
+	"stop when the director says so". Written once on the brain instead of in every state.
+	Interrupts are checked in order before the current state's transitions; the first true one
+	wins the tick.
+]=]
+export type Interrupt = {
+	To: string,
+	When: (agent: Agent) -> boolean,
+	Except: { string }?,
 }
 
 --[=[
@@ -256,12 +329,14 @@ export type State = {
 
 	.Initial string -- The state entered on `Start()`.
 	.States { [string]: State } -- Every state, keyed by name.
+	.Interrupts { Interrupt }? -- Transitions that apply from every state, checked before the current state's own.
 
 	A flat finite state machine as a table. The whole AI, readable top to bottom.
 ]=]
 export type Brain = {
 	Initial: string,
 	States: { [string]: State },
+	Interrupts: { Interrupt }?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -317,12 +392,13 @@ export type Scored<T> = {
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@type PathStatus "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
+	@type PathStatus "Idle" | "Planning" | "Moving" | "Interacting" | "Arrived" | "Failed"
 	@within Types
 
-	Where a [Navigator] is with its current target. `Idle` means no target or stopped.
+	Where a [Navigator] is with its current target. `Idle` means no target or stopped;
+	`Interacting` means a [Types.StepHandler] is running at a step and the walk resumes after.
 ]=]
-export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
+export type PathStatus = "Idle" | "Planning" | "Moving" | "Interacting" | "Arrived" | "Failed"
 
 --[=[
 	@interface NavigationOptions
@@ -330,6 +406,7 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 
 	.RepathInterval number? -- Seconds between re-plans while the target keeps moving. Must be above 0; the three distances below may be 0. Default `0.5`.
 	.RepathDistance number? -- Studs the target must move before a re-plan happens. Default `2`.
+	.MaxPathAge number? -- Seconds a path is followed before it is planned again even though the target has not moved, so the agent keeps up with a changing level. Must be above 0. Default `math.huge` (never).
 	.ArriveDistance number? -- Horizontal studs from the target that count as arrived. Must exceed the two bodies' radii for a chase to ever arrive. Default `2.5`.
 	.ArriveHeight number? -- Height difference allowed for arrival, so a target on the floor above does not count. Default `8`.
 
@@ -338,6 +415,7 @@ export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
 export type NavigationOptions = {
 	RepathInterval: number?,
 	RepathDistance: number?,
+	MaxPathAge: number?,
 	ArriveDistance: number?,
 	ArriveHeight: number?,
 }
@@ -356,7 +434,8 @@ export type NavigationOptions = {
 	.PathChanged Signal<Path?> -- Fired with each new path, and with `nil` when there is none.
 
 	Owns the pair of a [Types.Pathfinder] and a [Types.Mover]: plans with one, follows with the
-	other, and re-plans when the target moves. Every agent with both has one at `agent.Navigator`.
+	other, and re-plans when the target moves, the pathfinder reports the path blocked, or the path
+	is older than `MaxPathAge`. Every agent with both has one at `agent.Navigator`.
 ]=]
 export type Navigator = {
 	MoveTo: (self: any, target: Vector3) -> (),
@@ -386,6 +465,8 @@ export type Navigator = {
 	.Data { [string]: any }? -- Initial `agent.Data`. Copied per agent. Yours to use.
 	.Tick number? -- Seconds between ticks. Default `0.1`.
 	.Navigation NavigationOptions? -- Navigator tuning.
+	.Steps { [string]: StepHandler | StepRegistration }? -- What to do at labelled steps, by label. See [Builder:OnStep].
+	.StrictBlackboard boolean? -- Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.
 	.Name string? -- Used in messages. Default `Entity.Name`.
 
 	Everything an [Agent] is built from. The [Builder] produces one of these; you can also write it
@@ -401,6 +482,8 @@ export type AgentDefinition = {
 	Data: { [string]: any }?,
 	Tick: number?,
 	Navigation: NavigationOptions?,
+	Steps: { [string]: StepHandler | StepRegistration }?,
+	StrictBlackboard: boolean?,
 	Name: string?,
 }
 
@@ -427,10 +510,21 @@ export type AgentDefinition = {
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
 	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
-	.SetSpeed (self: Agent, speed: number) -> () -- Shorthand for `Mover:SetSpeed`. No-op without a mover.
+	.SetSpeed (self: Agent, speed: number, seconds: number?) -> () -- The base speed; the mover gets it times the speed scale. With `seconds`, ramps there over the ticks. No-op without a mover.
+	.SetSpeedScale (self: Agent, scale: number) -> () -- A multiplier layered on the base speed, kept across states. `1` is none.
+	.GetSpeedScale (self: Agent) -> number
+	.GetSpeed (self: Agent) -> number -- The base speed, before the scale.
 	.StartTimer (self: Agent, name: string, seconds: number) -> () -- Starts a named timer.
 	.TimerDone (self: Agent, name: string) -> boolean -- `true` once the timer ran out, or if it was never started.
 	.TimerLeft (self: Agent, name: string) -> number -- Seconds left on the timer, `0` when done.
+	.TimeInState (self: Agent) -> number -- Seconds since the current state was entered, paused time excluded. `0` before `Start`.
+	.Pause (self: Agent) -> () -- Freeze: no ticks, no movement, timers on hold. For cutscenes, jumpscares and a director backing an enemy off.
+	.Resume (self: Agent) -> () -- Undo `Pause`. The navigator re-plans to its target on the next tick.
+	.IsPaused (self: Agent) -> boolean
+	.LookAt (self: Agent, position: Vector3?) -> () -- Turn toward `position` while standing still, `nil` to stop. Needs a mover with `Face`; otherwise does nothing.
+	.Teleport (self: Agent, position: Vector3) -> () -- Put the body at `position` at once, dropping the current path. Uses the mover's `Teleport`, else the entity's `PivotTo`.
+	.IsNew (self: Agent, key: string) -> boolean -- `true` while `Blackboard[key]` is non-nil and differs from the value last passed to `Acknowledge`.
+	.Acknowledge (self: Agent, key: string) -> () -- Marks the current `Blackboard[key]` as dealt with, so `IsNew` is `false` until it changes.
 	.Step (self: Agent, deltaTime: number) -> () -- One tick, driven by hand. Tests use this.
 	.Start (self: Agent, manual: boolean?) -> Agent -- Enters the initial state and starts ticking on `Heartbeat`. With `manual`, you drive `Step` yourself.
 	.IsRunning (self: Agent) -> boolean -- `true` between `Start` and `Destroy`.
@@ -461,10 +555,21 @@ export type Agent = {
 	GetPosition: (self: Agent) -> Vector3,
 	HasArrived: (self: Agent) -> boolean,
 	GetPathStatus: (self: Agent) -> PathStatus,
-	SetSpeed: (self: Agent, speed: number) -> (),
+	SetSpeed: (self: Agent, speed: number, seconds: number?) -> (),
+	SetSpeedScale: (self: Agent, scale: number) -> (),
+	GetSpeedScale: (self: Agent) -> number,
+	GetSpeed: (self: Agent) -> number,
 	StartTimer: (self: Agent, name: string, seconds: number) -> (),
 	TimerDone: (self: Agent, name: string) -> boolean,
 	TimerLeft: (self: Agent, name: string) -> number,
+	TimeInState: (self: Agent) -> number,
+	Pause: (self: Agent) -> (),
+	Resume: (self: Agent) -> (),
+	IsPaused: (self: Agent) -> boolean,
+	LookAt: (self: Agent, position: Vector3?) -> (),
+	Teleport: (self: Agent, position: Vector3) -> (),
+	IsNew: (self: Agent, key: string) -> boolean,
+	Acknowledge: (self: Agent, key: string) -> (),
 	Step: (self: Agent, deltaTime: number) -> (),
 	Start: (self: Agent, manual: boolean?) -> Agent,
 	IsRunning: (self: Agent) -> boolean,
@@ -520,12 +625,30 @@ export type Snapshot = {
 }
 
 --[=[
-	@type KillKind "Live" | "BlackBox"
+	@type KillKind "Live" | "BlackBox" | "Scare"
 	@within Types
 
-	How a [Kill] is presented: played out in the world, or cut to black.
+	How a [Kill] is presented: played out in the world, cut to black, or a scare, which is the
+	live hold without the death.
 ]=]
-export type KillKind = "Live" | "BlackBox"
+export type KillKind = "Live" | "BlackBox" | "Scare"
+
+--[=[
+	@interface HealthProvider
+	@within Types
+
+	.Get (character: Model) -> number -- The character's current health.
+	.Damage (character: Model, amount: number) -> () -- Hurt it.
+	.Kill ((character: Model) -> ())? -- Finish it. Default: `Damage` with `math.huge`.
+
+	How [Attack] and [Kill] read and change a victim's health when the game does not use the
+	`Humanoid` for it. Without one, the Humanoid's `Health` and `TakeDamage` are used.
+]=]
+export type HealthProvider = {
+	Get: (character: Model) -> number,
+	Damage: (character: Model, amount: number) -> (),
+	Kill: ((character: Model) -> ())?,
+}
 
 --[=[
 	@interface KillEvent
@@ -533,10 +656,11 @@ export type KillKind = "Live" | "BlackBox"
 
 	.Kind KillKind
 	.Victim Model -- The character being killed.
-	.Duration number -- Seconds until the victim dies, for the client to match.
+	.Duration number -- Seconds until the victim dies (or, for a scare, is released), for the client to match.
 
-	The payload of the `"Kill"` event an agent emits. A `"KillCancelled"` event with `{ Kind,
-	Victim }` follows if the kill ends without a death.
+	The payload of the `"Kill"` event an agent emits, and of the `"Scare"` event a scare emits.
+	A `"KillCancelled"` (or `"ScareCancelled"`) event with `{ Kind, Victim }` follows if it ends
+	early.
 ]=]
 export type KillEvent = {
 	Kind: KillKind,

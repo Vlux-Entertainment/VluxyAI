@@ -171,6 +171,16 @@ return {
 		expect.sequence(labels(path), { "n1", "goal" })
 	end,
 
+	["Blocked is the local pathfinder's signal, and absent when it has none"] = function(expect)
+		local s = setup()
+		expect.equal(s.hybrid.Blocked, nil)
+
+		local signal = Fakes.Signal().new()
+		s.localPathfinder.Blocked = signal
+		local hybrid = s.Hybrid.new({ Graph = s.graph, Local = s.localPathfinder })
+		expect.equal(hybrid.Blocked, signal)
+	end,
+
 	["Destroy destroys both and new checks its arguments"] = function(expect)
 		local s = setup()
 		s.hybrid:Destroy()
@@ -186,5 +196,18 @@ return {
 		end)
 		expect.includes(message, 'unknown option "Radius"')
 		expect.equal(s.hybrid.Name, "Hybrid")
+	end,
+
+	["Close is passed to the graph and the local pathfinder"] = function(expect)
+		local s = setup()
+		local log = {}
+		s.graph.Close = function(_self, _step, seconds)
+			table.insert(log, `graph {seconds}`)
+		end
+		s.localPathfinder.Close = function(_self, _step, seconds)
+			table.insert(log, `local {seconds}`)
+		end
+		s.hybrid:Close({ Position = Vector3.new(), Action = "Custom", Label = "Door" }, 4)
+		expect.sequence(log, { "graph 4", "local 4" })
 	end,
 }

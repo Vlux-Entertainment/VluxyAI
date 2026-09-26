@@ -5,8 +5,8 @@
 	you ask for. Opt-in; refreshes on state changes and on a slow timer for the values.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local Options = require(script.Parent.Parent.Utility.Options)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ type self = {
 	_agent: Types.Agent,
 	_options: ResolvedOptions,
 	_label: TextLabel,
-	_trove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local StateLabel = {}
@@ -99,7 +99,7 @@ function StateLabel.new(agent: Types.Agent, options: StateLabelOptions?): StateL
 
 	local resolved = Options.Resolve("StateLabel.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "VluxyAI_StateLabel"
@@ -124,23 +124,23 @@ function StateLabel.new(agent: Types.Agent, options: StateLabelOptions?): StateL
 
 	billboard.Adornee = agent.Entity.PrimaryPart or agent.Entity
 	billboard.Parent = agent.Entity
-	trove:Add(billboard)
+	cleaner:Add(billboard)
 
 	local self: self = {
 		_agent = agent,
 		_options = resolved,
 		_label = label,
-		_trove = trove,
+		_cleaner = cleaner,
 	}
 
 	local stateLabel = setmetatable(self, StateLabel)
 
-	trove:Connect(agent.StateChanged, function()
+	cleaner:Connect(agent.StateChanged, function()
 		stateLabel:Refresh()
 	end)
 
 	local elapsed = 0
-	trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		elapsed += deltaTime
 		if elapsed < resolved.Interval then
 			return
@@ -177,7 +177,7 @@ end
 	@within StateLabel
 ]=]
 function StateLabel.Destroy(self: StateLabel)
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 end
 
 return StateLabel

@@ -12,10 +12,10 @@
 	moves it toward the streamed position, smoothed so the sample rate never shows.
 ]]
 
+local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
-local Trove = require(script.Parent.Parent.Utility.Trove)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ type self = {
 	_handlers: { [string]: { Handler } },
 	_exiting: string?,
 	_destroyed: boolean,
-	_trove: Trove.Trove,
+	_cleaner: Cleaner.Cleaner,
 }
 
 local Replica = {}
@@ -175,7 +175,7 @@ function Replica.new(options: ReplicaOptions): Replica
 	given.Visuals = nil
 	local resolved = Options.Resolve("Replica.new", DEFAULT_OPTIONS, given) :: ResolvedOptions
 
-	local trove = Trove.new()
+	local cleaner = Cleaner.new()
 	local self: self = {
 		Entity = entity,
 		Data = {},
@@ -190,13 +190,13 @@ function Replica.new(options: ReplicaOptions): Replica
 		_handlers = {},
 		_exiting = nil,
 		_destroyed = false,
-		_trove = trove,
+		_cleaner = cleaner,
 	}
 
 	local replica = setmetatable(self, Replica) :: ReplicaClass
 
 	local RunService = game:GetService("RunService")
-	trove:Connect(RunService.Heartbeat, function(deltaTime: number)
+	cleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		replica:Step(deltaTime)
 	end)
 
@@ -398,7 +398,7 @@ function Replica.Destroy(self: ReplicaClass)
 	end
 	self._state = nil
 
-	self._trove:Destroy()
+	self._cleaner:Destroy()
 	self.StateChanged:Destroy()
 	self.Events:Destroy()
 end

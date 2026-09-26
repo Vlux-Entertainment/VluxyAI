@@ -291,4 +291,204 @@ return {
 		s.sight:Destroy()
 		expect.truthy(true)
 	end,
+
+	["Visibility scales the range per target and is written for the nearest"] = function(expect)
+		local dark = SenseFakes.Part(Vector3.new(0, 0, -30))
+		local lit = SenseFakes.Part(Vector3.new(3, 0, -35))
+		local s = setup({
+			sight = {
+				Range = 40,
+				Targets = SenseFakes.Targets({ dark, lit }),
+				Visibility = function(_agent, target)
+					return if target == lit then 1 else 0.5
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(#s.blackboard.SeenTargets, 1, "the dark one is out of its halved range")
+		expect.equal(s.blackboard.SeenTarget, lit)
+		expect.equal(s.blackboard.SeenVisibility, 1)
+
+		s.blackboard.SeenTargets = nil
+		local blind = setup({
+			sight = {
+				Targets = SenseFakes.Targets({ SenseFakes.Part(Vector3.new(0, 0, -5)) }),
+				Visibility = function()
+					return 0
+				end,
+			},
+		})
+		blind.sight:Tick(blind.agent, 0.1)
+		expect.equal(blind.blackboard.SeenTarget, nil, "zero visibility is invisible")
+		expect.equal(blind.blackboard.SeenVisibility, 0)
+	end,
+
+	["without Visibility every seen target has visibility 1"] = function(expect)
+		local s = setup({ sight = { Targets = SenseFakes.Targets({ SenseFakes.Part(Vector3.new(0, 0, -10)) }) } })
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenVisibility, 1)
+	end,
+
+	["SeeThrough lets the ray look past glass but not past a wall"] = function(expect)
+		local glass = { Name = "Window", Transparency = 0.6 }
+		local wall = { Name = "Wall", Transparency = 0 }
+		local target = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local function blockedBy(part)
+			return function(ray)
+				if table.find(ray.Params.FilterDescendantsInstances, part) then
+					return nil
+				end
+				return {
+					Instance = setmetatable(
+						part,
+						{ __index = {
+							IsDescendantOf = function()
+								return false
+							end,
+						} }
+					),
+				}
+			end
+		end
+
+		local seesGlass = setup({
+			sight = {
+				Targets = SenseFakes.Targets({ target }),
+				SeeThrough = function(part)
+					return part.Transparency >= 0.5
+				end,
+			},
+			hit = blockedBy(glass),
+		})
+		seesGlass.sight:Tick(seesGlass.agent, 0.1)
+		expect.equal(seesGlass.blackboard.SeenTarget, target, "glass does not block")
+
+		local wallStops = setup({
+			sight = {
+				Targets = SenseFakes.Targets({ target }),
+				SeeThrough = function(part)
+					return part.Transparency >= 0.5
+				end,
+			},
+			hit = blockedBy(wall),
+		})
+		wallStops.sight:Tick(wallStops.agent, 0.1)
+		expect.equal(wallStops.blackboard.SeenTarget, nil, "a wall still blocks")
+	end,
+
+	["Prefix puts every key under a name, so two sights coexist"] = function(expect)
+		local target = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local s = setup({ sight = { Prefix = "Peripheral", Targets = SenseFakes.Targets({ target }) } })
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PeripheralSeenTarget, target)
+		expect.near(s.blackboard.PeripheralSeenDistance, 10)
+		expect.equal(s.blackboard.PeripheralSeenAt, 100)
+		expect.equal(s.blackboard.SeenTarget, nil, "nothing under the bare name")
+
+		s.blackboard.PeripheralSeenAt = nil
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PeripheralSeenAt, 100, "reads go through the prefix too")
+	end,
+
+	["Configure changes options in place and keeps the rest"] = function(expect)
+		local far = SenseFakes.Part(Vector3.new(0, 0, -30))
+		local s = setup({ sight = { Range = 20, Targets = SenseFakes.Targets({ far }) } })
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, nil)
+		s.sight:Configure({ Range = 40 })
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenTarget, far, "the wider range sees it; Targets was kept")
+
+		expect.includes(
+			expect.errors(function()
+				s.sight:Configure({ Rnage = 1 } :: any)
+			end),
+			"Sight.Configure"
+		)
+		expect.includes(
+			expect.errors(function()
+				s.sight:Configure({ Range = -1 })
+			end),
+			"Range must be zero or more"
+		)
+	end,
+
+	["PerTarget keeps where each target was last seen for Memory seconds"] = function(expect)
+		local left = SenseFakes.Part(Vector3.new(-5, 0, -10))
+		local right = SenseFakes.Part(Vector3.new(5, 0, -10))
+		local seen = { left, right }
+		local s = setup({
+			sight = {
+				Memory = 3,
+				PerTarget = true,
+				Targets = function()
+					return seen
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		local memory = s.blackboard.SeenMemory
+		expect.equal(memory[left].Position, Vector3.new(-5, 0, -10))
+		expect.equal(memory[right].At, 100)
+
+		seen = { right }
+		right.Position = Vector3.new(8, 0, -10)
+		s.clock:Advance(2)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenMemory, memory, "the same table, updated in place")
+		expect.equal(memory[left].Position, Vector3.new(-5, 0, -10), "still remembered")
+		expect.equal(memory[right].Position, Vector3.new(8, 0, -10), "refreshed")
+
+		s.clock:Advance(1.5)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(memory[left], nil, "forgotten after Memory")
+		expect.truthy(memory[right] ~= nil)
+
+		local plain = setup({ sight = { Targets = SenseFakes.Targets({ left }) } })
+		plain.sight:Tick(plain.agent, 0.1)
+		expect.equal(plain.blackboard.SeenMemory, nil, "off by default")
+	end,
+
+	["SeenVelocity and PredictedPosition carry the target forward after losing sight"] = function(expect)
+		local runner = SenseFakes.Part(Vector3.new(0, 0, -10))
+		runner.AssemblyLinearVelocity = Vector3.new(4, 9, 0)
+		local seen = { runner }
+		local s = setup({
+			sight = {
+				Memory = 5,
+				Predict = 2,
+				Targets = function()
+					return seen
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenVelocity, Vector3.new(4, 0, 0), "flat")
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(0, 0, -10), "in sight: where it is")
+
+		seen = {}
+		s.clock:Advance(1)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(4, 0, -10), "one second on")
+		s.clock:Advance(2)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(8, 0, -10), "capped at Predict seconds")
+		expect.equal(s.blackboard.SeenVelocity, Vector3.new(4, 0, 0), "kept with the memory")
+
+		s.clock:Advance(3)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, nil, "gone with SeenPosition")
+		expect.equal(s.blackboard.SeenVelocity, nil)
+
+		local still = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local off = setup({ sight = { Predict = 0, Targets = SenseFakes.Targets({ still }) } })
+		off.sight:Tick(off.agent, 0.1)
+		expect.equal(off.blackboard.SeenVelocity, nil, "a part with no velocity")
+		expect.equal(off.blackboard.PredictedPosition, Vector3.new(0, 0, -10))
+	end,
 }

@@ -7,9 +7,8 @@
 
 	`script` is a proxy that tracks a filesystem path. `script.Parent.Parent.Types` from
 	`lib/Brain/Runner.luau` walks to `lib/Types`, which resolves to `lib/Types.luau`; a module
-	folder resolves to its `init.luau`. A child of the repo root that does not exist is looked up
-	under `Packages/`, which is where Wally puts a dependency's link file, so
-	`lib/Utility/Trove.luau` finds the real Trove the same way it does inside a game.
+	folder resolves to its `init.luau`. The package has no dependencies, so every require resolves
+	inside the repo.
 
 	Every module resolved during one Load is cached for that Load only, so two specs never share
 	module state.
@@ -21,7 +20,7 @@ local roblox = require("@lune/roblox")
 local task = require("@lune/task")
 
 export type Options = {
-	-- module path without extension -> what `require` returns for it, e.g. ["lib/Utility/Trove"]
+	-- module path without extension -> what `require` returns for it, e.g. ["lib/Combat/Kill"]
 	modules: { [string]: any }?,
 	-- service name -> the value `game:GetService` returns; anything else is a bare proxy
 	services: { [string]: any }?,
@@ -103,10 +102,6 @@ local function resolveFile(modulePath: string): string?
 		if fs.isFile(candidate) then
 			return candidate
 		end
-	end
-
-	if dirname(modulePath) == "." then
-		return resolveFile(`Packages/{basename(modulePath)}`)
 	end
 
 	return nil

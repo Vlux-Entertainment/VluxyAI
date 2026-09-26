@@ -31,7 +31,7 @@ Three deliverables live here:
 | Package-only build | `rojo build default.project.json -o VluxyAI.rbxm` |
 | Lint / format | `selene lib examples tests` / `stylua lib examples tests` |
 | Type check | `rojo sourcemap test-place.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --defs=.luau-analyze/globalTypes.d.luau --platform=roblox lib examples` |
-| Install deps | `wally install` |
+| Install deps | none; `wally install` only when a consumer pins this package |
 | Docs preview | `moonwave dev` |
 
 Run `lune run tests/runner` before every commit. A spec is a table of
@@ -47,19 +47,33 @@ lib/
   Builder.luau       fluent builder -> AgentDefinition -> Agent
   Agent.luau         the running AI: tick loop, blackboard, senses, brain runner, navigator
   Navigator.luau     owns pathfinder + mover; MoveTo every tick, re-plans on a cadence
-  Brain/Runner       runs a Brain table: Enter/Update/Exit, ordered transitions
+  Brain/Runner       runs a Brain table: interrupts, then Enter/Update/Exit and ordered transitions
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
-  Senses/            Sight, Proximity, Hearing, Watched, Surroundings: Tick(agent, dt) writes the blackboard
-  Senses/Perception  public helpers the senses are made of (alive roots, cones, line of sight, HumanoidOf)
+  Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
+  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait); scratch in agent.Data
+  Director.luau      tension meter, difficulty, shared blackboard for a group; director:Sense()
+  Interest.luau      points of interest with strength; Best picks where to look next; States.Roam walks it
+  Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Neighbours
+                     (a shared instance is a group; optional Slow via the agent's speed scale and Avoid via
+                     the mover's SetNudge), Throttle: Tick(agent, dt) writes the blackboard; all take Prefix
+                     and have Configure
+  Senses/Perception  public helpers the senses are made of (alive roots minus AI_HIDDEN, cones, line of
+                     sight with SeeThrough, LightAt over AI_LIGHT, CountWalls, SeenByAnyone, HumanoidOf)
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
-                     Graph (A* over authored nodes), Hybrid (graph for the level, local for geometry)
+                     Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
+                     Hybrid (graph for the level, local for geometry)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
-  Animator/          NPCAnimator (tracks by name) and Locomotion (idle/walk from real speed, one-shots)
-  Sync/              Broadcaster (server: state, position samples, events) and Replica (client: rig + Visuals)
-  Combat/            Attack (Strike and the one generic state) and Kill (Live and BlackBox kills)
-  Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
-  Utility/           Signal (pure), FormatMessage, Tables, Options (option resolver), Trove (the one outside require)
+  Animator/          NPCAnimator (tracks by name), Locomotion (idle/walk from real speed, one-shots) and
+                     Footsteps (client-side step audio from measured movement)
+  Sync/              Broadcaster (server: state, position samples, events), Replica (client: rig + Visuals),
+                     Look (camera direction: Report on the client, Receive on the server, Eye for Watched)
+  Combat/            Attack (Strike and the one generic state; Kill = "Scare" for a non-lethal grab; an
+                     optional HealthProvider) and Kill (Live, BlackBox and Scare, one shared hold)
+  Debug/             PathVisual (waypoint balls), StateLabel (billboard), SenseVisual (cone, ranges, marks),
+                     Rig (runtime R15); opt-in. Builder:SetStrictBlackboard warns on typo'd key reads
+  Utility/           Signal (pure), FormatMessage, Tables (incl. Prefixed), Options (option resolver),
+                     Cleaner (cleanup bag), Claims (who is on what, for a group)
 ```
 
 Rules that keep it composable and testable:
@@ -74,11 +88,17 @@ Rules that keep it composable and testable:
   `agent:MoveTo(position)` and never touch a pathfinder.
 - **Pathfinders only plan, movers only move.** A pathfinder returns `(Path?, reason?)` and may
   yield; a mover fires `Arrived(false)` for a path it replaces inside `Follow` and reports the new
-  path on a later frame, never inside `Follow`.
+  path on a later frame, never inside `Follow`. A labelled step with a handler (`Builder:OnStep`)
+  is the Navigator's job: it stops the mover there, reports `Interacting`, and resumes the path.
+- **Enemies never read a player's position.** Sight writes what it saw, with `PredictedPosition`
+  carried forward; Interest holds where a player would plausibly be. A state that needs to find
+  someone searches those, never `Character.PrimaryPart.Position`.
+- **Horror tooling is general tooling.** Awareness, hiding, light, doors, Claims and the Director
+  are plain contracts and options any game can use; nothing is named after a genre.
 - **Contracts, not registries.** No string-union catalogue of kinds, no `Register` call. A game
   passes its own pathfinder in; the package never learns it exists.
-- **The one outside require** is `lib/Utility/Trove.luau`, which walks three parents up to the
-  Wally sibling. Every other require is relative through `script`.
+- **No dependencies.** Cleanup goes through `Utility/Cleaner`, the package's own bag. Every
+  require is relative through `script`.
 
 ## Conventions
 
@@ -89,7 +109,7 @@ Rules that keep it composable and testable:
   plain `--[[ ]]` comment. Types are documented in `Types.luau` with `@interface` / `@type`.
 - Warnings and errors go through `Utility/FormatMessage` so they carry the `[VluxyAI]` prefix.
   Validation errors name the field path (`Definition.Brain.States.Hunt.Transitions[2].To`).
-- Cleanup is `Destroy`, never `Cleanup`, so Trove picks it up.
+- Cleanup is `Destroy`, never `Cleanup`, so a `Cleaner` (or a consumer's Trove) picks it up.
 - Classes: `local X = {}; X.__index = X`, a `type self = {}` for fields, `export type X = typeof(setmetatable({} :: self, X))`, private fields `_prefixed`.
 - Options tables: a frozen `DEFAULT_OPTIONS` at the top, resolved with `Utility/Options.Resolve`,
   which errors on unknown keys. Callback options with no default go in its `allowed` list.
@@ -97,7 +117,14 @@ Rules that keep it composable and testable:
   Movers add their own height (`CFrameMover` measures it on the first path).
 - Distances on the blackboard are `math.huge` when there is nothing to measure; memory keys
   (`SeenAt`, `HeardAt`) are cleared to `nil` when forgotten.
-- Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`.
+- Waiting in a state is `agent:StartTimer(name, seconds)` then `agent:TimerDone(name)`. Timers and
+  `TimeInState` hold while the agent is paused.
+- `agent:SetSpeed` is the base speed a state asks for; `agent:SetSpeedScale` is a multiplier layered
+  on it (crowding, stuns, the director) that survives state changes. Movers only ever see the product.
+- Reserved names a game meets: attributes `AI_HIDDEN` and `AI_SOUND/Multiplier`, tags `AI_SOUND`,
+  `AI_LIGHT` and (by convention in the docs) `AI_DOOR`. Prefixed so they do not collide with a project's own.
+- Doors: a labelled step from a navmesh `PathfindingLink`/modifier or a Graph link, one `OnStep` handler
+  for both. A handler returning `false` fails the path and calls the pathfinder's optional `Close`.
 - Tabs, 120 columns, double quotes, `stylua.toml` and `selene.toml` are the arbiters.
 - Version bumps happen in `wally.toml` and are mentioned in the commit message.
 

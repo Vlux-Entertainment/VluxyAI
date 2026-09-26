@@ -7,18 +7,23 @@
 
 	The one decision worth knowing: an empty path counts as a failure and the next rung is tried,
 	because the Navigator treats an empty path as a failure anyway and a later rung may still know
-	the way.
+	the way. `Blocked` is forwarded only from the rung whose path is the current one: a Navmesh
+	rung that lost to Straight still holds an older path, and a block on that is not news.
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Signal = require(script.Parent.Parent.Utility.Signal)
 local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 type self = {
 	Name: string,
+	Blocked: Types.Signal<()>,
 
 	_pathfinders: { Types.Pathfinder },
+	_current: Types.Pathfinder?,
+	_connections: { Types.Connection },
 }
 
 local Ladder = {}
@@ -39,6 +44,9 @@ export type Ladder = typeof(setmetatable({} :: self, Ladder))
 	`Path` of its own and its `Destroy` releases it, so a ladder shared by two agents dies with the
 	first. Keep the rungs' `AgentRadius` and `AgentHeight` in step with each other, since each rung
 	measures the body on its own.
+
+	`Blocked` fires when the rung that produced the last path fires its own `Blocked`; other
+	rungs' signals are ignored.
 ]=]
 
 --[=[
@@ -52,11 +60,30 @@ function Ladder.new(pathfinders: { Types.Pathfinder }): Types.Pathfinder
 		FormatMessage.Error("Ladder.new: needs at least one pathfinder", 2)
 	end
 
+	local blocked = Signal.new()
+
 	local self: self = {
 		Name = "Ladder",
+		Blocked = blocked,
 
 		_pathfinders = table.clone(pathfinders),
+		_current = nil,
+		_connections = {},
 	}
+
+	for _, pathfinder in self._pathfinders do
+		local signal = (pathfinder :: any).Blocked
+		if type(signal) == "table" and type(signal.Connect) == "function" then
+			table.insert(
+				self._connections,
+				signal:Connect(function()
+					if self._current == pathfinder then
+						blocked:Fire()
+					end
+				end)
+			)
+		end
+	end
 
 	return setmetatable(self, Ladder) :: any
 end
@@ -88,9 +115,12 @@ end
 function Ladder.FindPath(self: Ladder, from: Vector3, to: Vector3, agent: Types.Agent): (Types.Path?, string?)
 	local reasons = {}
 
+	self._current = nil
+
 	for index, pathfinder in self._pathfinders do
 		local path, reason = pathfinder:FindPath(from, to, agent)
 		if path ~= nil and #path > 0 then
+			self._current = pathfinder
 			return path, nil
 		end
 
@@ -103,16 +133,41 @@ end
 
 --[=[
 	@within Ladder
+	@param step Step
+	@param seconds number
 
-	Calls `Destroy` on every rung that has one, in order.
+	Passes the closure to every rung that has `Close`, since any of them might plan through
+	the same door next time.
+]=]
+function Ladder.Close(self: Ladder, step: Types.Step, seconds: number)
+	for _, pathfinder in self._pathfinders do
+		local close = (pathfinder :: any).Close
+		if type(close) == "function" then
+			close(pathfinder, step, seconds)
+		end
+	end
+end
+
+--[=[
+	@within Ladder
+
+	Calls `Destroy` on every rung that has one, in order, then drops the `Blocked` signal.
 ]=]
 function Ladder.Destroy(self: Ladder)
+	for _, connection in self._connections do
+		connection:Disconnect()
+	end
+	table.clear(self._connections)
+	self._current = nil
+
 	for _, pathfinder in self._pathfinders do
 		local destroy = pathfinder.Destroy
 		if destroy then
 			destroy(pathfinder)
 		end
 	end
+
+	self.Blocked:Destroy()
 end
 
 return Ladder
