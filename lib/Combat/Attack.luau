@@ -23,14 +23,14 @@ local Types = require(script.Parent.Parent.Types)
 
 	.Kill KillKind? -- How a blow that would finish the victim is delivered; `"Scare"` makes every blow a hold that lets go. Default: plain damage.
 	.Animation string? -- A one-shot loaded by [Locomotion] to play on a plain blow. Default `"Attack"`.
-	.KillerAnimation number? -- Animation id for the killer in a live kill or scare. Default none.
+	.KillerAnimation number | string? -- For a live kill or scare: an animation id for the killer, or the name of a one-shot on its [Locomotion]. Default none.
 	.VictimAnimation number? -- Animation id for the victim in a live kill or scare. Default none.
 	.Health HealthProvider? -- Where the victim's health lives, when not on the Humanoid.
 ]=]
 export type StrikeOptions = {
 	Kill: Types.KillKind?,
 	Animation: string?,
-	KillerAnimation: number?,
+	KillerAnimation: (number | string)?,
 	VictimAnimation: number?,
 	Health: Types.HealthProvider?,
 }
@@ -45,7 +45,7 @@ export type StrikeOptions = {
 	.Then string -- The state to enter when the cooldown ends (and any kill has finished).
 	.Kill KillKind? -- As [Attack.StrikeOptions].
 	.Animation string? -- As [Attack.StrikeOptions].
-	.KillerAnimation number? -- As [Attack.StrikeOptions].
+	.KillerAnimation number | string? -- As [Attack.StrikeOptions].
 	.VictimAnimation number? -- As [Attack.StrikeOptions].
 	.Health HealthProvider? -- As [Attack.StrikeOptions].
 ]=]
@@ -56,7 +56,7 @@ export type AttackStateOptions = {
 	Then: string,
 	Kill: Types.KillKind?,
 	Animation: string?,
-	KillerAnimation: number?,
+	KillerAnimation: (number | string)?,
 	VictimAnimation: number?,
 	Health: Types.HealthProvider?,
 }

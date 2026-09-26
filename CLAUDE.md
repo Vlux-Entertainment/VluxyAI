@@ -53,6 +53,7 @@ lib/
   Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
   Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait); scratch in agent.Data
   Director.luau      tension meter, difficulty, shared blackboard for a group; director:Sense()
+  Interest.luau      points of interest with strength; Best picks where to look next; States.Roam walks it
   Senses/            Sight, Proximity, Hearing, Sounds, Awareness, Watched, Surroundings, Neighbours
                      (a shared instance is a group; optional Slow via the agent's speed scale and Avoid via
                      the mover's SetNudge), Throttle: Tick(agent, dt) writes the blackboard; all take Prefix
@@ -63,12 +64,14 @@ lib/
                      Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
                      Hybrid (graph for the level, local for geometry)
   Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig)
-  Animator/          NPCAnimator (tracks by name) and Locomotion (idle/walk from real speed, one-shots)
+  Animator/          NPCAnimator (tracks by name), Locomotion (idle/walk from real speed, one-shots) and
+                     Footsteps (client-side step audio from measured movement)
   Sync/              Broadcaster (server: state, position samples, events), Replica (client: rig + Visuals),
                      Look (camera direction: Report on the client, Receive on the server, Eye for Watched)
   Combat/            Attack (Strike and the one generic state; Kill = "Scare" for a non-lethal grab; an
                      optional HealthProvider) and Kill (Live, BlackBox and Scare, one shared hold)
-  Debug/             PathVisual (waypoint balls), StateLabel (billboard), Rig (runtime R15); opt-in
+  Debug/             PathVisual (waypoint balls), StateLabel (billboard), SenseVisual (cone, ranges, marks),
+                     Rig (runtime R15); opt-in. Builder:SetStrictBlackboard warns on typo'd key reads
   Utility/           Signal (pure), FormatMessage, Tables (incl. Prefixed), Options (option resolver),
                      Cleaner (cleanup bag), Claims (who is on what, for a group)
 ```
@@ -87,6 +90,9 @@ Rules that keep it composable and testable:
   yield; a mover fires `Arrived(false)` for a path it replaces inside `Follow` and reports the new
   path on a later frame, never inside `Follow`. A labelled step with a handler (`Builder:OnStep`)
   is the Navigator's job: it stops the mover there, reports `Interacting`, and resumes the path.
+- **Enemies never read a player's position.** Sight writes what it saw, with `PredictedPosition`
+  carried forward; Interest holds where a player would plausibly be. A state that needs to find
+  someone searches those, never `Character.PrimaryPart.Position`.
 - **Horror tooling is general tooling.** Awareness, hiding, light, doors, Claims and the Director
   are plain contracts and options any game can use; nothing is named after a genre.
 - **Contracts, not registries.** No string-union catalogue of kinds, no `Register` call. A game

@@ -27,6 +27,7 @@
 
 local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Locomotion = require(script.Parent.Parent.Animator.Locomotion)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Types = require(script.Parent.Parent.Types)
@@ -47,7 +48,7 @@ local LIVE_DEFAULTS = table.freeze({
 	-- Where the victim is held, relative to the killer's pivot.
 	Offset = CFrame.new(0, 0, -2.5) * CFrame.Angles(0, math.pi, 0),
 	-- Animation asset ids; nil plays none.
-	KillerAnimation = nil :: number?,
+	KillerAnimation = nil :: (number | string)?,
 	VictimAnimation = nil :: number?,
 	Health = nil :: Types.HealthProvider?,
 })
@@ -58,7 +59,7 @@ local SCARE_DEFAULTS = table.freeze({
 	Duration = 1,
 	Offset = CFrame.new(0, 0, -2.5) * CFrame.Angles(0, math.pi, 0),
 	Damage = 0,
-	KillerAnimation = nil :: number?,
+	KillerAnimation = nil :: (number | string)?,
 	VictimAnimation = nil :: number?,
 	Health = nil :: Types.HealthProvider?,
 })
@@ -96,14 +97,14 @@ end
 
 	.Duration number? -- Seconds the hold lasts before the victim dies. Default `1.5`.
 	.Offset CFrame? -- Where the victim is held, relative to the killer's pivot. Default 2.5 studs in front, facing the killer.
-	.KillerAnimation number? -- Animation asset id played on the killer. Default none.
+	.KillerAnimation number | string? -- Played on the killer: an animation asset id, or the name of a one-shot on the killer's [Locomotion]. Default none.
 	.VictimAnimation number? -- Animation asset id played on the victim. Default none.
 	.Health HealthProvider? -- Where the victim's health lives, when not on the Humanoid.
 ]=]
 export type LiveKillOptions = {
 	Duration: number?,
 	Offset: CFrame?,
-	KillerAnimation: number?,
+	KillerAnimation: (number | string)?,
 	VictimAnimation: number?,
 	Health: Types.HealthProvider?,
 }
@@ -115,7 +116,7 @@ export type LiveKillOptions = {
 	.Duration number? -- Seconds the hold lasts before the victim is let go. Default `1`.
 	.Offset CFrame? -- Where the victim is held, relative to the killer's pivot. Default 2.5 studs in front, facing the killer.
 	.Damage number? -- Dealt when the hold ends. Default `0`.
-	.KillerAnimation number? -- Animation asset id played on the killer. Default none.
+	.KillerAnimation number | string? -- Played on the killer: an asset id, or a [Locomotion] one-shot name. Default none.
 	.VictimAnimation number? -- Animation asset id played on the victim. Default none.
 	.Health HealthProvider? -- Where the victim's health lives, when not on the Humanoid.
 ]=]
@@ -123,7 +124,7 @@ export type ScareOptions = {
 	Duration: number?,
 	Offset: CFrame?,
 	Damage: number?,
-	KillerAnimation: number?,
+	KillerAnimation: (number | string)?,
 	VictimAnimation: number?,
 	Health: Types.HealthProvider?,
 }
@@ -195,6 +196,22 @@ local function playAnimation(character: Model, id: number?): (() -> ())?
 	end
 end
 
+--[[
+	Plays a one-shot by name on the killer's Locomotion, returning a stop for it. A name with no
+	animator behind it warns through Locomotion and plays nothing.
+]]
+local function playNamed(agent: Types.Agent, name: string): (() -> ())?
+	if not Locomotion.Play(agent, name) then
+		return nil
+	end
+	return function()
+		local animator = Locomotion.Get(agent)
+		if animator ~= nil then
+			animator:Stop(name)
+		end
+	end
+end
+
 local function killVictim(character: Model, health: Types.HealthProvider?)
 	if health ~= nil then
 		if health.Kill then
@@ -239,7 +256,7 @@ local function hold(
 	cancelEvent: string,
 	duration: number,
 	offset: CFrame,
-	killerAnimation: number?,
+	killerAnimation: (number | string)?,
 	victimAnimation: number?,
 	health: Types.HealthProvider?,
 	ending: (victim: Model, humanoid: Humanoid?) -> boolean
@@ -316,7 +333,9 @@ local function hold(
 		end
 	end)
 
-	local stopKiller = playAnimation(agent.Entity, killerAnimation)
+	local stopKiller: (() -> ())? = if type(killerAnimation) == "string"
+		then playNamed(agent, killerAnimation)
+		else playAnimation(agent.Entity, killerAnimation)
 	local stopVictim = playAnimation(victim, victimAnimation)
 	cleaner:Add(function()
 		if stopKiller then

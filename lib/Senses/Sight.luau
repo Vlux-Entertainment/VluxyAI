@@ -17,6 +17,11 @@
 	  option), `0` when nothing is seen.
 	- `SeenMemory` { [BasePart]: { Position: Vector3, At: number } } -- With `PerTarget`: where
 	  each target was last seen, kept `Memory` seconds. One table, updated in place.
+	- `SeenVelocity` Vector3? -- The flat velocity of `SeenTarget` at the last sighting, read
+	  off its root, kept with `SeenPosition`. `nil` when the root has no velocity to read.
+	- `PredictedPosition` Vector3? -- Where the target would be now if it kept going: the last
+	  position plus up to `Predict` seconds of `SeenVelocity`. Equal to `SeenPosition` while in
+	  sight. The place to search first; a creature does not know, it guesses.
 
 	Two hooks make it a horror sense: `Visibility` scales the range per target (darkness, a
 	flashlight, crouching), and `SeeThrough` lets the ray pass glass. Players hidden with
@@ -44,6 +49,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	EyeOffset = Vector3.new(0, 0, 0),
 	Memory = 3,
 	PerTarget = false,
+	Predict = 2,
 })
 
 --[=[
@@ -59,6 +65,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.Visibility ((agent: Agent, target: BasePart) -> number)? -- How visible a target is, `0` to `1` (or more): the range is multiplied by it, so `0` is invisible and `0.5` is seen at half the distance. Pass `function(_, root) return VluxyAI.Perception.LightAt(root.Position) end` for darkness. Default: everything `1`.
 	.SeeThrough ((part: BasePart) -> boolean)? -- Parts the sight ray looks past, such as [Perception.Transparent]. Default: everything blocks.
 	.PerTarget boolean? -- Also write `SeenMemory`, the last position and time of every target seen within `Memory` seconds, so an enemy remembers where each of several players went. Default `false`.
+	.Predict number? -- Seconds of the target's last velocity to carry `PredictedPosition` forward after losing sight, capped. `0` turns prediction off. Default `2`.
 	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
 export type SightOptions = {
@@ -72,6 +79,7 @@ export type SightOptions = {
 	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
 	SeeThrough: ((part: BasePart) -> boolean)?,
 	PerTarget: boolean?,
+	Predict: number?,
 }
 
 type ResolvedOptions = {
@@ -85,6 +93,7 @@ type ResolvedOptions = {
 	Visibility: ((agent: Types.Agent, target: BasePart) -> number)?,
 	SeeThrough: ((part: BasePart) -> boolean)?,
 	PerTarget: boolean,
+	Predict: number,
 }
 
 type self = {
@@ -214,6 +223,9 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 		blackboard.SeenVisibility = visibilities[nearest]
 		blackboard.SeenPosition = nearest.Position
 		blackboard.SeenAt = now
+		local velocity = (nearest :: any).AssemblyLinearVelocity
+		blackboard.SeenVelocity = if typeof(velocity) == "Vector3" then Vector3.new(velocity.X, 0, velocity.Z) else nil
+		blackboard.PredictedPosition = nearest.Position
 		return
 	end
 
@@ -229,6 +241,17 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	if type(seenAt) == "number" and now - seenAt > options.Memory then
 		blackboard.SeenPosition = nil
 		blackboard.SeenAt = nil
+	end
+
+	local position = blackboard.SeenPosition
+	local velocity = blackboard.SeenVelocity
+	if typeof(position) ~= "Vector3" or type(seenAt) ~= "number" or blackboard.SeenAt == nil then
+		blackboard.SeenVelocity = nil
+		blackboard.PredictedPosition = nil
+	elseif typeof(velocity) == "Vector3" and options.Predict > 0 then
+		blackboard.PredictedPosition = position + velocity * math.min(now - seenAt, options.Predict)
+	else
+		blackboard.PredictedPosition = position
 	end
 end
 

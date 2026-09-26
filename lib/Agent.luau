@@ -83,10 +83,15 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	local entity = definition.Entity
 	local name = definition.Name or (entity :: any).Name or "Agent"
 
+	local blackboard = Tables.DeepCopy(definition.Blackboard or {})
+	if definition.StrictBlackboard then
+		blackboard = Agent.StrictBlackboard(blackboard, name)
+	end
+
 	local self: self = {
 		Entity = entity,
 		Name = name,
-		Blackboard = Tables.DeepCopy(definition.Blackboard or {}),
+		Blackboard = blackboard,
 		Data = Tables.DeepCopy(definition.Data or {}),
 		Brain = definition.Brain,
 		Senses = table.clone(definition.Senses or {}),
@@ -136,6 +141,55 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 end
 
 ------------------------------------------------------------------------------------------------------------------------
+
+--[=[
+	@within Agent
+	@param blackboard Blackboard -- The real table; initial keys count as known.
+	@param name string -- For the warning.
+	@return Blackboard -- A view that warns once per key that reads as a misspelling of a known one.
+
+	What `StrictBlackboard` on the definition installs. Writes go through and make the key
+	known; a read of an unknown key whose spelling is within two edits (or a case change) of a
+	known key warns, naming both. Any other unknown read is an ordinary `nil`, since memory keys
+	are `nil` most of the time by design.
+]=]
+function Agent.StrictBlackboard(blackboard: Types.Blackboard, name: string): Types.Blackboard
+	local known: { [string]: boolean } = {}
+	for key in blackboard do
+		if type(key) == "string" then
+			known[key] = true
+		end
+	end
+	local warned: { [string]: boolean } = {}
+
+	return setmetatable({}, {
+		__index = function(_view, key: any)
+			local value = blackboard[key]
+			if value ~= nil or type(key) ~= "string" or known[key] or warned[key] then
+				return value
+			end
+			for candidate in known do
+				local close = string.lower(candidate) == string.lower(key)
+					or (#key >= 4 and Tables.EditDistance(candidate, key) <= 2)
+				if close then
+					warned[key] = true
+					FormatMessage.Warn(`{name}: Blackboard.{key} is never written; did you mean {candidate}?`)
+					break
+				end
+			end
+			return nil
+		end,
+		__newindex = function(_view, key: any, value: any)
+			if type(key) == "string" then
+				known[key] = true
+			end
+			blackboard[key] = value
+		end,
+		__iter = function()
+			return next, blackboard
+		end,
+	}) :: any
+end
 
 --[=[
 	@within Agent

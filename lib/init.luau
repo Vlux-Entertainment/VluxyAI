@@ -9,6 +9,8 @@ local Agent = require(script.Agent)
 local Animator = require(script.Animator)
 local Builder = require(script.Builder)
 local Director = require(script.Director)
+local Footsteps = require(script.Animator.Footsteps)
+local Interest = require(script.Interest)
 local Locomotion = require(script.Animator.Locomotion)
 local Navigator = require(script.Navigator)
 local Types = require(script.Types)
@@ -24,6 +26,7 @@ local Kill = require(script.Combat.Kill)
 
 local PathVisual = require(script.Debug.PathVisual)
 local Rig = require(script.Debug.Rig)
+local SenseVisual = require(script.Debug.SenseVisual)
 local StateLabel = require(script.Debug.StateLabel)
 
 local CFrameMover = require(script.Movers.CFrameMover)
@@ -101,6 +104,9 @@ export type GraphNode = Graph.GraphNode
 export type GraphLink = Graph.GraphLink
 export type StepHandler = Types.StepHandler
 export type Director = Director.Director
+export type Interest = Interest.Interest
+export type InterestPoint = Interest.InterestPoint
+export type HealthProvider = Types.HealthProvider
 export type Claims = Claims.Claims
 export type LookReceiver = Look.LookReceiver
 
@@ -273,6 +279,15 @@ VluxyAI.Director = Director
 
 --[=[
 	@within VluxyAI
+	@prop Interest Interest
+
+	Points of interest with a strength each, and `Best` to pick where an enemy looks next.
+	[States.Roam] walks one.
+]=]
+VluxyAI.Interest = Interest
+
+--[=[
+	@within VluxyAI
 	@prop Claims Claims
 
 	A shared "who is on what" table, so two enemies never chase the same player unless you say so.
@@ -314,6 +329,14 @@ VluxyAI.Locomotion = Locomotion
 
 --[=[
 	@within VluxyAI
+	@prop Footsteps Footsteps
+
+	Footstep audio from measured movement, for the client's replica rigs (or a server rig).
+]=]
+VluxyAI.Footsteps = Footsteps
+
+--[=[
+	@within VluxyAI
 	@prop Sync { Broadcaster: Broadcaster, Replica: Replica, Look: Look }
 
 	Client-side presentation: a [Broadcaster] watches an agent on the server, a [Replica] drives
@@ -339,13 +362,14 @@ VluxyAI.Combat = {
 
 --[=[
 	@within VluxyAI
-	@prop Debug { PathVisual: PathVisual, StateLabel: StateLabel, Rig: Rig }
+	@prop Debug { PathVisual: PathVisual, StateLabel: StateLabel, SenseVisual: SenseVisual, Rig: Rig }
 
 	Opt-in debug views, and a runtime R15 rig for tests and playgrounds.
 ]=]
 VluxyAI.Debug = {
 	PathVisual = PathVisual,
 	StateLabel = StateLabel,
+	SenseVisual = SenseVisual,
 	Rig = Rig,
 }
 

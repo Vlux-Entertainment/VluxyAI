@@ -442,6 +442,7 @@ export type Navigator = {
 	.Tick number? -- Seconds between ticks. Default `0.1`.
 	.Navigation NavigationOptions? -- Navigator tuning.
 	.Steps { [string]: StepHandler }? -- What to do at labelled steps, by label. See [Builder:OnStep].
+	.StrictBlackboard boolean? -- Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.
 	.Name string? -- Used in messages. Default `Entity.Name`.
 
 	Everything an [Agent] is built from. The [Builder] produces one of these; you can also write it
@@ -458,6 +459,7 @@ export type AgentDefinition = {
 	Tick: number?,
 	Navigation: NavigationOptions?,
 	Steps: { [string]: StepHandler }?,
+	StrictBlackboard: boolean?,
 	Name: string?,
 }
 

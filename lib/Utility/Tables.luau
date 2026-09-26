@@ -74,6 +74,38 @@ function Tables.Prefixed(target: { [string]: any }, prefix: string): { [string]:
 	}) :: any
 end
 
+--[=[
+	@within Tables
+	@param a string
+	@param b string
+	@return number -- The edit distance: insertions, deletions and substitutions to turn `a` into `b`.
+]=]
+function Tables.EditDistance(a: string, b: string): number
+	local lengthA, lengthB = #a, #b
+	if lengthA == 0 then
+		return lengthB
+	end
+	if lengthB == 0 then
+		return lengthA
+	end
+
+	local previous = table.create(lengthB + 1)
+	for j = 0, lengthB do
+		previous[j + 1] = j
+	end
+	for i = 1, lengthA do
+		local current = table.create(lengthB + 1)
+		current[1] = i
+		local charA = string.sub(a, i, i)
+		for j = 1, lengthB do
+			local cost = if charA == string.sub(b, j, j) then 0 else 1
+			current[j + 1] = math.min(previous[j + 1] + 1, current[j] + 1, previous[j] + cost)
+		end
+		previous = current
+	end
+	return previous[lengthB + 1]
+end
+
 function Tables.FlatDistance(a: Vector3, b: Vector3): number
 	local dx = a.X - b.X
 	local dz = a.Z - b.Z

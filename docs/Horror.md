@@ -72,6 +72,38 @@ turn it into a horror sense.
 }))
 ```
 
+## Searching like a creature
+
+An enemy never reads a player's position. It knows what its senses wrote and nothing else, so
+the question is what it does once it has lost you. Three pieces answer it.
+
+- **Prediction.** Sight keeps `SeenVelocity` and carries `PredictedPosition` forward for up to
+  `Predict` seconds after losing you: not where you were, where you were going. Search there
+  first.
+- **Points of interest.** An [Interest](/api/Interest) map holds the places a player would
+  plausibly be, each with a strength: lockers, doorways, the generator. The game raises a point
+  when something happens near it, and it drifts back. `Best` scores strength, distance and how
+  long since this enemy looked there, so a group spreads out and nobody checks the same locker
+  twice running.
+- **Roaming.** [States.Roam](/api/States#Roam) walks the best point, lingers, marks it visited
+  and asks again, until nothing is worth a look or its time is up.
+
+```lua
+local interest = VluxyAI.Interest.new()
+for _, locker in CollectionService:GetTagged("Locker") do
+	interest:Add(locker, { Position = locker.Position, Tags = { "Hiding" } })
+end
+noises:Connect(function(position, loudness)
+	interest:BumpNear(position, 15, loudness or 1)
+end)
+
+Search = States.Search({ Around = "PredictedPosition", Duration = 8, Then = "Roam" }),
+Roam = States.Roam({ Interest = interest, Duration = 40, Then = "Patrol" }),
+```
+
+That is the shape of a creature that has to look: a guess at where you went, then the likely
+places in order of likelihood and nearness.
+
 ## A detection meter
 
 A stealth enemy does not hunt the instant a player crosses its cone. [Awareness](/api/Awareness)
@@ -189,6 +221,17 @@ flickering when neighbours keep moving.
 Enemies also hear each other. Give a mover `Noise = { Signal = noises, Interval = 0.5 }` and it
 fires the same signal the [Hearing](/api/Hearing) sense listens to as it walks, so a pack
 converges on a fight without any wiring in your states.
+
+The player's ears are the client's business: [Footsteps](/api/Footsteps) on the replica's rig
+plays a step every few studs of measured movement, locally, with no message from the server.
+
+## Seeing what it senses
+
+[SenseVisual](/api/SenseVisual) draws the sight cone (green while something is seen), the
+hearing and proximity circles, and markers at the last seen, predicted and last known
+positions, so ranges are tuned by eye. `Builder:SetStrictBlackboard()` makes the agent warn
+when a state reads a key that looks like a typo of one a sense wrote, which is most of what a
+typed blackboard would have caught, without the type plumbing.
 
 ## Keeping it cheap
 

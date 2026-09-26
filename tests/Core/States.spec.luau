@@ -352,4 +352,51 @@ return {
 		expect.equal(s.agent:GetState(), NEXT)
 		expect.sequence(log, { "enter", "exit" })
 	end,
+
+	["Roam walks the best interest point, lingers, marks it visited and moves on"] = function(expect)
+		local States = loadStates()
+		local Interest = Harness.Load("lib/Interest.luau")
+		local interest = Interest.new({ Decay = 0, Visited = 100 })
+		interest:Add("near", { Position = Vector3.new(10, 0, 0) })
+		interest:Add("far", { Position = Vector3.new(30, 0, 0) })
+		local s = setup(States.Roam({ Interest = interest, Linger = 1, Then = NEXT }))
+
+		s.agent:Start(true)
+		expect.equal(s:target(), Vector3.new(10, 0, 0), "nearest first")
+		s:arrive()
+		s.agent:Step(0.1)
+		expect.equal(#s.mover.Followed, 1, "lingering")
+		s.clock:Advance(1.1)
+		s.agent:Step(0.1)
+		expect.equal(s:target(), Vector3.new(30, 0, 0), "the near point is visited; the far one is next")
+		expect.equal(interest:SinceVisit(s.agent, "near") < 5, true)
+
+		s:arrive()
+		s.agent:Step(0.1)
+		s.clock:Advance(1.1)
+		s.agent:Step(0.1)
+		expect.equal(s.agent:GetState(), NEXT, "nothing left worth a look")
+	end,
+
+	["Roam leaves on Duration and needs an Interest"] = function(expect)
+		local States = loadStates()
+		local Interest = Harness.Load("lib/Interest.luau")
+		local interest = Interest.new()
+		interest:Add("a", { Position = Vector3.new(10, 0, 0) })
+		local s = setup(States.Roam({ Interest = interest, Duration = 5, Then = NEXT }))
+
+		s.agent:Start(true)
+		s.agent:Step(0.1)
+		expect.equal(s.agent:GetState(), "Test")
+		s.clock:Advance(5.1)
+		s.agent:Step(0.1)
+		expect.equal(s.agent:GetState(), NEXT)
+
+		expect.includes(
+			expect.errors(function()
+				States.Roam({ Then = NEXT } :: any)
+			end),
+			"Interest must be an Interest map"
+		)
+	end,
 }

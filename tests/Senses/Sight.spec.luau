@@ -452,4 +452,43 @@ return {
 		plain.sight:Tick(plain.agent, 0.1)
 		expect.equal(plain.blackboard.SeenMemory, nil, "off by default")
 	end,
+
+	["SeenVelocity and PredictedPosition carry the target forward after losing sight"] = function(expect)
+		local runner = SenseFakes.Part(Vector3.new(0, 0, -10))
+		runner.AssemblyLinearVelocity = Vector3.new(4, 9, 0)
+		local seen = { runner }
+		local s = setup({
+			sight = {
+				Memory = 5,
+				Predict = 2,
+				Targets = function()
+					return seen
+				end,
+			},
+		})
+
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.SeenVelocity, Vector3.new(4, 0, 0), "flat")
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(0, 0, -10), "in sight: where it is")
+
+		seen = {}
+		s.clock:Advance(1)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(4, 0, -10), "one second on")
+		s.clock:Advance(2)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, Vector3.new(8, 0, -10), "capped at Predict seconds")
+		expect.equal(s.blackboard.SeenVelocity, Vector3.new(4, 0, 0), "kept with the memory")
+
+		s.clock:Advance(3)
+		s.sight:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.PredictedPosition, nil, "gone with SeenPosition")
+		expect.equal(s.blackboard.SeenVelocity, nil)
+
+		local still = SenseFakes.Part(Vector3.new(0, 0, -10))
+		local off = setup({ sight = { Predict = 0, Targets = SenseFakes.Targets({ still }) } })
+		off.sight:Tick(off.agent, 0.1)
+		expect.equal(off.blackboard.SeenVelocity, nil, "a part with no velocity")
+		expect.equal(off.blackboard.PredictedPosition, Vector3.new(0, 0, -10))
+	end,
 }

@@ -50,6 +50,9 @@ local States = {}
 	}
 	```
 
+	[States.Roam] walks the best point of an [Interest] map, marking each visited, so an enemy
+	that has lost you checks the places you would plausibly be.
+
 	Every factory accepts `Transitions` (checked before the state's own logic, like any state),
 	`Enter` and `Exit` hooks run after the built-in ones, `Speed` to set on entry, and `Key`, the
 	`agent.Data` key its scratch lives under (default: the state's own name). Positions may be
@@ -568,6 +571,125 @@ function States.Wander(options: WanderOptions?): Types.State
 		end
 
 		go(agent, scratch)
+		return nil
+	end)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+local ROAM_DEFAULTS = table.freeze({
+	Range = 120,
+	Linger = 1,
+	Key = "Roam",
+})
+
+local ROAM_ALLOWED =
+	{ "Interest", "Tags", "Duration", "Then", "Speed", "Random", "Considerations", "Transitions", "Enter", "Exit" }
+
+--[=[
+	@interface RoamOptions
+	@within States
+
+	.Interest Interest -- The map of points to roam. Required.
+	.Range number? -- Studs beyond which a point scores nothing for distance. Default `120`.
+	.Tags { string }? -- Only points with one of these tags.
+	.Linger number | { number }? -- Seconds to stand at each point before moving on. Default `1`.
+	.Duration number | { number }? -- Seconds to roam before `Then`. Without it, roams until a transition or until no point scores.
+	.Then string? -- The state to enter when time is up or no point is worth a look.
+	.Considerations { Consideration<InterestPoint> }? -- Extra scoring for [Interest.Best].
+	.Speed number? -- Set on entry.
+	.Random Random? -- For ranged `Linger` and `Duration`.
+	.Key string? -- Default `"Roam"`.
+	.Transitions { Transition }?
+	.Enter ((agent: Agent) -> ())?
+	.Exit ((agent: Agent) -> ())?
+]=]
+export type RoamOptions = {
+	Interest: any,
+	Range: number?,
+	Tags: { string }?,
+	Linger: Range?,
+	Duration: Range?,
+	Then: string?,
+	Considerations: { any }?,
+	Speed: number?,
+	Random: Random?,
+	Key: string?,
+	Transitions: { Types.Transition }?,
+	Enter: ((agent: Types.Agent) -> ())?,
+	Exit: ((agent: Types.Agent) -> ())?,
+}
+
+--[=[
+	@within States
+	@param options RoamOptions
+	@return State
+
+	Asks the [Interest] map for the best point, walks there, lingers, marks it visited, and asks
+	again. Points the agent just visited score nothing, so it spreads its search. When no point
+	scores, or `Duration` runs out, it enters `Then`.
+]=]
+function States.Roam(options: RoamOptions): Types.State
+	local resolved = Options.Resolve("States.Roam", ROAM_DEFAULTS, options :: any, ROAM_ALLOWED) :: any
+	local interest = resolved.Interest
+	if type(interest) ~= "table" or type(interest.Best) ~= "function" then
+		FormatMessage.Error("States.Roam: Interest must be an Interest map", 2)
+	end
+	local key: string = resolved.Key
+	local timer = `States.{key}`
+	local lingerTimer = `States.{key}.Linger`
+
+	local function next(agent: Types.Agent, scratch: { [string]: any }): boolean
+		local point = interest:Best(agent, {
+			Range = resolved.Range,
+			Tags = resolved.Tags,
+			Exclude = if scratch.Current ~= nil then { scratch.Current } else nil,
+			Considerations = resolved.Considerations,
+		})
+		if point == nil then
+			scratch.Current = nil
+			return false
+		end
+		scratch.Current = point.Id
+		scratch.Lingering = false
+		agent:MoveTo(point.Position)
+		return true
+	end
+
+	return assemble(resolved, function(agent: Types.Agent)
+		local scratch = scratchOf(agent, key)
+		scratch.Exhausted = false
+		if resolved.Duration ~= nil then
+			agent:StartTimer(timer, pick(randomOf(agent, resolved.Random), resolved.Duration))
+		else
+			agent:StartTimer(timer, math.huge)
+		end
+		scratch.Exhausted = not next(agent, scratch)
+	end, function(agent: Types.Agent, _deltaTime: number): string?
+		local scratch = scratchOf(agent, key)
+		if scratch.Exhausted or agent:TimerDone(timer) then
+			return resolved.Then
+		end
+		if not pathDone(agent) then
+			return nil
+		end
+
+		if not scratch.Lingering then
+			scratch.Lingering = true
+			if scratch.Current ~= nil then
+				interest:Visit(agent, scratch.Current)
+			end
+			agent:StartTimer(lingerTimer, pick(randomOf(agent, resolved.Random), resolved.Linger))
+			return nil
+		end
+		if not agent:TimerDone(lingerTimer) then
+			return nil
+		end
+
+		if not next(agent, scratch) then
+			scratch.Exhausted = true
+			return resolved.Then
+		end
 		return nil
 	end)
 end

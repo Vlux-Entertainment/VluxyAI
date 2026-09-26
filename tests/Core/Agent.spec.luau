@@ -661,4 +661,36 @@ return {
 		agent:Step(1)
 		expect.near(mover.Speed, 3, 1e-6, "a plain SetSpeed replaces the ramp")
 	end,
+
+	["StrictBlackboard warns once for a read that misspells a known key"] = function(expect)
+		local warnings = {}
+		local Agent = load({ warnings = warnings })
+		local agent = Agent.new({
+			Entity = Fakes.Entity(),
+			Brain = Fakes.Brain("Idle", { "Idle" }, {}),
+			Blackboard = { Ready = true },
+			StrictBlackboard = true,
+		})
+
+		agent.Blackboard.SeenTarget = "root"
+		expect.equal(agent.Blackboard.SeenTarget, "root")
+		expect.equal(agent.Blackboard.Ready, true)
+		expect.equal(agent.Blackboard.HeardAt, nil, "an unrelated nil read is quiet")
+		expect.equal(#warnings, 0)
+
+		expect.equal(agent.Blackboard.SeenTaget, nil)
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "SeenTaget")
+		expect.includes(warnings[1], "SeenTarget")
+		local _ = agent.Blackboard.SeenTaget
+		expect.equal(#warnings, 1, "once per key")
+		local _2 = agent.Blackboard.seentarget
+		expect.equal(#warnings, 2, "a case slip counts")
+
+		local count = 0
+		for _ in agent.Blackboard do
+			count += 1
+		end
+		expect.equal(count, 2, "iteration sees the real table")
+	end,
 }

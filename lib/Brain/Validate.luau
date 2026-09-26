@@ -38,6 +38,7 @@ local DEFINITION_FIELDS = {
 	Tick = true,
 	Navigation = true,
 	Steps = true,
+	StrictBlackboard = true,
 	Name = true,
 }
 

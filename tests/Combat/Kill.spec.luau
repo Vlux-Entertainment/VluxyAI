@@ -405,4 +405,41 @@ return {
 		task.wait(0.01)
 		expect.sequence(deadOutcome, { false }, "already dead by the provider's account")
 	end,
+
+	["a string KillerAnimation plays a Locomotion one-shot and stops it with the hold"] = function(expect)
+		local heartbeat = Harness.ManualHeartbeat()
+		local played, stopped = {}, {}
+		local fakeLocomotion = {
+			Play = function(_agent, name)
+				table.insert(played, name)
+				return true
+			end,
+			Get = function()
+				return {
+					Stop = function(_self, name)
+						table.insert(stopped, name)
+					end,
+				}
+			end,
+		}
+		local Kill = Harness.Load("lib/Combat/Kill.luau", {
+			modules = { ["lib/Animator/Locomotion"] = fakeLocomotion },
+			services = {
+				RunService = {
+					Heartbeat = heartbeat,
+					IsServer = function()
+						return true
+					end,
+				},
+			},
+		})
+		local s = setup()
+		local victim = fakeVictim()
+
+		local handle = Kill.Live(s.agent, victim, { Duration = 1, KillerAnimation = "Grab" })
+		expect.sequence(played, { "Grab" })
+		heartbeat:Fire(1)
+		expect.sequence(stopped, { "Grab" }, "stopped when the hold ends")
+		expect.truthy(handle)
+	end,
 }

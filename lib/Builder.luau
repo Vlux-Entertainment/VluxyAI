@@ -168,6 +168,20 @@ end
 
 --[=[
 	@within Builder
+	@param enabled boolean? -- Default `true`.
+	@return Builder
+
+	Development aid: the agent warns once for a blackboard read that looks like a typo of a key
+	something has written (`SeenTaget` for `SeenTarget`). Nothing is typed; the check is by
+	spelling, so a legitimate `nil` read of a real key stays quiet.
+]=]
+function Builder.SetStrictBlackboard(self: Builder, enabled: boolean?): Builder
+	self._definition.StrictBlackboard = if enabled == nil then true else enabled
+	return self
+end
+
+--[=[
+	@within Builder
 	@param name string -- Used in warnings and errors. Default the entity's name.
 	@return Builder
 ]=]
