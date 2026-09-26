@@ -145,6 +145,29 @@ end
 
 --[=[
 	@within Builder
+	@param label string -- The step `Label` this handles: `"Door"`, `"Ladder"`, `"Vault"`.
+	@param handler StepHandler -- Runs when a step with that label is reached; may yield.
+	@return Builder
+
+	What the agent does at a labelled step. The navigator holds the mover there, reports
+	`Interacting`, runs the handler in its own thread, and walks on when it returns.
+
+	```lua
+	:OnStep("Door", function(agent, step)
+		Doors.Open(step.Instance)
+		task.wait(0.4)
+	end)
+	```
+]=]
+function Builder.OnStep(self: Builder, label: string, handler: Types.StepHandler): Builder
+	local steps: { [string]: Types.StepHandler } = self._definition.Steps or {}
+	self._definition.Steps = steps
+	steps[label] = handler
+	return self
+end
+
+--[=[
+	@within Builder
 	@param name string -- Used in warnings and errors. Default the entity's name.
 	@return Builder
 ]=]
@@ -163,6 +186,9 @@ function Builder.GetDefinition(self: Builder): Types.AgentDefinition
 	local copy = table.clone(self._definition)
 	if copy.Senses then
 		copy.Senses = table.clone(copy.Senses)
+	end
+	if copy.Steps then
+		copy.Steps = table.clone(copy.Steps)
 	end
 	return copy
 end

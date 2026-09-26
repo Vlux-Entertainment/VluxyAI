@@ -136,10 +136,25 @@ complete one; it is what a server-side "logical position" agent with no rig uses
 
 ## Doors and other scripted steps
 
-A pathfinder may emit a step with `Action = "Custom"` and a `Label`. Movers walk to it like any
-other step, and `agent.Navigator.StepReached` fires with the index and the step when they get
-there. Stop the agent, run your door interaction, and call `MoveTo` again; nothing in the package
-knows what a door is.
+A pathfinder may emit a step with a `Label` (and usually `Action = "Custom"`): a `PathfindingModifier`
+label from the navmesh, or a [Graph](/api/Graph) link written as `{ To = 7, Label = "Door", Instance = door }`.
+Register what to do there with [Builder:OnStep](/api/Builder#OnStep):
+
+```lua
+:OnStep("Door", function(agent, step)
+	Doors.Open(step.Instance)
+	task.wait(0.4)
+end)
+```
+
+When the mover reaches the step the navigator stops it, reports `Interacting` through
+`agent:GetPathStatus()`, runs the handler in its own thread, and walks the rest of the path when
+it returns. A state that calls `MoveTo` every tick with the same target keeps waiting; a new
+target or `Stop` abandons the path. Nothing in the package knows what a door is; it only knows
+where to pause. `agent.Navigator.StepReached` still fires for every step, handled or not.
+
+In a place, a `Link` ObjectValue under a graph node takes `Action` and `Label` attributes and an
+`Instance` ObjectValue child pointing at the door, and `Graph.FromInstances` reads them.
 
 ## Content modules
 

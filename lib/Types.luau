@@ -88,7 +88,8 @@ export type StepAction = "Walk" | "Jump" | "Custom"
 
 	.Position Vector3 -- Where to go, as a floor position. Movers add their own height.
 	.Action StepAction -- What to do on the way there.
-	.Label string? -- The `PathfindingModifier` label, or whatever your pathfinder attaches.
+	.Label string? -- The `PathfindingModifier` label, or whatever your pathfinder attaches. A [Types.StepHandler] registered for it runs when the step is reached.
+	.Instance Instance? -- What the step is about, when the pathfinder knows: the door on a [Graph] link.
 
 	One point along a [Types.Path].
 ]=]
@@ -96,7 +97,20 @@ export type Step = {
 	Position: Vector3,
 	Action: StepAction,
 	Label: string?,
+	Instance: Instance?,
 }
+
+--[=[
+	@type StepHandler (agent: Agent, step: Step, index: number) -> ()
+	@within Types
+
+	What happens at a labelled step: open the door, climb the ladder, play the vault. Registered
+	with [Builder:OnStep] under the step's `Label`. Runs in its own thread and may yield; the
+	navigator holds the mover at the step, reports `Interacting`, and walks the rest of the path
+	when the handler returns. A new target or `Stop` while it runs abandons the path; the handler
+	should check [Agent:IsDestroyed] after a long yield.
+]=]
+export type StepHandler = (agent: Agent, step: Step, index: number) -> ()
 
 --[=[
 	@type Path { Step }
@@ -350,12 +364,13 @@ export type Scored<T> = {
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@type PathStatus "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
+	@type PathStatus "Idle" | "Planning" | "Moving" | "Interacting" | "Arrived" | "Failed"
 	@within Types
 
-	Where a [Navigator] is with its current target. `Idle` means no target or stopped.
+	Where a [Navigator] is with its current target. `Idle` means no target or stopped;
+	`Interacting` means a [Types.StepHandler] is running at a step and the walk resumes after.
 ]=]
-export type PathStatus = "Idle" | "Planning" | "Moving" | "Arrived" | "Failed"
+export type PathStatus = "Idle" | "Planning" | "Moving" | "Interacting" | "Arrived" | "Failed"
 
 --[=[
 	@interface NavigationOptions
@@ -422,6 +437,7 @@ export type Navigator = {
 	.Data { [string]: any }? -- Initial `agent.Data`. Copied per agent. Yours to use.
 	.Tick number? -- Seconds between ticks. Default `0.1`.
 	.Navigation NavigationOptions? -- Navigator tuning.
+	.Steps { [string]: StepHandler }? -- What to do at labelled steps, by label. See [Builder:OnStep].
 	.Name string? -- Used in messages. Default `Entity.Name`.
 
 	Everything an [Agent] is built from. The [Builder] produces one of these; you can also write it
@@ -437,6 +453,7 @@ export type AgentDefinition = {
 	Data: { [string]: any }?,
 	Tick: number?,
 	Navigation: NavigationOptions?,
+	Steps: { [string]: StepHandler }?,
 	Name: string?,
 }
 

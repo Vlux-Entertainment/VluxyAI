@@ -6,6 +6,10 @@
 	chain of links between them, followed by the goal itself. Doors, one-way edges and anything
 	else the navmesh cannot express are authored as links.
 
+	A link is a node index, or a table with `To` plus an `Action`, `Label` and `Instance`: the
+	step emitted for the node the link leaves from carries them, so an agent walking A to B
+	through a door reaches A, its "Door" handler runs, and it walks on to B.
+
 	The graph can be built from data (`new`) for tests and generated maps, or read out of the
 	place (`FromInstances`): parts or attachments under a folder are nodes, `ObjectValue` children
 	named Link are explicit edges, and nodes within `LinkRadius` with a clear ray between them are
@@ -32,18 +36,55 @@ local BUILD_DEFAULTS = table.freeze({
 })
 
 --[=[
+	@interface GraphLink
+	@within Graph
+
+	.To number -- The index of the node this link goes to.
+	.Action StepAction? -- Emitted on the step for the node the link leaves from. `"Custom"` for a door.
+	.Label string? -- Emitted with it; a [Types.StepHandler] registered for it runs there.
+	.Instance Instance? -- Emitted with it: the door itself.
+
+	A link with something to do on the way. A plain number is a walk.
+]=]
+export type GraphLink = {
+	To: number,
+	Action: Types.StepAction?,
+	Label: string?,
+	Instance: Instance?,
+}
+
+--[=[
 	@interface GraphNode
 	@within Graph
 
 	.Position Vector3 -- A floor position.
-	.Links { number } -- Indices of the nodes this one connects to. Directed: add both ways for a two-way link.
+	.Links { number | GraphLink } -- The nodes this one connects to, by index or as a [Graph.GraphLink]. Directed: add both ways for a two-way link.
 
 	One node of a [Graph].
 ]=]
 export type GraphNode = {
 	Position: Vector3,
-	Links: { number },
+	Links: { number | GraphLink },
 }
+
+--[[
+	The index a link points at, whichever form it takes.
+]]
+local function linkTarget(link: number | GraphLink): number
+	return if type(link) == "number" then link else link.To
+end
+
+--[[
+	The link from one node to another, if there is one.
+]]
+local function linkBetween(nodes: { GraphNode }, from: number, to: number): (number | GraphLink)?
+	for _, link in nodes[from].Links do
+		if linkTarget(link) == to then
+			return link
+		end
+	end
+	return nil
+end
 
 --[=[
 	@interface GraphOptions
@@ -92,6 +133,14 @@ Graph.__index = Graph
 type GraphClass = typeof(setmetatable({} :: self, Graph))
 
 --[=[
+	@within Graph
+	@function LinkTarget
+	@param link number | GraphLink
+	@return number -- The index the link points at.
+]=]
+Graph.LinkTarget = linkTarget
+
+--[=[
 	@class Graph
 
 	A [Types.Pathfinder] over hand-placed nodes with A*. Use it for the long legs of a level a
@@ -126,9 +175,10 @@ function Graph.new(nodes: { GraphNode }, options: GraphOptions?): Types.Pathfind
 		end
 		if node.Links then
 			for _, link in node.Links do
-				if nodes[link] == nil then
+				local target = if type(link) == "number" then link elseif type(link) == "table" then link.To else nil
+				if type(target) ~= "number" or nodes[target] == nil then
 					FormatMessage.Error(
-						`Graph.new: node {index} links to node {tostring(link)}, which does not exist`,
+						`Graph.new: node {index} links to node {tostring(target)}, which does not exist`,
 						2
 					)
 				end
@@ -138,7 +188,12 @@ function Graph.new(nodes: { GraphNode }, options: GraphOptions?): Types.Pathfind
 
 	local copy: { GraphNode } = {}
 	for index, node in nodes do
-		copy[index] = { Position = node.Position, Links = table.clone(node.Links or {}) }
+		local links: { number | GraphLink } = {}
+		local given: { number | GraphLink } = node.Links or {}
+		for _, link in given do
+			table.insert(links, if type(link) == "number" then link else table.clone(link))
+		end
+		copy[index] = { Position = node.Position, Links = links }
 	end
 
 	local self: self = {
@@ -204,7 +259,8 @@ function Graph.AStar(nodes: { GraphNode }, start: number, goal: number): { numbe
 		closed[current] = true
 		local currentPosition = nodes[current].Position
 
-		for _, neighbour in nodes[current].Links do
+		for _, link in nodes[current].Links do
+			local neighbour = linkTarget(link)
 			if closed[neighbour] then
 				continue
 			end
@@ -326,7 +382,9 @@ end
 	is a node at its position (a part's position is lowered to its bottom face, rotation taken
 	into account). An `ObjectValue` named `Link` under a node whose value is another node is a
 	one-way link; add the reverse for two-way; a value outside the container is warned about and
-	skipped. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
+	skipped. A `Link` with an `Action` or `Label` attribute, or an `ObjectValue` child named
+	`Instance`, becomes a [Graph.GraphLink]: set `Label = "Door"` and point `Instance` at the door,
+	and the step at that node carries both. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
 	`CanLink` says so, or, without it, when a ray 1.5 studs up between them is clear. The ray test
 	is a line-of-sight test, not a walkability test: it links across a pit and refuses a staircase,
 	so on anything but flat floors give `CanLink` a real answer.
@@ -368,8 +426,9 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 		nodes[index] = { Position = position, Links = {} }
 	end
 
-	local function link(a: number, b: number)
-		if a ~= b and not table.find(nodes[a].Links, b) then
+	local function link(a: number, b: number | GraphLink)
+		local target = linkTarget(b)
+		if a ~= target and linkBetween(nodes, a, target) == nil then
 			table.insert(nodes[a].Links, b)
 		end
 	end
@@ -379,7 +438,19 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 			if value:IsA("ObjectValue") and value.Name == "Link" and value.Value ~= nil then
 				local target = indexOf[value.Value :: Instance]
 				if target then
-					link(index, target)
+					local action = value:GetAttribute("Action")
+					local label = value:GetAttribute("Label")
+					local door = value:FindFirstChild("Instance")
+					if action ~= nil or label ~= nil or door then
+						link(index, {
+							To = target,
+							Action = if type(action) == "string" then action :: Types.StepAction else nil,
+							Label = if type(label) == "string" then label else nil,
+							Instance = if door and door:IsA("ObjectValue") then door.Value else nil,
+						})
+					else
+						link(index, target)
+					end
 				else
 					FormatMessage.Warn(
 						`Graph.FromInstances: {value:GetFullName()} points at {(value.Value :: Instance):GetFullName()}, which is not a node under {container:GetFullName()}`
@@ -462,8 +533,16 @@ function Graph.FindPath(self: GraphClass, from: Vector3, to: Vector3, agent: Typ
 	route = Graph.Trim(self._nodes, route, from, to, self._options.LineOfSight)
 
 	local path: Types.Path = {}
-	for _, index in route do
-		table.insert(path, { Position = self._nodes[index].Position, Action = "Walk" })
+	for position, index in route do
+		local step: Types.Step = { Position = self._nodes[index].Position, Action = "Walk" }
+		local next = route[position + 1]
+		local link = if next then linkBetween(self._nodes, index, next) else nil
+		if type(link) == "table" then
+			step.Action = link.Action or "Walk"
+			step.Label = link.Label
+			step.Instance = link.Instance
+		end
+		table.insert(path, step)
 	end
 	-- Steps are floor positions; the target is usually a root. The exit node's floor is the best
 	-- estimate of the floor under it.

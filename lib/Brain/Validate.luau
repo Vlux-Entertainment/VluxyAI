@@ -37,6 +37,7 @@ local DEFINITION_FIELDS = {
 	Data = true,
 	Tick = true,
 	Navigation = true,
+	Steps = true,
 	Name = true,
 }
 
@@ -350,6 +351,17 @@ function Validate.Definition(definition: any)
 
 	if definition.Tick ~= nil then
 		expectPositiveNumber(definition.Tick, `{root}.Tick`)
+	end
+
+	if definition.Steps ~= nil then
+		local stepsPath = `{root}.Steps`
+		expectTable(definition.Steps, stepsPath)
+		for label, handler in definition.Steps do
+			if type(label) ~= "string" then
+				fail(`{stepsPath}[{describe(label)}]`, "must be keyed by the step's Label")
+			end
+			expectFunction(handler, `{stepsPath}.{label}`)
+		end
 	end
 
 	if definition.Navigation ~= nil then

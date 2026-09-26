@@ -112,4 +112,19 @@ return {
 		end)
 		expect.includes(message, "already built an agent")
 	end,
+
+	["OnStep registers handlers by label and GetDefinition copies them"] = function(expect)
+		local Builder = load()
+		local function open() end
+		local function climb() end
+		local builder = Builder.new(Fakes.Entity()):UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
+		expect.equal(builder:OnStep("Door", open), builder)
+		builder:OnStep("Ladder", climb)
+
+		local definition = builder:GetDefinition()
+		expect.equal(definition.Steps.Door, open)
+		expect.equal(definition.Steps.Ladder, climb)
+		definition.Steps.Door = nil
+		expect.equal(builder:GetDefinition().Steps.Door, open, "a copy")
+	end,
 }

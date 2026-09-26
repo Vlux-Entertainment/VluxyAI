@@ -45,11 +45,12 @@ export type AwarenessSource = {
 	Weight: number?,
 }
 
-local DEFAULT_SOURCES: { AwarenessSource } = table.freeze({
-	table.freeze({ Name = "Sight", While = "SeenTarget", Position = "SeenPosition", Weight = 1 }),
-	table.freeze({ Name = "Hearing", At = "HeardAt", Position = "HeardPosition", Weight = 0.5 }),
-	table.freeze({ Name = "Sound", At = "HeardSoundAt", Position = "HeardSoundPosition", Weight = 0.3 }),
-})
+local DEFAULT_SOURCES: { AwarenessSource } = {
+	{ Name = "Sight", While = "SeenTarget", Position = "SeenPosition", Weight = 1 } :: AwarenessSource,
+	{ Name = "Hearing", At = "HeardAt", Position = "HeardPosition", Weight = 0.5 } :: AwarenessSource,
+	{ Name = "Sound", At = "HeardSoundAt", Position = "HeardSoundPosition", Weight = 0.3 } :: AwarenessSource,
+}
+table.freeze(DEFAULT_SOURCES)
 
 local DEFAULT_OPTIONS = table.freeze({
 	Rise = 1,

@@ -333,4 +333,21 @@ return {
 			b.Interrupts = { first = { To = "Chase", When = function() end } }
 		end, "Brain.Interrupts[first] must be in a list")
 	end,
+
+	["Steps must be functions keyed by label"] = function(expect)
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Steps = { Door = function() end }
+		Validate.Definition(definition)
+
+		failsWith(expect, function(d)
+			d.Steps = { Door = true }
+		end, "Definition.Steps.Door must be a function, got true")
+		failsWith(expect, function(d)
+			d.Steps = { function() end }
+		end, "Definition.Steps[1] must be keyed by the step's Label")
+		failsWith(expect, function(d)
+			d.Steps = "Door"
+		end, "Definition.Steps must be a table")
+	end,
 }

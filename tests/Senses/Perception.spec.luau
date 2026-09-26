@@ -253,7 +253,7 @@ return {
 		expect.equal(#roots, 1)
 		expect.equal(roots[1], alive.Root)
 
-		local all = Perception.AliveRoots(true)
+		local all = Perception.AllAliveRoots()
 		expect.equal(#all, 2)
 		expect.equal(all[2], hidden.Root)
 	end,

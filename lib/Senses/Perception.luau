@@ -68,16 +68,10 @@ function Perception.IsHidden(root: BasePart): boolean
 	return flagged(root) or flagged(Perception.ModelOf(root))
 end
 
---[=[
-	@within Perception
-	@param includeHidden boolean? -- Also return characters marked with `AI_HIDDEN`. Default `false`.
-	@return { BasePart } -- The `HumanoidRootPart` of every player whose character is alive.
-
-	Every player character with a Humanoid whose Health is above zero, by its root, minus the
-	ones hidden with [Perception.HIDDEN_ATTRIBUTE]. The default `Targets` of every sense, so
-	hiding a player once hides them from Sight, Proximity and Watched together.
-]=]
-function Perception.AliveRoots(includeHidden: boolean?): { BasePart }
+--[[
+	Every alive player root, with or without the hidden ones.
+]]
+local function aliveRoots(includeHidden: boolean): { BasePart }
 	local Players = game:GetService("Players")
 
 	local roots: { BasePart } = {}
@@ -101,6 +95,30 @@ function Perception.AliveRoots(includeHidden: boolean?): { BasePart }
 	end
 
 	return roots
+end
+
+--[=[
+	@within Perception
+	@return { BasePart } -- The `HumanoidRootPart` of every player whose character is alive and not hidden.
+
+	Every player character with a Humanoid whose Health is above zero, by its root, minus the
+	ones hidden with [Perception.HIDDEN_ATTRIBUTE]. The default `Targets` of every sense, so
+	hiding a player once hides them from Sight, Proximity and Watched together. Takes no
+	arguments, so it can be a `Targets` function as it is.
+]=]
+function Perception.AliveRoots(): { BasePart }
+	return aliveRoots(false)
+end
+
+--[=[
+	@within Perception
+	@return { BasePart } -- Every alive player root, hidden ones included.
+
+	For the checks a hidden player still takes part in: [Perception.SeenByAnyone] uses it, since
+	a player inside a locker can still see out of it.
+]=]
+function Perception.AllAliveRoots(): { BasePart }
+	return aliveRoots(true)
 end
 
 --[=[
@@ -416,7 +434,7 @@ end
 	.Range number? -- Studs. Default `math.huge`.
 	.Eye ((root: BasePart) -> CFrame?)? -- Where an observer looks from. Default: the character's head, else its root ([Perception.EyeOf]). A game that replicates the camera returns it here.
 	.Ignore { Instance }? -- What the sight ray passes through. Default nothing.
-	.Observers { BasePart }? -- Who may be looking. Default [Perception.AliveRoots] including the hidden.
+	.Observers { BasePart }? -- Who may be looking. Default [Perception.AllAliveRoots], hidden players included.
 ]=]
 export type SeenByOptions = {
 	FieldOfView: number?,
@@ -437,14 +455,15 @@ export type SeenByOptions = {
 	about the agent every tick; this is the one-off version about any point.
 ]=]
 function Perception.SeenByAnyone(position: Vector3, options: SeenByOptions?): boolean
-	local resolved = options or {}
+	local resolved: SeenByOptions = options or {}
 	local fieldOfView = resolved.FieldOfView or 100
 	local range = resolved.Range or math.huge
 	local ignore = resolved.Ignore or {}
-	local observers = resolved.Observers or Perception.AliveRoots(true)
+	local observers: { BasePart } = resolved.Observers or Perception.AllAliveRoots()
 
+	local eyeOf: ((root: BasePart) -> CFrame?)? = resolved.Eye
 	for _, root in observers do
-		local eye: CFrame? = if resolved.Eye then resolved.Eye(root) else nil
+		local eye: CFrame? = if eyeOf ~= nil then (eyeOf :: (BasePart) -> CFrame?)(root) else nil
 		if eye == nil then
 			eye = Perception.EyeOf(root).CFrame
 		end

@@ -6,6 +6,11 @@
 	is older than MaxPathAge. A state calls MoveTo every tick with wherever it wants to be and never
 	thinks about paths.
 
+	A labelled step with a handler (a door) pauses the walk: the mover is stopped at the step,
+	the handler runs in its own thread, and the rest of the same path is followed when it returns.
+	The path's remaining steps are handed to the mover as a new path, so StepReached indices are
+	offset back to the original path's numbering on the way out.
+
 	Pure Luau apart from Vector3 values and `task.spawn` for the plan, since FindPath may yield.
 	Every plan carries a generation number; a plan that finishes after Stop, Destroy or a newer
 	plan is thrown away, which is what makes yielding pathfinders safe.
@@ -60,6 +65,8 @@ type self = {
 	_leftArrivedAt: number,
 	_anchor: Vector3?,
 	_anchorKind: "Arrived" | "Failed" | nil,
+	_steps: { [string]: Types.StepHandler },
+	_stepOffset: number,
 
 	_connections: { Types.Connection },
 }
@@ -89,6 +96,11 @@ export type Navigator = typeof(setmetatable({} :: self, Navigator))
 	Arrival is judged by horizontal distance within `ArriveDistance`, with the height difference
 	allowed up to `ArriveHeight`: a humanoid's root and a floor waypoint sit at different heights,
 	but a target on the floor above is not reached.
+
+	A step whose `Label` has a handler (see [Builder:OnStep]) is where the navigator does the one
+	thing a mover cannot: it stops at the step, reports `Interacting`, runs the handler, and then
+	walks the rest of the path. `MoveTo` with the same target keeps waiting; a new target or `Stop`
+	abandons the path and the handler's return is ignored.
 ]=]
 
 --[=[
@@ -97,13 +109,15 @@ export type Navigator = typeof(setmetatable({} :: self, Navigator))
 	@param mover Mover
 	@param agent Agent -- Handed to `FindPath` so a pathfinder can read the blackboard.
 	@param options NavigationOptions?
+	@param steps { [string]: StepHandler }? -- Handlers by step label.
 	@return Navigator
 ]=]
 function Navigator.new(
 	pathfinder: Types.Pathfinder,
 	mover: Types.Mover,
 	agent: Types.Agent,
-	options: Types.NavigationOptions?
+	options: Types.NavigationOptions?,
+	steps: { [string]: Types.StepHandler }?
 ): Navigator
 	local resolved = Options.Resolve("Navigator.new", DEFAULT_OPTIONS, options :: any)
 
@@ -132,6 +146,8 @@ function Navigator.new(
 		_leftArrivedAt = -math.huge,
 		_anchor = nil,
 		_anchorKind = nil,
+		_steps = steps or {},
+		_stepOffset = 0,
 
 		_connections = {},
 	}
@@ -141,7 +157,7 @@ function Navigator.new(
 	table.insert(
 		self._connections,
 		mover.StepReached:Connect(function(index: number, step: Types.Step)
-			self.StepReached:Fire(index, step)
+			navigator:_onStepReached(index, step)
 		end)
 	)
 
@@ -233,6 +249,65 @@ function Navigator._arrive(self: Navigator)
 	if not silent then
 		self.Arrived:Fire(true)
 	end
+end
+
+--[[
+	The mover reached a step. Forwards it in the original path's numbering, then, when the step's
+	label has a handler, holds the walk there and runs it.
+]]
+function Navigator._onStepReached(self: Navigator, index: number, step: Types.Step)
+	local original = index + self._stepOffset
+	self.StepReached:Fire(original, step)
+
+	if self._destroyed or self._status ~= "Moving" or self._following then
+		return
+	end
+
+	local handler = if step.Label ~= nil then self._steps[step.Label] else nil
+	if handler == nil then
+		return
+	end
+
+	local path = self._path
+	if path == nil then
+		return
+	end
+
+	-- Hold here. The mover's Arrived(false) for the stop is ours, not a give-up.
+	self._stopping = true
+	self._mover:Stop()
+	self._stopping = false
+
+	self._status = "Interacting"
+	local generation = self._generation
+
+	task.spawn(function()
+		local ok, err = pcall(function()
+			handler(self._agent, step, original)
+		end)
+		if not ok then
+			FormatMessage.Warn(`{self._agent.Name}: the "{step.Label}" step handler errored: {tostring(err)}`)
+		end
+
+		local status: Types.PathStatus = self._status
+		if self._destroyed or self._generation ~= generation or status ~= "Interacting" then
+			return
+		end
+
+		self._status = "Moving"
+
+		local remaining = table.move(path, original + 1, #path, 1, {})
+		if #remaining == 0 then
+			-- The handled step was the last one: the path is walked.
+			self:_onMoverArrived(true)
+			return
+		end
+
+		self._stepOffset = original
+		self._following = true
+		self._mover:Follow(remaining)
+		self._following = false
+	end)
 end
 
 --[[
@@ -349,6 +424,7 @@ function Navigator._plan(self: Navigator)
 		end
 
 		self._status = "Moving"
+		self._stepOffset = 0
 		self:_setPath(path)
 
 		-- A mover reports the path this one replaces from inside Follow; that is not news here.
@@ -450,7 +526,7 @@ function Navigator.Stop(self: Navigator)
 		return
 	end
 
-	local wasUnderway = self._status == "Planning" or self._status == "Moving"
+	local wasUnderway = self._status == "Planning" or self._status == "Moving" or self._status == "Interacting"
 
 	self._generation += 1
 	self._target = nil
@@ -459,6 +535,7 @@ function Navigator.Stop(self: Navigator)
 	self._status = "Idle"
 	self._anchor = nil
 	self._anchorKind = nil
+	self._stepOffset = 0
 	self:_setPath(nil)
 
 	if self._mover:IsMoving() then
