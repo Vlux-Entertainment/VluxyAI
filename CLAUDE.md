@@ -27,7 +27,7 @@ Three deliverables live here:
 | Task | Command |
 |---|---|
 | Headless tests | `lune run tests/runner` (add a substring to filter, `--json` for machine output) |
-| Test place sync | `rojo serve test-place.project.json` (needs a baseplate at y = 0 in the place) |
+| Test place sync | Rojo-Hub (VS Code panel) serving `test-place.project.json`; an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json`. Needs a baseplate at y = 0 in the place |
 | Package-only build | `rojo build default.project.json -o VluxyAI.rbxm` |
 | Lint / format | `selene lib examples tests` / `stylua lib examples tests` |
 | Type check | `rojo sourcemap test-place.project.json -o sourcemap.json` then `luau-lsp analyze --sourcemap=sourcemap.json --defs=.luau-analyze/globalTypes.d.luau --platform=roblox lib examples` |
