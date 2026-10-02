@@ -48,11 +48,33 @@ local agent = VluxyAI.Presets.Humanoid(rig) -- any Model with a PrimaryPart and 
   learns your module exists. Mistakes fail at `Build()` with the path of the bad field.
 - **Headless core.** The runner, validator, scoring and navigator are plain Luau, tested under Lune.
 
+## What's in it
+
+- **Brains:** a state runner with interrupts, ready-made `When` predicates, utility scoring, and
+  states for patrolling, investigating, searching, wandering, roaming points of interest or an
+  authored graph (`States.GraphRoam`), staring and burrowing.
+- **Pathfinding:** `Navmesh` (PathfindingService), `Straight`, `Ladder`, `Graph` (A\* over authored
+  nodes, read from a folder of parts) and `Hybrid`; doors and other scripted steps through `OnStep`.
+- **Movers:** `Humanoid` (`MoveTo`) and `CFrame` (pivots anything, no rig needed).
+- **Senses:** sight, hearing (with noise kinds, sources and strength), proximity, tagged sounds,
+  awareness, being watched, neighbours, safe areas, clues, hideouts and stamina.
+- **Groups and world:** a director (tension and difficulty), shared points of interest, claims,
+  doors, safe areas, rig collision and player noise.
+- **Combat:** attacks, and kills that are live, behind a black screen, or a non-lethal scare.
+- **Client presentation:** a server `Broadcaster` and client `Replica`, either mirroring the
+  server's rig or drawing a client-side puppet (`Presets.Puppet` on the server,
+  `Locomotion.AttachReplica` on the client), plus animation, footsteps and voice lines.
+- **Debug:** path, graph, sense and state visuals, and a runtime R15 rig.
+
+Tags and attributes a game sets for the package are prefixed `VLUXYAI_` (`VLUXYAI_SAFE`,
+`VLUXYAI_SOUND`, `VLUXYAI_LIGHT`, `VLUXYAI_DOOR`, `VLUXYAI_HIDDEN`) so they do not collide with your
+own. Before 0.11.0 they were `AI_*`.
+
 ## Install
 
 ```toml
 [dependencies]
-VluxyAI = "greenviper126/vluxyai@0.2.1"
+VluxyAI = "greenviper126/vluxyai@0.11.0"
 ```
 
 Then `wally install`. The package has no dependencies and is `shared` realm: requiring it on a
