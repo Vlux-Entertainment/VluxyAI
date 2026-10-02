@@ -112,7 +112,7 @@ for _, room in map.SafeRooms do
 	refresh()
 end
 
-local noises: VluxyAI.Signal<(Vector3, number?, string?)> = VluxyAI.Signal.new()
+local noises: VluxyAI.NoiseSignal = VluxyAI.Signal.new()
 
 --[[
 	Player jumps are ordinary noises; the noise pad is a loud one.

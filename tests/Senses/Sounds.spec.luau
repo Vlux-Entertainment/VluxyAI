@@ -122,7 +122,7 @@ return {
 
 	["a playing tagged 3D sound is heard, with its position, distance, loudness and time"] = function(expect)
 		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
-		local s = setup({ tagged = { AI_SOUND = { radio } } })
+		local s = setup({ tagged = { VLUXYAI_SOUND = { radio } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, radio)
@@ -134,7 +134,7 @@ return {
 
 	["the tag is an option"] = function(expect)
 		local radio = sound(Vector3.new(5, 0, 0))
-		local s = setup({ sounds = { Tag = "Noisy" }, tagged = { AI_SOUND = { radio }, Noisy = {} } })
+		local s = setup({ sounds = { Tag = "Noisy" }, tagged = { VLUXYAI_SOUND = { radio }, Noisy = {} } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, nil, "the default tag is not asked for")
@@ -154,7 +154,7 @@ return {
 		orphan.Parent = nil
 		local s = setup({
 			tagged = {
-				AI_SOUND = {
+				VLUXYAI_SOUND = {
 					sound(Vector3.new(5, 0, 0), { IsPlaying = false }),
 					sound(Vector3.new(5, 0, 0), { Volume = 0 }),
 					sound(Vector3.new(5, 0, 0), { Parent = folder }),
@@ -179,7 +179,7 @@ return {
 				return className == "Attachment"
 			end,
 		}
-		local s = setup({ tagged = { AI_SOUND = { sound(nil, { Parent = attachment }) } } })
+		local s = setup({ tagged = { VLUXYAI_SOUND = { sound(nil, { Parent = attachment }) } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSoundPosition, Vector3.new(0, 0, 30))
@@ -189,7 +189,7 @@ return {
 	["the roll-off mode may be an enum item and the sound's own distances are used"] = function(expect)
 		local s = setup({
 			tagged = {
-				AI_SOUND = {
+				VLUXYAI_SOUND = {
 					sound(Vector3.new(55, 0, 0), {
 						Volume = 1,
 						RollOffMode = { Name = "Linear" },
@@ -206,30 +206,30 @@ return {
 
 	["the multiplier attribute multiplies the volume at the agent, and zero silences"] = function(expect)
 		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
-		local s = setup({ tagged = { AI_SOUND = { radio } } })
+		local s = setup({ tagged = { VLUXYAI_SOUND = { radio } } })
 
-		radio.Attributes["AI_SOUND/Multiplier"] = 3
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = 3
 		s.sense:Tick(s.agent, 0.1)
 		near(expect, s.blackboard.HeardSoundLoudness, 1.5)
 
-		radio.Attributes["AI_SOUND/Multiplier"] = 0
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = 0
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, nil)
 
-		radio.Attributes["AI_SOUND/Multiplier"] = "loud"
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = "loud"
 		s.sense:Tick(s.agent, 0.1)
 		near(expect, s.blackboard.HeardSoundLoudness, 0.5, "a non-number attribute means 1")
 
-		radio.Attributes["AI_SOUND/Multiplier"] = -2
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = -2
 		s.sense:Tick(s.agent, 0.1)
 		near(expect, s.blackboard.HeardSoundLoudness, 0.5, "a negative attribute means 1")
 	end,
 
 	["the attribute name is an option"] = function(expect)
 		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
-		local s = setup({ sounds = { MultiplierAttribute = "AIWeight" }, tagged = { AI_SOUND = { radio } } })
+		local s = setup({ sounds = { MultiplierAttribute = "AIWeight" }, tagged = { VLUXYAI_SOUND = { radio } } })
 
-		radio.Attributes["AI_SOUND/Multiplier"] = 4
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = 4
 		radio.Attributes.AIWeight = 2
 		s.sense:Tick(s.agent, 0.1)
 		near(expect, s.blackboard.HeardSoundLoudness, 1)
@@ -237,12 +237,12 @@ return {
 
 	["a sound below Threshold at the agent is not heard"] = function(expect)
 		local far = sound(Vector3.new(100, 0, 0), { Volume = 1 })
-		local s = setup({ sounds = { Threshold = 0.2 }, tagged = { AI_SOUND = { far } } })
+		local s = setup({ sounds = { Threshold = 0.2 }, tagged = { VLUXYAI_SOUND = { far } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, nil, "0.1 at 100 studs is under the threshold")
 
-		far.Attributes["AI_SOUND/Multiplier"] = 2
+		far.Attributes["VLUXYAI_SOUND/Multiplier"] = 2
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, far, "exactly at the threshold is heard")
 	end,
@@ -250,13 +250,13 @@ return {
 	["the loudest sound at the agent wins, and the nearest on a tie"] = function(expect)
 		local quietNear = sound(Vector3.new(5, 0, 0), { Volume = 0.2 })
 		local loudFar = sound(Vector3.new(40, 0, 0), { Volume = 2 })
-		local s = setup({ tagged = { AI_SOUND = { quietNear, loudFar } } })
+		local s = setup({ tagged = { VLUXYAI_SOUND = { quietNear, loudFar } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, loudFar, "0.5 at the agent beats 0.2")
 
 		local twin = sound(Vector3.new(0, 0, 20), { Volume = 1 })
-		s.tagged.AI_SOUND = { loudFar, twin }
+		s.tagged.VLUXYAI_SOUND = { loudFar, twin }
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSound, twin, "both 0.5 at the agent; the nearer wins")
 	end,
@@ -273,7 +273,7 @@ return {
 					return candidate.Name ~= "TV"
 				end,
 			},
-			tagged = { AI_SOUND = { footsteps, tv, radio } },
+			tagged = { VLUXYAI_SOUND = { footsteps, tv, radio } },
 		})
 		footsteps.Owner = s.agent.Entity
 
@@ -284,7 +284,7 @@ return {
 
 	["the sound is measured from the agent's GetPosition"] = function(expect)
 		local radio = sound(Vector3.new(105, 0, 0), { Volume = 1 })
-		local s = setup({ tagged = { AI_SOUND = { radio } } })
+		local s = setup({ tagged = { VLUXYAI_SOUND = { radio } } })
 		s.agent.GetPosition = function()
 			return Vector3.new(100, 0, 0)
 		end
@@ -296,7 +296,7 @@ return {
 
 	["the memory keys last Memory seconds after the sound stops, then clear together"] = function(expect)
 		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
-		local s = setup({ sounds = { Memory = 5 }, tagged = { AI_SOUND = { radio } } })
+		local s = setup({ sounds = { Memory = 5 }, tagged = { VLUXYAI_SOUND = { radio } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		expect.equal(s.blackboard.HeardSoundAt, 100)
@@ -319,7 +319,7 @@ return {
 
 	["a sound that keeps playing keeps the time fresh"] = function(expect)
 		local radio = sound(Vector3.new(20, 0, 0), { Volume = 1 })
-		local s = setup({ sounds = { Memory = 1 }, tagged = { AI_SOUND = { radio } } })
+		local s = setup({ sounds = { Memory = 1 }, tagged = { VLUXYAI_SOUND = { radio } } })
 
 		s.sense:Tick(s.agent, 0.1)
 		s.clock:Advance(10)
@@ -380,11 +380,11 @@ return {
 		sense:Tick(agent, 0.1)
 		expect.equal(agent.Blackboard.HeardSound, nil, "0.5 through one wall is 0.25, under the threshold")
 
-		radio.Attributes["AI_SOUND/Multiplier"] = 2
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = 2
 		sense:Tick(agent, 0.1)
 		expect.equal(agent.Blackboard.HeardSound, radio)
 		expect.near(agent.Blackboard.HeardSoundLoudness, 0.5)
-		radio.Attributes["AI_SOUND/Multiplier"] = nil
+		radio.Attributes["VLUXYAI_SOUND/Multiplier"] = nil
 
 		local open, openAgent = load(nil)
 		open:Tick(openAgent, 0.1)

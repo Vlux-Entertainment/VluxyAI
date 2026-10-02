@@ -520,4 +520,77 @@ return {
 			"To is required"
 		)
 	end,
+	["GraphRoam walks a route one node at a time, from the nearest node, and re-picks at the end"] = function(expect)
+		local States = loadStates()
+		local nodes = {
+			{ Position = Vector3.new(10, 0, 0), Links = { 2 } },
+			{ Position = Vector3.new(20, 0, 0), Links = { 1, 3 } },
+			{ Position = Vector3.new(30, 0, 0), Links = { 2 } },
+		}
+		local picks = {}
+		local s = setup(States.GraphRoam({
+			Graph = {
+				GetNodes = function()
+					return nodes
+				end,
+			},
+			Pick = function(_agent, given, current)
+				table.insert(picks, current)
+				return if current == 1 then #given else 1
+			end,
+		}))
+
+		s.agent:Start(true)
+		expect.equal(picks[1], 1, "the agent at the origin starts from the nearest node")
+		expect.equal(s:target(), nodes[1].Position, "the first leg is to that node")
+		local route = s.agent.Data.GraphRoam
+		expect.sequence(route.Route, { 1, 2, 3 })
+		expect.equal(route.Next, 1)
+		expect.equal(route.Goal, 3)
+
+		s.agent:Step(0.1)
+		expect.equal(#s.mover.Followed, 1, "the next leg waits for arrival")
+		s:arrive()
+		s.agent:Step(0.1)
+		expect.equal(s:target(), nodes[2].Position)
+		expect.equal(s.agent.Data.GraphRoam.Next, 2)
+		s:arrive()
+		s.agent:Step(0.1)
+		expect.equal(s:target(), nodes[3].Position)
+		s:arrive()
+		s.agent:Step(0.1)
+		expect.equal(picks[2], 3, "a new route from where it ended")
+		expect.equal(s:target(), nodes[3].Position, "its first leg is the node it stands on")
+		expect.sequence(s.agent.Data.GraphRoam.Route, { 3, 2, 1 })
+	end,
+
+	["GraphRoam re-plans from where it stands when a leg fails"] = function(expect)
+		local States = loadStates()
+		local nodes = {
+			{ Position = Vector3.new(10, 0, 0), Links = { 2 } },
+			{ Position = Vector3.new(20, 0, 0), Links = { 1 } },
+		}
+		local s = setup(States.GraphRoam({
+			Graph = nodes,
+			Pick = function()
+				return 2
+			end,
+		}))
+
+		s.agent:Start(true)
+		s:arrive()
+		s.agent:Step(0.1)
+		expect.equal(s:target(), nodes[2].Position)
+		s.mover.Position = Vector3.new(18, 0, 0)
+		s.mover:Finish(false)
+		s.agent:Step(0.1)
+		expect.sequence(s.agent.Data.GraphRoam.Route, { 2 }, "nearest is now node 2")
+	end,
+
+	["GraphRoam needs a Graph"] = function(expect)
+		local States = loadStates()
+		expect.errors(function()
+			States.GraphRoam({} :: any)
+		end, "Graph is required")
+	end,
 }

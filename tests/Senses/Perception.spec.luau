@@ -203,7 +203,7 @@ return {
 		expect.equal(list[1], agent.Entity)
 	end,
 
-	["IsHidden reads the AI_HIDDEN attribute on the root or its character"] = function(expect)
+	["IsHidden reads the VLUXYAI_HIDDEN attribute on the root or its character"] = function(expect)
 		local Perception = load()
 		local character = SenseFakes.Character("Hider", ORIGIN)
 		local attributes = {}
@@ -212,25 +212,25 @@ return {
 		end
 
 		expect.falsy(Perception.IsHidden(character.Root))
-		attributes.AI_HIDDEN = true
+		attributes.VLUXYAI_HIDDEN = true
 		expect.truthy(Perception.IsHidden(character.Root))
-		attributes.AI_HIDDEN = nil
+		attributes.VLUXYAI_HIDDEN = nil
 
 		local part = {
 			Position = ORIGIN,
 			GetAttribute = function(_self, name)
-				return if name == "AI_HIDDEN" then true else nil
+				return if name == "VLUXYAI_HIDDEN" then true else nil
 			end,
 		}
 		expect.truthy(Perception.IsHidden(part))
-		expect.equal(Perception.HIDDEN_ATTRIBUTE, "AI_HIDDEN")
+		expect.equal(Perception.HIDDEN_ATTRIBUTE, "VLUXYAI_HIDDEN")
 	end,
 
 	["AliveRoots skips dead, characterless and hidden players unless asked for the hidden"] = function(expect)
 		local alive = SenseFakes.Character("Alive", ORIGIN)
 		local hidden = SenseFakes.Character("Hidden", ORIGIN)
 		hidden.Model.GetAttribute = function(_self, name)
-			return if name == "AI_HIDDEN" then true else nil
+			return if name == "VLUXYAI_HIDDEN" then true else nil
 		end
 		local dead = SenseFakes.Character("Dead", ORIGIN)
 		dead.Humanoid.Health = 0
@@ -378,7 +378,7 @@ return {
 				end,
 			}
 		end
-		local tagged = { AI_LIGHT = { lamp(1), lamp(0.6) } }
+		local tagged = { VLUXYAI_LIGHT = { lamp(1), lamp(0.6) } }
 		local Perception = Harness.Load("lib/Senses/Perception.luau", {
 			services = {
 				CollectionService = {
@@ -393,7 +393,7 @@ return {
 		expect.near(Perception.LightAt(Vector3.new(0, 0, -10), 0.5), 1, 1e-6, "clamped")
 		expect.near(Perception.LightAt(Vector3.new(0, 0, -100)), 0, 1e-6, "out of range")
 		expect.near(Perception.LightAt(Vector3.new(0, 0, -100), 0.1), 0.1, 1e-6, "ambient alone")
-		expect.equal(Perception.LIGHT_TAG, "AI_LIGHT")
+		expect.equal(Perception.LIGHT_TAG, "VLUXYAI_LIGHT")
 	end,
 
 	["SeenByAnyone: inside an observer's cone with a clear line, else not"] = function(expect)
@@ -487,7 +487,7 @@ return {
 				},
 				CollectionService = {
 					GetTagged = function(_self, tag: string)
-						return if tag == "AI_SAFE" then { room } else {}
+						return if tag == "VLUXYAI_SAFE" then { room } else {}
 					end,
 				},
 			},

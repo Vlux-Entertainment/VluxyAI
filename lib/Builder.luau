@@ -201,7 +201,7 @@ export type OnStepOptions = {
 		Doors.Open(step.Instance)
 		task.wait(0.4)
 		return true
-	end, { Tag = "AI_DOOR" })
+	end, { Tag = "VLUXYAI_DOOR" })
 	```
 
 	Or let [Doors] do all of that over your door script:

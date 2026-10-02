@@ -68,6 +68,7 @@ type self = {
 	Data: { [string]: any },
 	StateChanged: Types.Signal<(string, string?)>,
 	Events: Types.Signal<(string, any)>,
+	Destroyed: Types.Signal<()>,
 
 	_visuals: Types.Visuals,
 	_options: ResolvedOptions,
@@ -93,6 +94,7 @@ type ReplicaClass = typeof(setmetatable({} :: self, Replica))
 	.Data { [string]: any } -- Yours: highlights, sounds, whatever a visual state makes.
 	.StateChanged Signal<(string, string?)> -- Fired by `SetState`.
 	.Events Signal<(string, any)> -- Fired by `Receive`, for every event.
+	.Destroyed Signal<()> -- Fired once by `Destroy`, after the last Exit; tie what you attached to the rig to it.
 	.GetState (self: Replica) -> string?
 	.SetState (self: Replica, name: string) -> ()
 	.SetPosition (self: Replica, position: Vector3, yaw: number?) -> ()
@@ -109,6 +111,7 @@ export type Replica = {
 	Data: { [string]: any },
 	StateChanged: Types.Signal<(string, string?)>,
 	Events: Types.Signal<(string, any)>,
+	Destroyed: Types.Signal<()>,
 	GetState: (self: Replica) -> string?,
 	SetState: (self: Replica, name: string) -> (),
 	SetPosition: (self: Replica, position: Vector3, yaw: number?) -> (),
@@ -181,6 +184,7 @@ function Replica.new(options: ReplicaOptions): Replica
 		Data = {},
 		StateChanged = Signal.new(),
 		Events = Signal.new(),
+		Destroyed = Signal.new(),
 
 		_visuals = visuals,
 		_options = resolved,
@@ -380,7 +384,8 @@ end
 --[=[
 	@within Replica
 
-	Runs the current visual state's `Exit` and stops. The rig is yours; it is not destroyed.
+	Runs the current visual state's `Exit`, stops, and fires `Destroyed`. The rig is yours; it is
+	not destroyed.
 ]=]
 function Replica.Destroy(self: ReplicaClass)
 	if self._destroyed then
@@ -399,8 +404,10 @@ function Replica.Destroy(self: ReplicaClass)
 	self._state = nil
 
 	self._cleaner:Destroy()
+	self.Destroyed:Fire()
 	self.StateChanged:Destroy()
 	self.Events:Destroy()
+	self.Destroyed:Destroy()
 end
 
 return Replica

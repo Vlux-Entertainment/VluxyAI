@@ -55,13 +55,13 @@ slam, a dropped object, a gunshot.
 For sounds the world is already playing there is nothing to fire: tag the `Sound` with
 `CollectionService` and give the agent a [Sounds](/api/Sounds) sense. It judges every tagged,
 playing, 3D sound each tick by the volume it would have at the agent (the sound's own `Volume`
-and roll-off), times an `AI_SOUND/Multiplier` attribute on the sound when you want it to matter more or less,
+and roll-off), times an `VLUXYAI_SOUND/Multiplier` attribute on the sound when you want it to matter more or less,
 and writes the loudest as `HeardSound` with its position and distance. A state investigates it
 the same way the Stalker investigates a noise, reading `HeardSoundPosition` and `HeardSoundAt`.
 
 ```lua
-CollectionService:AddTag(radio.Sound, "AI_SOUND")
-radio.Sound:SetAttribute("AI_SOUND/Multiplier", 2)
+CollectionService:AddTag(radio.Sound, "VLUXYAI_SOUND")
+radio.Sound:SetAttribute("VLUXYAI_SOUND/Multiplier", 2)
 
 :AddSense(VluxyAI.Senses.Sounds.new({ Threshold = 0.1 }))
 ```

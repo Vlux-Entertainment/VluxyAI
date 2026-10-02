@@ -13,6 +13,7 @@
 ]]
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Graph = require(script.Parent.Parent.Pathfinders.Graph)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Types = require(script.Parent.Parent.Types)
 
@@ -720,6 +721,174 @@ function States.Roam(options: RoamOptions): Types.State
 			scratch.Exhausted = true
 			return resolved.Then
 		end
+		return nil
+	end)
+end
+
+------------------------------------------------------------------------------------------------------------------------
+
+local GRAPH_ROAM_DEFAULTS = table.freeze({
+	Key = "GraphRoam",
+})
+
+local GRAPH_ROAM_ALLOWED = { "Graph", "Pick", "Pause", "Speed", "Random", "Transitions", "Enter", "Exit" }
+
+type GraphSource =
+	{ Graph.GraphNode }
+	| { GetNodes: (self: any) -> { Graph.GraphNode } }
+	| (agent: Types.Agent) -> { Graph.GraphNode }
+
+--[=[
+	@interface GraphRoamOptions
+	@within States
+
+	.Graph { GraphNode } | Graph | (agent: Agent) -> { GraphNode } -- The nodes: a [Graph] pathfinder (its `GetNodes`), the node list, or a function. Required.
+	.Pick ((agent: Agent, nodes: { GraphNode }, current: number) -> number?)? -- The next destination's node index, from the node nearest the agent. `nil` stands still and asks again next tick. Default: any other node at random.
+	.Pause number | { number }? -- Seconds to stand at each destination, or a `{ min, max }` range. Default none.
+	.Speed number? -- Set on entry.
+	.Random Random? -- For the default pick and a ranged `Pause`. Default `agent.Data.Random`, else a new one.
+	.Key string? -- The `Data` key for the route. Default `"GraphRoam"`.
+	.Transitions { Transition }?
+	.Enter ((agent: Agent) -> ())?
+	.Exit ((agent: Agent) -> ())?
+]=]
+export type GraphRoamOptions = {
+	Graph: GraphSource,
+	Pick: ((agent: Types.Agent, nodes: { Graph.GraphNode }, current: number) -> number?)?,
+	Pause: Range?,
+	Speed: number?,
+	Random: Random?,
+	Key: string?,
+	Transitions: { Types.Transition }?,
+	Enter: ((agent: Types.Agent) -> ())?,
+	Exit: ((agent: Types.Agent) -> ())?,
+}
+
+--[=[
+	@within States
+	@param options GraphRoamOptions
+	@return State
+	@error "Graph is required"
+
+	Roams an authored graph one node at a time. It picks a destination, routes to it with
+	[Graph.AStar] from the node nearest the agent, and sends the agent to each node of the route
+	in turn, starting the next leg only once the last one arrived. So the graph decides the order
+	while the agent's own pathfinder plans every leg, unlike [Hybrid], which walks the middle of a
+	graph route straight. An agent off the graph walks to the nearest node first; a leg that fails
+	re-plans from where the agent stands.
+
+	The route is kept at `agent.Data[Key]`, for a brain or a debug view to read: `Route` (node
+	indices), `Leg` (the index into `Route` being walked), `Next` (that node's index) and `Goal`.
+	It survives leaving and re-entering the state, so an enemy that broke off to investigate
+	resumes its leg.
+]=]
+function States.GraphRoam(options: GraphRoamOptions): Types.State
+	local resolved = Options.Resolve("States.GraphRoam", GRAPH_ROAM_DEFAULTS, options :: any, GRAPH_ROAM_ALLOWED) :: any
+	if resolved.Graph == nil then
+		FormatMessage.Error("States.GraphRoam: Graph is required", 2)
+	end
+	local key: string = resolved.Key
+	local timer = `States.{key}`
+
+	local function nodesOf(agent: Types.Agent): { Graph.GraphNode }
+		local source = resolved.Graph
+		if type(source) == "function" then
+			return source(agent) or {}
+		end
+		if type(source.GetNodes) == "function" then
+			return source:GetNodes()
+		end
+		return source
+	end
+
+	local function defaultPick(agent: Types.Agent, nodes: { Graph.GraphNode }, current: number): number?
+		if #nodes <= 1 then
+			return current
+		end
+		local choice = randomOf(agent, resolved.Random):NextInteger(1, #nodes - 1)
+		return if choice >= current then choice + 1 else choice
+	end
+
+	local function walkLeg(agent: Types.Agent, scratch: { [string]: any }, nodes: { Graph.GraphNode })
+		local nextNode = scratch.Route[scratch.Leg]
+		scratch.Next = nextNode
+		agent:MoveTo(nodes[nextNode].Position)
+	end
+
+	-- A new route from the node nearest the agent. Leaves the scratch empty when there is none.
+	local function plan(agent: Types.Agent, scratch: { [string]: any })
+		scratch.Route, scratch.Leg, scratch.Next, scratch.Goal = nil, nil, nil, nil
+		scratch.Pausing = false
+
+		local nodes = nodesOf(agent)
+		if #nodes == 0 then
+			return
+		end
+		local current = Graph.Nearest(nodes, agent:GetPosition(), math.huge)
+		if current == nil then
+			return
+		end
+		local goal = (resolved.Pick or defaultPick)(agent, nodes, current)
+		if goal == nil or nodes[goal] == nil then
+			return
+		end
+		local route = Graph.AStar(nodes, current, goal)
+		if route == nil then
+			return
+		end
+
+		scratch.Route, scratch.Leg, scratch.Goal = route, 1, goal
+		walkLeg(agent, scratch, nodes)
+	end
+
+	return assemble(resolved, function(agent: Types.Agent)
+		local scratch = scratchOf(agent, key)
+		local nodes = nodesOf(agent)
+		local route = scratch.Route
+		-- Resume the current leg after an interruption; plan a fresh route otherwise.
+		if route ~= nil and scratch.Leg ~= nil and nodes[route[scratch.Leg]] ~= nil and not scratch.Pausing then
+			walkLeg(agent, scratch, nodes)
+		else
+			plan(agent, scratch)
+		end
+	end, function(agent: Types.Agent, _deltaTime: number): string?
+		local scratch = scratchOf(agent, key)
+		if scratch.Route == nil then
+			plan(agent, scratch)
+			return nil
+		end
+		if not pathDone(agent) then
+			return nil
+		end
+
+		if agent:GetPathStatus() == "Failed" then
+			plan(agent, scratch)
+			return nil
+		end
+
+		local nodes = nodesOf(agent)
+		if scratch.Leg < #scratch.Route then
+			scratch.Leg += 1
+			if nodes[scratch.Route[scratch.Leg]] == nil then
+				plan(agent, scratch)
+			else
+				walkLeg(agent, scratch, nodes)
+			end
+			return nil
+		end
+
+		if resolved.Pause ~= nil then
+			if not scratch.Pausing then
+				scratch.Pausing = true
+				agent:StartTimer(timer, pick(randomOf(agent, resolved.Random), resolved.Pause))
+				return nil
+			end
+			if not agent:TimerDone(timer) then
+				return nil
+			end
+		end
+
+		plan(agent, scratch)
 		return nil
 	end)
 end

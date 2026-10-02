@@ -92,6 +92,7 @@ export type StepAction = Types.StepAction
 
 export type Signal<T...> = Types.Signal<T...>
 export type Connection = Types.Connection
+export type NoiseSignal = Types.NoiseSignal
 export type Cleaner = Cleaner.Cleaner
 
 export type Curve = Types.Curve
@@ -328,7 +329,7 @@ VluxyAI.Doors = Doors
 	@within VluxyAI
 	@prop SafeAreas SafeAreas
 
-	Parts tagged `AI_SAFE` that agents never enter while `AI_SAFE/Enabled` is not `false`. Call
+	Parts tagged `VLUXYAI_SAFE` that agents never enter while `VLUXYAI_SAFE/Enabled` is not `false`. Call
 	`VluxyAI.SafeAreas.Setup()` once on the server.
 ]=]
 VluxyAI.SafeAreas = SafeAreas
@@ -479,8 +480,65 @@ local PRESET_KEYS =
 	{ "Navmesh", "Straight", "Mover", "Sight", "Proximity", "Navigation", "Graph", "Doors", "SafeWatch" }
 
 --[=[
+	@interface PuppetPresetOptions
 	@within VluxyAI
-	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder }
+
+	.Navmesh NavmeshOptions? -- Options for [Navmesh.new]: `AgentRadius`, `AgentHeight` and the rest.
+	.Mover CFrameMoverOptions? -- Options for [CFrameMover.new]: `Speed`, `TurnSpeed`, `HeightOffset`. `HeightOffset` defaults to `0` here, so the anchor's pivot is the floor point.
+	.Navigation NavigationOptions? -- Navigator tuning. Default `{ RepathInterval = 0.25, MaxPathAge = 2 }`.
+]=]
+export type PuppetPresetOptions = {
+	Navmesh: Navmesh.Options?,
+	Mover: CFrameMover.CFrameMoverOptions?,
+	Navigation: Types.NavigationOptions?,
+}
+
+local PUPPET_PRESET_KEYS = { "Navmesh", "Mover", "Navigation" }
+
+--[[
+	Errors on a key a preset does not take, naming the ones it does.
+]]
+local function checkPresetKeys(preset: string, given: { [any]: any }, keys: { string })
+	for key in given do
+		if table.find(keys, key) == nil then
+			FormatMessage.Error(
+				`Presets.{preset}: unknown option "{tostring(key)}"; expected one of {table.concat(keys, ", ")}`,
+				3
+			)
+		end
+	end
+end
+
+--[[
+	The Model a puppet's anchor needs to be an agent: a Model as it is, or a Part wrapped in a new
+	Model in its place, as its PrimaryPart, made invisible and inert.
+]]
+local function puppetModel(anchor: Model | BasePart): Model
+	if anchor:IsA("Model") then
+		return anchor
+	end
+	if not anchor:IsA("BasePart") then
+		FormatMessage.Error(`Presets.Puppet: the anchor must be a Model or a BasePart, got {anchor.ClassName}`, 3)
+	end
+	local part = anchor :: BasePart
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Transparency = 1
+
+	local model = Instance.new("Model")
+	model.Name = part.Name
+	local parent = part.Parent
+	part.Parent = model
+	model.PrimaryPart = part
+	model.Parent = parent
+	return model
+end
+
+--[=[
+	@within VluxyAI
+	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder, Puppet: (anchor: Model | BasePart, options: PuppetPresetOptions?) -> Builder }
 
 	Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a
 	[Navmesh] pathfinder (graph-first [Hybrid] when `Graph` is given) with [Straight] as its
@@ -494,21 +552,28 @@ local PRESET_KEYS =
 		:AddSense(VluxyAI.Senses.Clues.new(interest))
 		:Build()
 	```
+
+	`Presets.Puppet(anchor)` is the server half of puppet mode, for an enemy with no visible body
+	on the server: a [Navmesh] pathfinder and a [CFrameMover] on the anchor (`HeightOffset` `0`, so
+	its pivot is the floor point) with the same repath. A Part anchor is wrapped in a Model of its
+	own and made invisible, anchored and inert. It adds no senses; stream it with a [Broadcaster]
+	once built, and draw it on the client with a puppet [Replica].
+
+	```lua
+	local agent = VluxyAI.Presets.Puppet(anchorPart, {
+		Navmesh = { AgentRadius = 4, AgentHeight = 12 },
+		Mover = { Speed = 10, TurnSpeed = 6 },
+	})
+		:UseBrain(Brain)
+		:AddSense(VluxyAI.Senses.Hearing.new(noises))
+		:Build()
+	local broadcaster = VluxyAI.Sync.Broadcaster.new(agent, { PositionRate = 10 })
+	```
 ]=]
 VluxyAI.Presets = {
 	Humanoid = function(model: Model, options: HumanoidPresetOptions?): Builder.Builder
 		local resolved: HumanoidPresetOptions = options or {}
-		for key in resolved :: any do
-			if table.find(PRESET_KEYS, key) == nil then
-				FormatMessage.Error(
-					`Presets.Humanoid: unknown option "{tostring(key)}"; expected one of {table.concat(
-						PRESET_KEYS,
-						", "
-					)}`,
-					2
-				)
-			end
-		end
+		checkPresetKeys("Humanoid", resolved :: any, PRESET_KEYS)
 
 		local graph = resolved.Graph
 		local navmesh = Navmesh.new(resolved.Navmesh)
@@ -536,6 +601,22 @@ VluxyAI.Presets = {
 			builder:OnStep("Door", Doors.Step(nil, { WalkThrough = true })):AddSense(Doors.Opener())
 		end
 		return builder
+	end,
+
+	Puppet = function(anchor: Model | BasePart, options: PuppetPresetOptions?): Builder.Builder
+		local resolved: PuppetPresetOptions = options or {}
+		checkPresetKeys("Puppet", resolved :: any, PUPPET_PRESET_KEYS)
+
+		local model = puppetModel(anchor)
+		local moverOptions: any = table.clone(resolved.Mover or {})
+		if moverOptions.HeightOffset == nil then
+			moverOptions.HeightOffset = 0
+		end
+
+		return Builder.new(model)
+			:UsePathfinder(Navmesh.new(resolved.Navmesh))
+			:UseMover(CFrameMover.new(model, moverOptions))
+			:SetNavigation(resolved.Navigation or { RepathInterval = 0.25, MaxPathAge = 2 })
 	end,
 }
 

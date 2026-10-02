@@ -49,7 +49,7 @@ local function setup(options: {
 			},
 			CollectionService = {
 				GetTagged = function(_self, tag: string)
-					return if tag == "AI_SAFE" then options.rooms or {} else {}
+					return if tag == "VLUXYAI_SAFE" then options.rooms or {} else {}
 				end,
 			},
 		},

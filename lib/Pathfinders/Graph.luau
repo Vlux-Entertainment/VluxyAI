@@ -31,6 +31,7 @@ local DEFAULT_OPTIONS = table.freeze({
 local BUILD_DEFAULTS = table.freeze({
 	LinkRadius = 24,
 	AutoLink = true,
+	ResolveByName = false,
 	Ignore = {} :: { Instance },
 	CanLink = nil :: ((a: Vector3, b: Vector3) -> boolean)?,
 })
@@ -106,6 +107,7 @@ export type GraphOptions = {
 
 	.LinkRadius number? -- Studs within which two nodes are linked automatically when the link test passes. Default `24`.
 	.AutoLink boolean? -- Turn the automatic linking off to use only explicit links. Default `true`.
+	.ResolveByName boolean? -- A link that points outside the container is resolved to the container's node of the same name, instead of being warned about and skipped. For a graph inside a Roblox package, whose published copies keep Instance attributes pointing at the original nodes. Default `false`.
 	.Ignore { Instance }? -- Instances the linking rays pass through (the node parts themselves always are).
 	.CanLink ((a: Vector3, b: Vector3) -> boolean)? -- Replaces the ray test: return `true` when an agent can walk from `a` to `b`. Ask your navmesh here for anything but flat floors.
 	.Graph GraphOptions? -- Options for the graph itself (`NearestLimit`, `LineOfSight`).
@@ -113,6 +115,7 @@ export type GraphOptions = {
 export type GraphBuildOptions = {
 	LinkRadius: number?,
 	AutoLink: boolean?,
+	ResolveByName: boolean?,
 	Ignore: { Instance }?,
 	CanLink: ((a: Vector3, b: Vector3) -> boolean)?,
 	Graph: GraphOptions?,
@@ -431,7 +434,10 @@ end
 	`Label = "Door"` and an Instance attribute `Instance` pointing at the door, and a route through
 	it carries a `"Door"` step with that door (on the node before it, where the [Builder:OnStep]
 	handler runs). `Action` defaults to `"Custom"` there. A link that points outside the
-	container is warned about and skipped. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
+	container is warned about and skipped, or, with `ResolveByName`, taken to the node of the same
+	name under the container (Roblox does not remap Instance attributes in a package's copies, so
+	every copy's links point at the original's nodes; a plain `Clone` remaps them and needs none of
+	this). A name shared by two nodes cannot be resolved and is warned about. With `AutoLink`, nodes within `LinkRadius` of each other are linked both ways when
 	`CanLink` says so, or, without it, when a ray 1.5 studs up between them is clear. The ray test
 	is a line-of-sight test, not a walkability test: it links across a pit and refuses a staircase,
 	so on anything but flat floors give `CanLink` a real answer.
@@ -466,6 +472,39 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 
 	if #instances == 0 then
 		FormatMessage.Error(`Graph.FromInstances: no parts or attachments under {container:GetFullName()}`, 2)
+	end
+
+	-- Node names, for ResolveByName. A name two nodes share maps to false: it cannot be resolved.
+	local indexByName: { [string]: number | false } = {}
+	for index, instance in instances do
+		indexByName[instance.Name] = if indexByName[instance.Name] == nil then index else false
+	end
+
+	--[[
+		The node a link points at: the instance itself when it is one, else, with ResolveByName,
+		the node of the same name. Warns and returns nil when neither works.
+	]]
+	local function resolveTarget(target: Instance, describe: string): number?
+		local index = indexOf[target]
+		if index then
+			return index
+		end
+		if resolved.ResolveByName then
+			local byName = indexByName[target.Name]
+			if type(byName) == "number" then
+				return byName
+			end
+			if byName == false then
+				FormatMessage.Warn(
+					`Graph.FromInstances: {describe} points at {target:GetFullName()}; more than one node under {container:GetFullName()} is named "{target.Name}", so it cannot be resolved by name`
+				)
+				return nil
+			end
+		end
+		FormatMessage.Warn(
+			`Graph.FromInstances: {describe} points at {target:GetFullName()}, which is not a node under {container:GetFullName()}`
+		)
+		return nil
 	end
 
 	local nodes: { GraphNode } = {}
@@ -513,13 +552,9 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 			if target == nil then
 				continue
 			end
-			local targetIndex = indexOf[target]
+			local targetIndex = resolveTarget(target, `the {name} attribute on {instance:GetFullName()}`)
 			if targetIndex then
 				linkInto(index, targetIndex)
-			else
-				FormatMessage.Warn(
-					`Graph.FromInstances: the {name} attribute on {instance:GetFullName()} points at {target:GetFullName()}, which is not a node under {container:GetFullName()}`
-				)
 			end
 		end
 	end
@@ -527,7 +562,7 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 	for index, instance in instances do
 		for _, value in instance:GetChildren() do
 			if value:IsA("ObjectValue") and value.Name == "Link" and value.Value ~= nil then
-				local target = indexOf[value.Value :: Instance]
+				local target = resolveTarget(value.Value :: Instance, value:GetFullName())
 				if target then
 					local action = value:GetAttribute("Action")
 					local label = value:GetAttribute("Label")
@@ -542,10 +577,6 @@ function Graph.FromInstances(container: Instance, options: GraphBuildOptions?): 
 					else
 						linkInto(index, target)
 					end
-				else
-					FormatMessage.Warn(
-						`Graph.FromInstances: {value:GetFullName()} points at {(value.Value :: Instance):GetFullName()}, which is not a node under {container:GetFullName()}`
-					)
 				end
 			end
 		end

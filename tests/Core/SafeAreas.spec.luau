@@ -20,7 +20,7 @@ local function safePart(position: any, size: any, enabled: boolean?)
 		Name = "SafeRoom",
 		CFrame = CFrame.new(position),
 		Size = size,
-		Attributes = { ["AI_SAFE/Enabled"] = enabled },
+		Attributes = { ["VLUXYAI_SAFE/Enabled"] = enabled },
 	}
 	function part.IsA(_self, className: string)
 		return className == "BasePart"
@@ -36,7 +36,7 @@ local function load(parts: { any }?)
 		services = {
 			CollectionService = {
 				GetTagged = function(_self, tag: string)
-					return if tag == "AI_SAFE" then parts or {} else {}
+					return if tag == "VLUXYAI_SAFE" then parts or {} else {}
 				end,
 			},
 		},
@@ -64,7 +64,7 @@ return {
 		expect.falsy(SafeAreas.Contains(Vector3.new(30, 1, 8)))
 	end,
 
-	["an area with AI_SAFE/Enabled = false is not safe; a missing attribute means on"] = function(expect)
+	["an area with VLUXYAI_SAFE/Enabled = false is not safe; a missing attribute means on"] = function(expect)
 		local off = safePart(Vector3.new(0, 3, 0), Vector3.new(10, 6, 10), false)
 		local on = safePart(Vector3.new(40, 3, 0), Vector3.new(10, 6, 10), nil)
 		local SafeAreas = load({ off, on })

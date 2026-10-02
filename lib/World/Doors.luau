@@ -15,8 +15,8 @@
 	Either way a locked door is refused, so the next plan goes around it.
 
 	The one decision: the package never moves a door. A DoorDriver connects the agent to the
-	game's own door script, and the default driver talks through attributes (`AI_DOOR/Open`,
-	`AI_DOOR/Locked`, `AI_DOOR/OpenTime`), so a door script that listens to one attribute works
+	game's own door script, and the default driver talks through attributes (`VLUXYAI_DOOR/Open`,
+	`VLUXYAI_DOOR/Locked`, `VLUXYAI_DOOR/OpenTime`), so a door script that listens to one attribute works
 	with no Luau glue. Nothing touches Roblox at module scope.
 ]]
 
@@ -28,12 +28,12 @@ local Types = require(script.Parent.Parent.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local OPEN_ATTRIBUTE = "AI_DOOR/Open"
-local LOCKED_ATTRIBUTE = "AI_DOOR/Locked"
-local OPEN_TIME_ATTRIBUTE = "AI_DOOR/OpenTime"
+local OPEN_ATTRIBUTE = "VLUXYAI_DOOR/Open"
+local LOCKED_ATTRIBUTE = "VLUXYAI_DOOR/Locked"
+local OPEN_TIME_ATTRIBUTE = "VLUXYAI_DOOR/OpenTime"
 
 local DEFAULT_OPTIONS = table.freeze({
-	Tag = "AI_DOOR",
+	Tag = "VLUXYAI_DOOR",
 	Radius = 8,
 	OpenTime = 0.5,
 	CloseSeconds = 10,
@@ -42,7 +42,7 @@ local DEFAULT_OPTIONS = table.freeze({
 })
 
 local DEFAULT_OPENER_OPTIONS = table.freeze({
-	Tag = "AI_DOOR",
+	Tag = "VLUXYAI_DOOR",
 	Radius = 6,
 	Facing = 0.3,
 	Emit = "Door",
@@ -53,7 +53,7 @@ local DEFAULT_OPENER_OPTIONS = table.freeze({
 	@interface DoorStepOptions
 	@within Doors
 
-	.Tag string? -- `CollectionService` tag that finds the door for a navmesh step, which arrives without its `Instance`. Default `"AI_DOOR"`.
+	.Tag string? -- `CollectionService` tag that finds the door for a navmesh step, which arrives without its `Instance`. Default `"VLUXYAI_DOOR"`.
 	.Radius number? -- Studs from the step to look for the tagged door. Default `8`.
 	.OpenTime number? -- Seconds to wait after opening, for a driver with no `OpenTime` of its own. Default `0.5`.
 	.CloseSeconds number? -- Seconds a locked door is planned around before the agent tries it again. Default `10`.
@@ -82,7 +82,7 @@ type ResolvedOptions = {
 	@interface DoorOpenerOptions
 	@within Doors
 
-	.Tag string? -- `CollectionService` tag of the doors. Default `"AI_DOOR"`.
+	.Tag string? -- `CollectionService` tag of the doors. Default `"VLUXYAI_DOOR"`.
 	.Radius number? -- Studs from the agent within which a door ahead is opened. Default `6`.
 	.Facing number? -- How squarely the agent must face the door to open it: the dot product of its look direction and the direction to the door, from `-1` (any way) to `1` (dead ahead). Keeps an agent walking past a door in a side wall from opening it. Default `0.3`.
 	.Emit string? -- Sent with [Agent:Emit] as a door is opened. `""` sends nothing. Default `"Door"`.
@@ -119,9 +119,9 @@ local Doors = {}
 	:OnStep("Door", VluxyAI.Doors.Step())
 	```
 
-	With no driver it uses [Doors.Attributes]: opening a door sets its `AI_DOOR/Open` attribute to
+	With no driver it uses [Doors.Attributes]: opening a door sets its `VLUXYAI_DOOR/Open` attribute to
 	`true`, and your door script swings it and sets it back to `false` when it closes.
-	`AI_DOOR/Locked = true` makes an agent refuse it and plan around it; `AI_DOOR/OpenTime` is
+	`VLUXYAI_DOOR/Locked = true` makes an agent refuse it and plan around it; `VLUXYAI_DOOR/OpenTime` is
 	how many seconds the agent waits for the swing.
 
 	For doors that agents never collide with (put the doors and the rigs in collision groups that
@@ -139,7 +139,7 @@ local Doors = {}
 	Then the navmesh modifier alone decides what is passable: `PassThrough` on while the door is
 	unlocked, off while it is locked.
 
-	Authoring a door for the navmesh: tag the door `AI_DOOR`, give it a `PathfindingModifier` with
+	Authoring a door for the navmesh: tag the door `VLUXYAI_DOOR`, give it a `PathfindingModifier` with
 	`PassThrough` on and `Label = "Door"`, and put an invisible, non-colliding part a few studs deep
 	across the doorway with a modifier labelled `"Door"`, so a waypoint always lands in the doorway.
 	[Navmesh] moves the stop to the waypoint before the doorway.
@@ -147,7 +147,7 @@ local Doors = {}
 
 --[=[
 	@within Doors
-	@prop OPEN_ATTRIBUTE "AI_DOOR/Open"
+	@prop OPEN_ATTRIBUTE "VLUXYAI_DOOR/Open"
 
 	The attribute [Doors.Attributes] sets to open a door and reads to see that it is open.
 ]=]
@@ -155,7 +155,7 @@ Doors.OPEN_ATTRIBUTE = OPEN_ATTRIBUTE
 
 --[=[
 	@within Doors
-	@prop LOCKED_ATTRIBUTE "AI_DOOR/Locked"
+	@prop LOCKED_ATTRIBUTE "VLUXYAI_DOOR/Locked"
 
 	`true` on a door makes [Doors.Attributes] report it locked.
 ]=]
@@ -163,7 +163,7 @@ Doors.LOCKED_ATTRIBUTE = LOCKED_ATTRIBUTE
 
 --[=[
 	@within Doors
-	@prop OPEN_TIME_ATTRIBUTE "AI_DOOR/OpenTime"
+	@prop OPEN_TIME_ATTRIBUTE "VLUXYAI_DOOR/OpenTime"
 
 	Seconds the door takes to open, read by [Doors.Attributes].
 ]=]
@@ -173,9 +173,9 @@ Doors.OPEN_TIME_ATTRIBUTE = OPEN_TIME_ATTRIBUTE
 	@within Doors
 	@prop Attributes DoorDriver
 
-	The default driver. `Open` sets `AI_DOOR/Open` to `true`; `IsOpen` reads it; `IsLocked` reads
-	`AI_DOOR/Locked`; `OpenTime` reads `AI_DOOR/OpenTime` when it is a number. Your door script
-	listens to `AI_DOOR/Open`, and sets it itself when a player opens or closes the door so agents
+	The default driver. `Open` sets `VLUXYAI_DOOR/Open` to `true`; `IsOpen` reads it; `IsLocked` reads
+	`VLUXYAI_DOOR/Locked`; `OpenTime` reads `VLUXYAI_DOOR/OpenTime` when it is a number. Your door script
+	listens to `VLUXYAI_DOOR/Open`, and sets it itself when a player opens or closes the door so agents
 	know.
 ]=]
 Doors.Attributes = table.freeze({
@@ -418,7 +418,7 @@ end
 	@within Doors
 	@param base (agent: Agent) -> { Instance } -- The ignore list to extend, such as [Straight.DefaultIgnore].
 	@param driver DoorDriver? -- Default [Doors.Attributes].
-	@param tag string? -- Default `"AI_DOOR"`.
+	@param tag string? -- Default `"VLUXYAI_DOOR"`.
 	@return (agent: Agent) -> { Instance } -- An `Ignore` for [Straight] or [Sight].
 
 	An ignore list that also passes through every tagged door the agent could open, so a direct

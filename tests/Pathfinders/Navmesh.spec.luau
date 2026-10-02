@@ -475,13 +475,13 @@ return {
 	["safe areas are always priced out, unless the costs already price them"] = function(expect)
 		local Navmesh = load()
 		local merged = Navmesh.WithSafeAreas({ Swim = 5 })
-		expect.equal(merged.AI_SAFE, math.huge)
+		expect.equal(merged.VLUXYAI_SAFE, math.huge)
 		expect.equal(merged.Swim, 5)
-		expect.equal(Navmesh.WithSafeAreas({ AI_SAFE = 3 }).AI_SAFE, 3, "your own price wins")
+		expect.equal(Navmesh.WithSafeAreas({ VLUXYAI_SAFE = 3 }).VLUXYAI_SAFE, 3, "your own price wins")
 
 		local Service, created = loadWithService(fakePath(Enum.PathStatus.Success, { waypoint(0, 0, 0) }))
 		Service.new({ Costs = { Swim = 5 } })
-		expect.equal(created[1].Costs.AI_SAFE, math.huge, "and CreatePath gets it")
+		expect.equal(created[1].Costs.VLUXYAI_SAFE, math.huge, "and CreatePath gets it")
 		expect.equal(created[1].Costs.Swim, 5)
 	end,
 

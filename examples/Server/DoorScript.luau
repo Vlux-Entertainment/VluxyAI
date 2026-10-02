@@ -3,7 +3,7 @@
 --[[
 	The playground's door script: what a game's own door code looks like to VluxyAI. A door
 	swings on its hinge, away from whoever opened it, and a prompt lets a player open or close it.
-	Enemies open it through the `AI_DOOR/Open` attribute that `VluxyAI.Doors` sets, so neither
+	Enemies open it through the `VLUXYAI_DOOR/Open` attribute that `VluxyAI.Doors` sets, so neither
 	side knows about the other.
 
 	The one decision: doors never collide with enemies. VluxyAI.Collision puts the rigs and the
@@ -125,8 +125,8 @@ function DoorScript.Watch(door: BasePart, onPlayerOpened: (door: BasePart) -> ()
 	end
 
 	local function refresh()
-		local locked = door:GetAttribute("AI_DOOR/Locked") == true
-		local isOpen = door:GetAttribute("AI_DOOR/Open") == true
+		local locked = door:GetAttribute("VLUXYAI_DOOR/Locked") == true
+		local isOpen = door:GetAttribute("VLUXYAI_DOOR/Open") == true
 		prompt.ObjectText = if locked then "Locked" else "Door"
 		prompt.ActionText = if isOpen then "Close" else "Open"
 		-- Enemies walk through it unless it is locked; players always collide with it.
@@ -141,29 +141,29 @@ function DoorScript.Watch(door: BasePart, onPlayerOpened: (door: BasePart) -> ()
 			task.wait(RETRY_SECONDS)
 		end
 		if opened == token and not openedByPlayer then
-			door:SetAttribute("AI_DOOR/Open", false)
+			door:SetAttribute("VLUXYAI_DOOR/Open", false)
 		end
 	end
 
 	prompt.Triggered:Connect(function(player: Player)
-		if door:GetAttribute("AI_DOOR/Locked") == true then
+		if door:GetAttribute("VLUXYAI_DOOR/Locked") == true then
 			return
 		end
-		if door:GetAttribute("AI_DOOR/Open") == true then
-			door:SetAttribute("AI_DOOR/Open", false)
+		if door:GetAttribute("VLUXYAI_DOOR/Open") == true then
+			door:SetAttribute("VLUXYAI_DOOR/Open", false)
 			return
 		end
 		openedByPlayer = true
 		local character = player.Character
 		local root = if character then character:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
 		swing(openCFrame(if root then root.Position else nil))
-		door:SetAttribute("AI_DOOR/Open", true)
+		door:SetAttribute("VLUXYAI_DOOR/Open", true)
 		onPlayerOpened(door)
 	end)
 
-	door:GetAttributeChangedSignal("AI_DOOR/Open"):Connect(function()
+	door:GetAttributeChangedSignal("VLUXYAI_DOOR/Open"):Connect(function()
 		refresh()
-		if door:GetAttribute("AI_DOOR/Open") == true then
+		if door:GetAttribute("VLUXYAI_DOOR/Open") == true then
 			openSound:Play()
 			opened += 1
 			if not openedByPlayer then
@@ -183,9 +183,9 @@ function DoorScript.Watch(door: BasePart, onPlayerOpened: (door: BasePart) -> ()
 		end
 	end)
 
-	door:GetAttributeChangedSignal("AI_DOOR/Locked"):Connect(function()
-		if door:GetAttribute("AI_DOOR/Locked") == true and door:GetAttribute("AI_DOOR/Open") == true then
-			door:SetAttribute("AI_DOOR/Open", false)
+	door:GetAttributeChangedSignal("VLUXYAI_DOOR/Locked"):Connect(function()
+		if door:GetAttribute("VLUXYAI_DOOR/Locked") == true and door:GetAttribute("VLUXYAI_DOOR/Open") == true then
+			door:SetAttribute("VLUXYAI_DOOR/Open", false)
 		end
 		refresh()
 	end)

@@ -67,6 +67,16 @@ export type Signal<T...> = {
 	Destroy: (self: Signal<T...>) -> (),
 }
 
+--[=[
+	@type NoiseSignal Signal<(Vector3, number?, string?, Instance?)>
+	@within Types
+
+	What a [Hearing] sense listens to: fired with a world position, an optional loudness (`1` by
+	default), an optional kind (`"Footstep"`, `"Door"`) and an optional source, the Instance that
+	made the noise (a player's character, a rig), so a brain can tell whose noise it was.
+]=]
+export type NoiseSignal = Signal<(Vector3, number?, string?, Instance?)>
+
 ------------------------------------------------------------------------------------------------------------------------
 --PATHS-----------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------

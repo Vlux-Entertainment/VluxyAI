@@ -52,15 +52,15 @@ lib/
   Brain/Validate     walks a definition, errors with the field path
   Brain/Utility      considerations, curves, Score/Best/Weighted (targets, never modes)
   Brain/When         ready-made When predicates (Has, New, Below, PathDone, Timer, All/Any/Not)
-  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait, Roam (Stray), Stare, Burrow);
+  Brain/States       ready-made states (Patrol, Investigate, Search, Wander, Wait, Roam (Stray), GraphRoam, Stare, Burrow);
                      scratch in agent.Data
   Group/             what agents share: Director (tension meter, difficulty, shared blackboard; director:Sense()),
                      Interest (points of interest with strength; Best picks where to look next, States.Roam
                      walks it; AddAll, and Heard(position, loudness, kind) weighing noise kinds by its Clues
                      option), Claims (who is on what, for a group)
   World/             what agents respect in the level: Doors (Doors.Step(driver?), the "Door" step registration:
-                     Ready skips open doors, locked ones refuse; Doors.Attributes drives AI_DOOR/Open, /Locked,
-                     /OpenTime), SafeAreas (parts tagged AI_SAFE, AI_SAFE/Enabled toggles: Navmesh prices them
+                     Ready skips open doors, locked ones refuse; Doors.Attributes drives VLUXYAI_DOOR/Open, /Locked,
+                     /OpenTime), SafeAreas (parts tagged VLUXYAI_SAFE, VLUXYAI_SAFE/Enabled toggles: Navmesh prices them
                      out, Straight refuses lines across, Graph Avoid, AliveRoots drops players inside, Setup makes
                      them solid to rigs), Collision (the rig group; AddRig, LetRigsThrough), PlayerNoise
                      (players' speed bands fired as kinded noises on a Hearing signal)
@@ -69,8 +69,8 @@ lib/
                      (a shared instance is a group; optional Slow via the agent's speed scale and Avoid via
                      the mover's SetNudge), Throttle: Tick(agent, dt) writes the blackboard; all take Prefix
                      and have Configure
-  Senses/Perception  public helpers the senses are made of (alive roots minus AI_HIDDEN, cones, line of
-                     sight with SeeThrough, LightAt over AI_LIGHT, CountWalls, SeenByAnyone, HumanoidOf)
+  Senses/Perception  public helpers the senses are made of (alive roots minus VLUXYAI_HIDDEN, cones, line of
+                     sight with SeeThrough, LightAt over VLUXYAI_LIGHT, CountWalls, SeenByAnyone, HumanoidOf)
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
                      Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
                      Hybrid (graph for the level, local for geometry)
@@ -134,9 +134,9 @@ Rules that keep it composable and testable:
   `TimeInState` hold while the agent is paused.
 - `agent:SetSpeed` is the base speed a state asks for; `agent:SetSpeedScale` is a multiplier layered
   on it (crowding, stuns, the director) that survives state changes. Movers only ever see the product.
-- Reserved names a game meets: attributes `AI_HIDDEN`, `AI_SOUND/Multiplier`, `AI_DOOR/Open`, `/Locked`,
-  `/OpenTime` and `AI_SAFE/Enabled`; tags `AI_SOUND`, `AI_LIGHT`, `AI_DOOR` (the default tag of `Doors.Step`)
-  and `AI_SAFE`; the navmesh label `AI_SAFE`; collision group `VluxyAISafe`. Prefixed so they do
+- Reserved names a game meets: attributes `VLUXYAI_HIDDEN`, `VLUXYAI_SOUND/Multiplier`, `VLUXYAI_DOOR/Open`, `/Locked`,
+  `/OpenTime` and `VLUXYAI_SAFE/Enabled`; tags `VLUXYAI_SOUND`, `VLUXYAI_LIGHT`, `VLUXYAI_DOOR` (the default tag of `Doors.Step`)
+  and `VLUXYAI_SAFE`; the navmesh label `VLUXYAI_SAFE`; collision group `VluxyAISafe`. Prefixed so they do
   not collide with a project's own.
 - Doors: a labelled step from a navmesh `PathfindingLink`/modifier or a Graph link, one `OnStep` handler
   for both. A handler returning `false` fails the path and calls the pathfinder's optional `Close`.

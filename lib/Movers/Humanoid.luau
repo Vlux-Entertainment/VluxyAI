@@ -88,12 +88,12 @@ export type HumanoidMover = typeof(setmetatable({} :: self, HumanoidMover))
 	@interface MoverNoise
 	@within HumanoidMover
 
-	.Signal Signal<(Vector3, number?, string?)> -- The noise signal a [Hearing] sense listens to.
+	.Signal NoiseSignal -- The noise signal a [Hearing] sense listens to. Fired with the rig as its source.
 	.Interval number? -- Seconds between noises while moving. Default `0.5`.
 	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
 ]=]
 export type MoverNoise = {
-	Signal: Types.Signal<(Vector3, number?, string?)>,
+	Signal: Types.NoiseSignal,
 	Interval: number?,
 	Loudness: (number | (speed: number) -> number)?,
 }
@@ -354,7 +354,7 @@ function HumanoidMover._makeNoise(self: HumanoidMover, deltaTime: number)
 
 	local loudness = noise.Loudness
 	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
-	noise.Signal:Fire(self._root.Position, amount)
+	noise.Signal:Fire(self._root.Position, amount, nil, self._model)
 end
 
 --[[

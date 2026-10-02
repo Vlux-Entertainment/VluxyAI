@@ -442,4 +442,28 @@ return {
 		expect.sequence(stopped, { "Grab" }, "stopped when the hold ends")
 		expect.truthy(handle)
 	end,
+	["BlackBox with Finish calls it instead of killing, with the same event"] = function(expect)
+		local s = setup()
+		local victim, _root, humanoid = fakeVictim()
+		local finished = {}
+		local outcomes = {}
+
+		local handle = s.Kill.BlackBox(s.agent, victim, {
+			Delay = 0.05,
+			Finish = function(who)
+				table.insert(finished, who)
+			end,
+		})
+		handle.Finished:Connect(function(killed)
+			table.insert(outcomes, killed)
+		end)
+		expect.equal(s.events[1].Name, "Kill")
+		expect.equal(s.events[1].Payload.Kind, "BlackBox")
+		expect.equal(s.events[1].Payload.Victim, victim)
+
+		task.wait(0.1)
+		expect.equal(humanoid.Health, 100, "nobody dies")
+		expect.sequence(finished, { victim })
+		expect.sequence(outcomes, { true })
+	end,
 }

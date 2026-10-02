@@ -16,7 +16,7 @@ local function load(tagged: { any }?)
 		services = {
 			CollectionService = {
 				GetTagged = function(_self, tag)
-					return if tag == "AI_DOOR" then tagged or {} else {}
+					return if tag == "VLUXYAI_DOOR" then tagged or {} else {}
 				end,
 			},
 		},
@@ -53,10 +53,10 @@ local function step(door: any?)
 end
 
 return {
-	["Step with no driver uses the attributes and the AI_DOOR tag"] = function(expect)
+	["Step with no driver uses the attributes and the VLUXYAI_DOOR tag"] = function(expect)
 		local Doors = load()
 		local registration = Doors.Step()
-		expect.equal(registration.Tag, "AI_DOOR")
+		expect.equal(registration.Tag, "VLUXYAI_DOOR")
 		expect.equal(registration.Radius, 8)
 		expect.equal(type(registration.Handler), "function")
 		expect.equal(type(registration.Ready), "function")
@@ -67,9 +67,11 @@ return {
 		local registration = Doors.Step()
 		local agent = fakeAgent()
 
-		expect.truthy(registration.Ready(agent, step(fakeDoor({ ["AI_DOOR/Open"] = true }))))
+		expect.truthy(registration.Ready(agent, step(fakeDoor({ ["VLUXYAI_DOOR/Open"] = true }))))
 		expect.falsy(registration.Ready(agent, step(fakeDoor())))
-		expect.falsy(registration.Ready(agent, step(fakeDoor({ ["AI_DOOR/Open"] = true, ["AI_DOOR/Locked"] = true }))))
+		expect.falsy(
+			registration.Ready(agent, step(fakeDoor({ ["VLUXYAI_DOOR/Open"] = true, ["VLUXYAI_DOOR/Locked"] = true })))
+		)
 		expect.truthy(registration.Ready(agent, step(nil)), "a step with no door found is walked through")
 	end,
 
@@ -82,29 +84,29 @@ return {
 		local taken, seconds = registration.Handler(agent, step(door), 2)
 		expect.equal(taken, true)
 		expect.equal(seconds, nil)
-		expect.equal(door:GetAttribute("AI_DOOR/Open"), true)
+		expect.equal(door:GetAttribute("VLUXYAI_DOOR/Open"), true)
 		expect.equal(#agent.Emitted, 1)
 		expect.equal(agent.Emitted[1][1], "Door")
 		expect.equal(agent.Emitted[1][2], door)
 	end,
 
-	["the door's own AI_DOOR/OpenTime wins over the option"] = function(expect)
+	["the door's own VLUXYAI_DOOR/OpenTime wins over the option"] = function(expect)
 		local Doors = load()
-		expect.equal(Doors.Attributes:OpenTime(fakeDoor({ ["AI_DOOR/OpenTime"] = 1.5 })), 1.5)
+		expect.equal(Doors.Attributes:OpenTime(fakeDoor({ ["VLUXYAI_DOOR/OpenTime"] = 1.5 })), 1.5)
 		expect.equal(Doors.Attributes:OpenTime(fakeDoor()), 0.5)
-		expect.equal(Doors.Attributes:OpenTime(fakeDoor({ ["AI_DOOR/OpenTime"] = "slow" })), 0.5)
+		expect.equal(Doors.Attributes:OpenTime(fakeDoor({ ["VLUXYAI_DOOR/OpenTime"] = "slow" })), 0.5)
 	end,
 
 	["a locked door is refused for CloseSeconds and never opened"] = function(expect)
 		local Doors = load()
 		local registration = Doors.Step(nil, { CloseSeconds = 15 })
 		local agent = fakeAgent()
-		local door = fakeDoor({ ["AI_DOOR/Locked"] = true })
+		local door = fakeDoor({ ["VLUXYAI_DOOR/Locked"] = true })
 
 		local taken, seconds = registration.Handler(agent, step(door), 2)
 		expect.equal(taken, false)
 		expect.equal(seconds, 15)
-		expect.equal(door:GetAttribute("AI_DOOR/Open"), nil)
+		expect.equal(door:GetAttribute("VLUXYAI_DOOR/Open"), nil)
 		expect.equal(#agent.Emitted, 0)
 	end,
 
@@ -155,13 +157,13 @@ return {
 		local door = fakeDoor()
 
 		expect.truthy(registration.Ready(agent, step(door)), "the agent keeps walking")
-		expect.equal(door:GetAttribute("AI_DOOR/Open"), true, "and the door was opened on the way")
+		expect.equal(door:GetAttribute("VLUXYAI_DOOR/Open"), true, "and the door was opened on the way")
 		expect.equal(#agent.Emitted, 1)
 
-		local locked = fakeDoor({ ["AI_DOOR/Locked"] = true })
+		local locked = fakeDoor({ ["VLUXYAI_DOOR/Locked"] = true })
 		expect.falsy(registration.Ready(agent, step(locked)), "a locked door still goes to the handler")
 		expect.equal(registration.Handler(agent, step(locked), 1), false)
-		expect.equal(locked:GetAttribute("AI_DOOR/Open"), nil)
+		expect.equal(locked:GetAttribute("VLUXYAI_DOOR/Open"), nil)
 	end,
 
 	["Opener opens the nearest closed door ahead within Radius, and writes NearDoor"] = function(expect)
@@ -179,9 +181,9 @@ return {
 		opener:Tick(agent, 0.1)
 		expect.equal(agent.Blackboard.NearDoor, ahead)
 		expect.near(agent.Blackboard.NearDoorDistance, 4)
-		expect.equal(ahead:GetAttribute("AI_DOOR/Open"), true)
-		expect.equal(behind:GetAttribute("AI_DOOR/Open"), nil, "a door behind is left alone")
-		expect.equal(far:GetAttribute("AI_DOOR/Open"), nil, "a door beyond Radius is left alone")
+		expect.equal(ahead:GetAttribute("VLUXYAI_DOOR/Open"), true)
+		expect.equal(behind:GetAttribute("VLUXYAI_DOOR/Open"), nil, "a door behind is left alone")
+		expect.equal(far:GetAttribute("VLUXYAI_DOOR/Open"), nil, "a door beyond Radius is left alone")
 		expect.equal(#emitted, 1)
 
 		opener:Tick(agent, 0.1)
@@ -189,7 +191,7 @@ return {
 	end,
 
 	["Opener leaves a locked door shut and reports nothing when no door is near"] = function(expect)
-		local locked = fakeDoor({ ["AI_DOOR/Locked"] = true }, Vector3.new(0, 0, -3))
+		local locked = fakeDoor({ ["VLUXYAI_DOOR/Locked"] = true }, Vector3.new(0, 0, -3))
 		local Doors = load({ locked })
 		local opener = Doors.Opener()
 		local agent = SenseFakes.Agent(Vector3.new(0, 0, 0), Vector3.new(0, 0, -1))
@@ -197,7 +199,7 @@ return {
 
 		opener:Tick(agent, 0.1)
 		expect.equal(agent.Blackboard.NearDoor, locked)
-		expect.equal(locked:GetAttribute("AI_DOOR/Open"), nil)
+		expect.equal(locked:GetAttribute("VLUXYAI_DOOR/Open"), nil)
 
 		local empty = load({}).Opener()
 		empty:Tick(agent, 0.1)
@@ -207,7 +209,7 @@ return {
 
 	["IgnoreUnlocked adds every door that is not locked to the base list"] = function(expect)
 		local open = fakeDoor()
-		local locked = fakeDoor({ ["AI_DOOR/Locked"] = true })
+		local locked = fakeDoor({ ["VLUXYAI_DOOR/Locked"] = true })
 		local Doors = load({ open, locked })
 		local entity = { Name = "Rig" }
 		local ignore = Doors.IgnoreUnlocked(function()
