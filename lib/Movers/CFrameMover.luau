@@ -100,12 +100,12 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	@interface MoverNoise
 	@within CFrameMover
 
-	.Signal Signal<(Vector3, number?, string?)> -- The noise signal a [Hearing] sense listens to.
+	.Signal NoiseSignal -- The noise signal a [Hearing] sense listens to. Fired with the rig as its source.
 	.Interval number? -- Seconds between noises while moving. Default `0.5`.
 	.Loudness number | (speed: number) -> number? -- The loudness fired, or a function of the current speed. Default `1`.
 ]=]
 export type MoverNoise = {
-	Signal: Types.Signal<(Vector3, number?, string?)>,
+	Signal: Types.NoiseSignal,
 	Interval: number?,
 	Loudness: (number | (speed: number) -> number)?,
 }
@@ -318,7 +318,7 @@ function CFrameMover._makeNoise(self: CFrameMover, deltaTime: number)
 
 	local loudness = noise.Loudness
 	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
-	noise.Signal:Fire(self._target:GetPivot().Position, amount)
+	noise.Signal:Fire(self._target:GetPivot().Position, amount, nil, self._target)
 end
 
 --[[

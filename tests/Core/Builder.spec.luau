@@ -132,11 +132,11 @@ return {
 		local Builder = load()
 		local function open() end
 		local builder = Builder.new(Fakes.Entity()):UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
-		builder:OnStep("Door", open, { Tag = "AI_DOOR", Radius = 6 })
+		builder:OnStep("Door", open, { Tag = "VLUXYAI_DOOR", Radius = 6 })
 
 		local registration = builder:GetDefinition().Steps.Door
 		expect.equal(registration.Handler, open)
-		expect.equal(registration.Tag, "AI_DOOR")
+		expect.equal(registration.Tag, "VLUXYAI_DOOR")
 		expect.equal(registration.Radius, 6)
 		builder:Validate()
 	end,
@@ -159,14 +159,14 @@ return {
 		local function ready()
 			return true
 		end
-		local registration = { Handler = open, Ready = ready, Tag = "AI_DOOR", Radius = 8 }
+		local registration = { Handler = open, Ready = ready, Tag = "VLUXYAI_DOOR", Radius = 8 }
 		local builder = Builder.new(Fakes.Entity()):UseBrain(Fakes.Brain("Idle", { "Idle" }, {}))
 
 		builder:OnStep("Door", registration)
 		local stored = builder:GetDefinition().Steps.Door
 		expect.equal(stored.Handler, open)
 		expect.equal(stored.Ready, ready)
-		expect.equal(stored.Tag, "AI_DOOR")
+		expect.equal(stored.Tag, "VLUXYAI_DOOR")
 		expect.falsy(stored == registration, "a copy, so one registration can serve two builders")
 
 		builder:OnStep("Gate", registration, { Tag = "GATE", Radius = 4 })
@@ -174,7 +174,7 @@ return {
 		expect.equal(gate.Tag, "GATE")
 		expect.equal(gate.Radius, 4)
 		expect.equal(gate.Ready, ready)
-		expect.equal(registration.Tag, "AI_DOOR", "the original is untouched")
+		expect.equal(registration.Tag, "VLUXYAI_DOOR", "the original is untouched")
 		builder:Validate()
 	end,
 }

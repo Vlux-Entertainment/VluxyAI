@@ -358,4 +358,85 @@ return {
 		open:Tick(openAgent, 0.1)
 		expect.equal(openAgent.Blackboard.HeardPosition, Vector3.new(20, 0, 0), "no occlusion by default")
 	end,
+	["a noise's source is written as HeardSource and forgotten with the rest"] = function(expect)
+		local s = setup({ hearing = { Memory = 5 } })
+		local character = { Name = "Player1" }
+
+		s.noises:Fire(Vector3.new(10, 0, 0), 1, "Footstep", character)
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardSource, character)
+		expect.equal(s.blackboard.HeardKind, "Footstep")
+
+		s.noises:Fire(Vector3.new(5, 0, 0))
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardSource, nil, "a noise with no source clears the last one")
+
+		s.clock:Advance(6)
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardAt, nil)
+		expect.equal(s.blackboard.HeardSource, nil)
+	end,
+
+	["Accept filters before the loudest is picked, so a louder refused noise cannot mask a quiet one"] = function(
+		expect
+	)
+		local chased = { Name = "Chased" }
+		local other = { Name = "Other" }
+		local asked = {}
+		local s = setup({
+			hearing = {
+				Range = 30,
+				Accept = function(source, agent)
+					table.insert(asked, agent)
+					return source == chased
+				end,
+			},
+		})
+
+		s.noises:Fire(Vector3.new(10, 0, 0), 0.5, "Footstep", chased)
+		s.noises:Fire(Vector3.new(12, 0, 0), 3, "Running", other)
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardSource, chased)
+		expect.equal(s.blackboard.HeardPosition, Vector3.new(10, 0, 0))
+		expect.equal(asked[1], s.agent, "Accept is told which agent is listening")
+
+		s.noises:Fire(Vector3.new(12, 0, 0), 3, "Running", other)
+		s.noises:Fire(Vector3.new(12, 0, 0), 3, "Door")
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardPosition, Vector3.new(10, 0, 0), "refused noises leave the memory alone")
+	end,
+
+	["Accept can be set and changed through Configure"] = function(expect)
+		local s = setup()
+		s.hearing:Configure({
+			Accept = function()
+				return false
+			end,
+		})
+		s.noises:Fire(Vector3.new(10, 0, 0))
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardPosition, nil)
+	end,
+	["Strength is the loudness times the share of its reach left"] = function(expect)
+		local s = setup()
+		local Hearing = getmetatable(s.hearing).__index
+		expect.equal(Hearing.Strength(1, 0, 30), 1, "at the feet")
+		expect.equal(Hearing.Strength(2, 30, 30), 1, "loudness 2 halfway through its 60 studs")
+		expect.equal(Hearing.Strength(1, 30, 30), 0, "at the edge")
+		expect.equal(Hearing.Strength(1, 40, 30), 0, "never below 0")
+		expect.equal(Hearing.Strength(0.5, 0, 0), 0.5, "no reach keeps the loudness")
+	end,
+
+	["HeardStrength is written, and MinStrength drops a faint, far noise"] = function(expect)
+		local s = setup({ hearing = { Range = 30, MinStrength = 0.4 } })
+
+		s.noises:Fire(Vector3.new(15, 0, 0), 1)
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardStrength, 0.5)
+
+		s.blackboard.HeardPosition = nil
+		s.noises:Fire(Vector3.new(25, 0, 0), 1)
+		s.hearing:Tick(s.agent, 0.1)
+		expect.equal(s.blackboard.HeardPosition, nil, "strength 1/6 is under MinStrength")
+	end,
 }

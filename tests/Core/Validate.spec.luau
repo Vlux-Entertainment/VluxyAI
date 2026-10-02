@@ -353,7 +353,7 @@ return {
 
 	["a step registration is checked field by field"] = function(expect)
 		failsWith(expect, function(d)
-			d.Steps = { Door = { Tag = "AI_DOOR" } }
+			d.Steps = { Door = { Tag = "VLUXYAI_DOOR" } }
 		end, "Definition.Steps.Door.Handler must be a function")
 		failsWith(expect, function(d)
 			d.Steps = { Door = { Handler = function() end, Radius = 0 } }

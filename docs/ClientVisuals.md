@@ -90,10 +90,18 @@ events; leave `PositionRate` at `0`.
 
 **Puppet** is the mode from the design plan: the server keeps a logical position, usually with the
 [CFrame mover](/api/CFrameMover) on an invisible collider, and each client draws its own rig.
+`VluxyAI.Presets.Puppet(anchor, { Navmesh = { AgentRadius = 4 }, Mover = { Speed = 10 } })`
+builds that server half: a navmesh, the CFrame mover with the anchor's pivot as its floor point,
+and a Part anchor wrapped in an invisible Model.
 Make the replica with `Puppet = true`, stream positions at ten or so a second over an unreliable
 remote, and the replica smooths its rig toward each sample so the rate never shows. Kills are
 still decided on the server from the server position; the client draws the enemy slightly behind,
 and a hard cut hides the gap.
+
+A puppet has no agent and, anchored, no physics velocity, so animate it from its own motion:
+`VluxyAI.Locomotion.AttachReplica(replica, { Animations = { Idle = ..., Walk = ..., Run = ... },
+WalkSpeed = 10, RunSpeed = 22 })` measures the rig's smoothed pivot speed every frame, blends idle,
+walk and run, and scales their playback to match. It is undone when the replica is destroyed.
 
 ## Kills
 
@@ -105,6 +113,8 @@ both announced as a `"Kill"` event with `{ Kind, Victim, Duration }`:
   play their animation, and kills them when it ends. Everyone sees it.
 - **Black box**: `VluxyAI.Combat.Kill.BlackBox(agent, character)` announces at once and kills
   after a short delay. The client cuts to black on the event and the death happens behind it.
+  For a game where nobody dies, pass `Finish = function(victim) ... end` (respawn, teleport):
+  it runs after the delay instead of the kill, and the event is the same.
 
 Both return a handle with `Finished` and `Cancel`. A kill that was announced and then cancelled
 (the attack state was left early, the killer was destroyed, someone else got the victim first)

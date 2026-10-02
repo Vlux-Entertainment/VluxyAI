@@ -250,4 +250,23 @@ return {
 		end)
 		expect.includes(message, "GetPivot and PivotTo")
 	end,
+	["Destroy fires Destroyed once, after the last Exit"] = function(expect)
+		local log = {}
+		local s = setup(nil, {
+			Hunt = {
+				Exit = function()
+					table.insert(log, "exit")
+				end,
+			},
+		})
+		s.replica:SetState("Hunt")
+		s.replica.Destroyed:Connect(function()
+			table.insert(log, "destroyed")
+		end)
+
+		s.replica:Destroy()
+		s.replica:Destroy()
+		task.wait()
+		expect.equal(table.concat(log, ","), "exit,destroyed")
+	end,
 }

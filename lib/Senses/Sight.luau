@@ -25,7 +25,7 @@
 
 	Two hooks make it a horror sense: `Visibility` scales the range per target (darkness, a
 	flashlight, crouching), and `SeeThrough` lets the ray pass glass. Players hidden with
-	`AI_HIDDEN` are already gone from the default `Targets`.
+	`VLUXYAI_HIDDEN` are already gone from the default `Targets`.
 
 	`SeenPosition` and `SeenAt` are the sense's memory and live on the blackboard, not in the
 	sense, so one sense instance serves any number of agents and a state may clear them early.
@@ -71,7 +71,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.PerTarget boolean? -- Also write `SeenMemory`, the last position and time of every target seen within `Memory` seconds, so an enemy remembers where each of several players went. Default `false`.
 	.Predict number? -- Seconds of the target's last velocity to carry `PredictedPosition` forward after losing sight, capped. `0` turns prediction off. Default `2`.
 	.PredictMax number? -- Studs the prediction may run past the last sighting at most. It also stops short of the first wall. Default `16`.
-	.NoticeRadius number? -- Studs within which a target is noticed even outside the cone or in the dark, like someone brushing past. It still needs a clear line unless `NoticeThroughWalls`; a player hidden with `AI_HIDDEN` stays hidden. `0` turns it off. Default `0`.
+	.NoticeRadius number? -- Studs within which a target is noticed even outside the cone or in the dark, like someone brushing past. It still needs a clear line unless `NoticeThroughWalls`; a player hidden with `VLUXYAI_HIDDEN` stays hidden. `0` turns it off. Default `0`.
 	.NoticeThroughWalls boolean? -- Let `NoticeRadius` work through walls too, for a creature that senses rather than sees. Default `false`.
 	.Prefix string? -- Prepended to every key this sense writes, so two instances can coexist. Default `""`.
 ]=]
@@ -133,7 +133,7 @@ export type Sight = typeof(setmetatable({} :: self, Sight))
 
 	For a horror game: `Visibility` scales the range per target, so darkness and a lit flashlight
 	are one function ([Perception.LightAt] is the ready-made one); `SeeThrough` lets the ray pass
-	glass ([Perception.Transparent]); and a player hidden with `AI_HIDDEN` is not a target at all.
+	glass ([Perception.Transparent]); and a player hidden with `VLUXYAI_HIDDEN` is not a target at all.
 
 	A position remembered inside an enabled [SafeAreas] area is forgotten at once, and a
 	prediction never carries into one, so no chase follows a player into a safe room.

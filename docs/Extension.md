@@ -114,6 +114,15 @@ local graph = VluxyAI.Pathfinders.Graph.FromInstances(workspace.NavGraph)
 }))
 ```
 
+When the graph should decide only the order and your own pathfinder should plan every leg, keep
+the navmesh as the agent's pathfinder and roam the graph from a state instead:
+[States.GraphRoam](/api/States#GraphRoam) picks a destination node, takes A\* from the nearest
+node, and sends the agent one node at a time, starting each leg when the last one arrived.
+
+```lua
+Roam = VluxyAI.States.GraphRoam({ Graph = graph, Pause = { 1, 3 } }),
+```
+
 A door is a labelled step on a graph link, handled like any other door: see
 [Doors and other scripted steps](#doors-and-other-scripted-steps).
 
@@ -158,7 +167,7 @@ where to pause. `agent.Navigator.StepReached` still fires for every step, handle
 
 A handler returning `false` (and optionally a number of seconds) means the step could not be
 taken: the path is `Failed` and the pathfinder's optional `Close(step, seconds)` is called so
-the next plan avoids it. A navmesh step has no `Instance`; pass `{ Tag = "AI_DOOR" }` as the
+the next plan avoids it. A navmesh step has no `Instance`; pass `{ Tag = "VLUXYAI_DOOR" }` as the
 third argument of `OnStep` and the nearest tagged instance is filled in first.
 
 In a place, the graph is a folder of parts (or attachments), one per node, read with
@@ -167,6 +176,11 @@ name (`Link1`, `North`): add the attribute in Studio and pick the other node. Fo
 node in the doorway with `Label = "Door"` and an Instance attribute `Instance` pointing at the
 door; every link into that node then carries the door step. A `Link` ObjectValue under a node,
 with `Action` and `Label` attributes and an `Instance` ObjectValue child, still works too.
+
+Roblox does not remap Instance attributes or ObjectValues in the copies of a published package:
+every copy's links still point at the original's nodes. Pass `ResolveByName = true` and a link
+pointing outside the container is taken to the container's node of the same name instead (give
+every node a unique name). A plain `Clone` remaps references correctly and needs none of this.
 
 ```text
 NavGraph (Folder)

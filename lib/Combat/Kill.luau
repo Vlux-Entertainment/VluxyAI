@@ -135,10 +135,12 @@ export type ScareOptions = {
 
 	.Delay number? -- Seconds between the announcement and the death. Default `0.6`.
 	.Health HealthProvider? -- Where the victim's health lives, when not on the Humanoid.
+	.Finish ((victim: Model) -> ())? -- Called after `Delay` instead of killing: respawn the player, teleport them, end the round. With it the black box is timing and events only.
 ]=]
 export type BlackBoxKillOptions = {
 	Delay: number?,
 	Health: Types.HealthProvider?,
+	Finish: ((victim: Model) -> ())?,
 }
 
 --[=[
@@ -448,11 +450,24 @@ end
 	Emits `Kill` with `Kind = "BlackBox"` at once and sets the victim's health to zero after
 	`Delay`. `Cancel` within the delay spares them. Finishes `false` if the victim died of
 	something else meanwhile, or if the agent was not running to begin with.
+
+	For a game where nobody dies, give `Finish`: it is called after `Delay` in place of the kill,
+	and the handle finishes `true` all the same. The event, its payload and the cancel are
+	unchanged, so the client's black screen does not know the difference.
+
+	```lua
+	VluxyAI.Combat.Kill.BlackBox(agent, character, {
+		Finish = function(victim)
+			local player = Players:GetPlayerFromCharacter(victim)
+			if player then player:LoadCharacter() end
+		end,
+	})
+	```
 ]=]
 function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillOptions?): KillHandle
 	assertServer("Kill.BlackBox")
 	local resolved =
-		Options.Resolve("Kill.BlackBox", BLACK_BOX_DEFAULTS, options :: any, { "Health" }) :: typeof(BLACK_BOX_DEFAULTS)
+		Options.Resolve("Kill.BlackBox", BLACK_BOX_DEFAULTS, options :: any, { "Health", "Finish" }) :: typeof(BLACK_BOX_DEFAULTS) & { Finish: ((victim: Model) -> ())? }
 
 	local finished: Types.Signal<boolean> = Signal.new()
 	local done = false
@@ -480,11 +495,21 @@ function Kill.BlackBox(agent: Types.Agent, victim: Model, options: BlackBoxKillO
 				return
 			end
 			local humanoid = victim:FindFirstChildOfClass("Humanoid")
-			if (humanoid == nil and resolved.Health == nil) or healthOf(victim, humanoid, resolved.Health) <= 0 then
+			local finishWith = resolved.Finish
+			-- Without a humanoid or a provider there is no health to read; a Finish does not need one.
+			local unreadable = humanoid == nil and resolved.Health == nil
+			if
+				(unreadable and finishWith == nil)
+				or (not unreadable and healthOf(victim, humanoid, resolved.Health) <= 0)
+			then
 				finish(false)
 				return
 			end
-			killVictim(victim, resolved.Health)
+			if finishWith ~= nil then
+				finishWith(victim)
+			else
+				killVictim(victim, resolved.Health)
+			end
 			finish(true)
 		end)
 	end

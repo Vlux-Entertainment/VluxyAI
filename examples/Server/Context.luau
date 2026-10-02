@@ -16,7 +16,7 @@ export type Context = {
 	Map: Map.BuiltMap,
 	-- A noise: where, how loud, and what it was ("Running", "Door", "Alarm", "Jump", "Pad",
 	-- "Footstep"). Hearing uses the first two; the clue map weighs each kind (Clues.luau).
-	Noises: VluxyAI.Signal<(Vector3, number?, string?)>,
+	Noises: VluxyAI.NoiseSignal,
 	Crowd: VluxyAI.Sense,
 	Graph: VluxyAI.Pathfinder,
 	-- Where a player might be: every cell, warmed by noises and sightings (see Playground).

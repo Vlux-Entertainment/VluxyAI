@@ -40,9 +40,9 @@ local Types = require(script.Parent.Parent.Types)
 
 local DEFAULT_OPTIONS = table.freeze({
 	Prefix = "",
-	Tag = "AI_SOUND",
+	Tag = "VLUXYAI_SOUND",
 	Threshold = 0.05,
-	MultiplierAttribute = "AI_SOUND/Multiplier",
+	MultiplierAttribute = "VLUXYAI_SOUND/Multiplier",
 	Memory = 5,
 	Occlusion = 1,
 	OcclusionWalls = 3,
@@ -54,9 +54,9 @@ local ALLOWED_OPTIONS = { "Filter" }
 	@interface SoundsOptions
 	@within Sounds
 
-	.Tag string? -- The `CollectionService` tag a `Sound` must carry to be heard. Default `"AI_SOUND"`.
+	.Tag string? -- The `CollectionService` tag a `Sound` must carry to be heard. Default `"VLUXYAI_SOUND"`.
 	.Threshold number? -- The volume a sound must still have at the agent, after roll-off and the attribute, to be heard. Default `0.05`.
-	.MultiplierAttribute string? -- A number attribute on the `Sound` that multiplies its volume for the AI: `2` carries twice as loud, `0.5` half, `0` is never heard. Missing means `1`. Default `"AI_SOUND/Multiplier"`.
+	.MultiplierAttribute string? -- A number attribute on the `Sound` that multiplies its volume for the AI: `2` carries twice as loud, `0.5` half, `0` is never heard. Missing means `1`. Default `"VLUXYAI_SOUND/Multiplier"`.
 	.Memory number? -- Seconds the memory keys outlive the last audible tick. Default `5`.
 	.Occlusion number? -- Volume multiplier per wall between the sound and the agent, `0` to `1`. `1` (the default) casts no rays; `0.5` halves a sound per wall.
 	.OcclusionWalls number? -- Walls counted at most. Default `3`.
@@ -101,9 +101,9 @@ export type Sounds = typeof(setmetatable({} :: self, Sounds))
 	@class Sounds
 
 	A [Types.Sense] that hears the `Sound` instances in the world. Tag a sound with
-	`CollectionService` (`"AI_SOUND"` by default), parent it to a part or an attachment so it is
+	`CollectionService` (`"VLUXYAI_SOUND"` by default), parent it to a part or an attachment so it is
 	3D, and every agent with this sense judges it each tick while it plays: the sound's `Volume`
-	rolled off over the distance the way Roblox plays it, times the sound's `AI_SOUND/Multiplier`
+	rolled off over the distance the way Roblox plays it, times the sound's `VLUXYAI_SOUND/Multiplier`
 	attribute when it has one. The loudest sound still above `Threshold` is written as
 	`HeardSound` with its position, distance, loudness at the agent and the time, and the memory
 	keys stay for `Memory` seconds after it stops so a state can go and look. Exposed as
@@ -112,8 +112,8 @@ export type Sounds = typeof(setmetatable({} :: self, Sounds))
 
 	```lua
 	-- the game, once per sound worth noticing
-	CollectionService:AddTag(radio.Sound, "AI_SOUND")
-	radio.Sound:SetAttribute("AI_SOUND/Multiplier", 2) -- twice as far as its roll-off alone
+	CollectionService:AddTag(radio.Sound, "VLUXYAI_SOUND")
+	radio.Sound:SetAttribute("VLUXYAI_SOUND/Multiplier", 2) -- twice as far as its roll-off alone
 
 	-- the agent
 	:AddSense(VluxyAI.Senses.Sounds.new({ Threshold = 0.1, Memory = 8 }))

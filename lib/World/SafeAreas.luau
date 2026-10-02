@@ -1,7 +1,7 @@
 --!strict
 
 --[[
-	Safe areas: parts tagged AI_SAFE that agents never enter while the part's AI_SAFE/Enabled
+	Safe areas: parts tagged VLUXYAI_SAFE that agents never enter while the part's VLUXYAI_SAFE/Enabled
 	attribute is not false. Enforced at every layer that could take an agent inside, so no single
 	miss lets one through: the navmesh prices the area out, a Graph skips nodes in it, a Straight
 	line refuses to cross it, a player standing in it stops being a target for every sense, and,
@@ -22,9 +22,9 @@ local Options = require(script.Parent.Parent.Utility.Options)
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local TAG = "AI_SAFE"
-local ENABLED_ATTRIBUTE = "AI_SAFE/Enabled"
-local LABEL = "AI_SAFE"
+local TAG = "VLUXYAI_SAFE"
+local ENABLED_ATTRIBUTE = "VLUXYAI_SAFE/Enabled"
+local LABEL = "VLUXYAI_SAFE"
 local SAFE_GROUP = "VluxyAISafe"
 
 local DEFAULT_SETUP_OPTIONS = table.freeze({
@@ -46,8 +46,8 @@ local SafeAreas = {}
 --[=[
 	@class SafeAreas
 
-	Places agents never go. Tag a part `AI_SAFE` and it is a safe area for as long as its
-	`AI_SAFE/Enabled` attribute is not `false`; set the attribute to switch it off and on.
+	Places agents never go. Tag a part `VLUXYAI_SAFE` and it is a safe area for as long as its
+	`VLUXYAI_SAFE/Enabled` attribute is not `false`; set the attribute to switch it off and on.
 	Call [SafeAreas.Setup] once on the server so the part gets its navmesh modifier and is solid
 	to agent rigs. The rest is automatic: [Navmesh] never plans through an enabled area, [Straight]
 	never walks a line across one, [Graph] skips nodes in one when given `Avoid =
@@ -61,13 +61,13 @@ local SafeAreas = {}
 
 --[=[
 	@within SafeAreas
-	@prop TAG "AI_SAFE"
+	@prop TAG "VLUXYAI_SAFE"
 ]=]
 SafeAreas.TAG = TAG
 
 --[=[
 	@within SafeAreas
-	@prop ENABLED_ATTRIBUTE "AI_SAFE/Enabled"
+	@prop ENABLED_ATTRIBUTE "VLUXYAI_SAFE/Enabled"
 
 	`false` switches an area off. Missing means on.
 ]=]
@@ -75,7 +75,7 @@ SafeAreas.ENABLED_ATTRIBUTE = ENABLED_ATTRIBUTE
 
 --[=[
 	@within SafeAreas
-	@prop LABEL "AI_SAFE"
+	@prop LABEL "VLUXYAI_SAFE"
 
 	The `PathfindingModifier` label [SafeAreas.Setup] gives an enabled area, and the cost
 	[Navmesh] prices at `math.huge`.
@@ -85,7 +85,7 @@ SafeAreas.LABEL = LABEL
 --[=[
 	@within SafeAreas
 	@param part Instance
-	@return boolean -- `false` only when `AI_SAFE/Enabled` is `false`.
+	@return boolean -- `false` only when `VLUXYAI_SAFE/Enabled` is `false`.
 ]=]
 function SafeAreas.IsEnabled(part: Instance): boolean
 	return part:GetAttribute(ENABLED_ATTRIBUTE) ~= false
@@ -168,7 +168,7 @@ end
 	@error "unknown option"
 
 	Server setup, once. Every tagged part, now and later, gets a `PathfindingModifier` (labelled
-	`AI_SAFE` while enabled, so [Navmesh] prices it out) and goes in a collision group that only
+	`VLUXYAI_SAFE` while enabled, so [Navmesh] prices it out) and goes in a collision group that only
 	collides with `RigGroup`, solid while enabled and not while off. Players and everything else
 	pass through it.
 ]=]
@@ -188,10 +188,10 @@ function SafeAreas.Setup(options: SafeAreaSetupOptions?): Cleaner.Cleaner
 		end
 		local part = instance :: BasePart
 
-		local modifier = part:FindFirstChild("AI_SAFE_Modifier")
+		local modifier = part:FindFirstChild("VLUXYAI_SAFE_Modifier")
 		if modifier == nil or not modifier:IsA("PathfindingModifier") then
 			local created = Instance.new("PathfindingModifier")
-			created.Name = "AI_SAFE_Modifier"
+			created.Name = "VLUXYAI_SAFE_Modifier"
 			created.Parent = part
 			modifier = created
 		end

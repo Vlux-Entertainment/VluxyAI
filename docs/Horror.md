@@ -54,7 +54,7 @@ and skip a point the navigator cannot reach.
 turn it into a horror sense.
 
 - **Darkness.** `Visibility` is a function of the agent and a target root that scales the sight
-  range for that target. Tag the lights that matter with `AI_LIGHT` and pass
+  range for that target. Tag the lights that matter with `VLUXYAI_LIGHT` and pass
   [Perception.LightAt](/api/Perception#LightAt): a player in the dark is invisible until a light
   finds them, and a lit flashlight gives them away.
 - **Glass.** `SeeThrough = VluxyAI.Perception.Transparent()` lets the ray look past transparent
@@ -62,7 +62,7 @@ turn it into a horror sense.
 - **Close range.** `NoticeRadius` is a distance within which a target is seen whichever way the
   enemy faces and however dark it is, as long as there is a clear line (`NoticeThroughWalls`
   drops that too). Five studs stops a player from simply walking up behind a monster.
-- **Hiding spots.** Set the `AI_HIDDEN` attribute to `true` on a character while they are in a
+- **Hiding spots.** Set the `VLUXYAI_HIDDEN` attribute to `true` on a character while they are in a
   locker or under a bed, and [Perception.AliveRoots](/api/Perception#AliveRoots) leaves them
   out. That is the default target list of every sense, so one flag hides a player from Sight,
   Proximity and Watched together.
@@ -133,13 +133,30 @@ Add it after the senses it reads.
 
 Two senses hear. [Hearing](/api/Hearing) is for events your code fires on a signal: a jump, a
 door slam, a gunshot. [Sounds](/api/Sounds) is for the `Sound` instances already playing in the
-world: tag one with `AI_SOUND`, keep it on a part so it is 3D, and every agent judges it by the
-volume it would have at their position, using the sound's own roll-off. An `AI_SOUND/Multiplier`
+world: tag one with `VLUXYAI_SOUND`, keep it on a part so it is 3D, and every agent judges it by the
+volume it would have at their position, using the sound's own roll-off. An `VLUXYAI_SOUND/Multiplier`
 attribute makes a sound matter more or less to the AI without changing what players hear.
 
 Both take `Occlusion`, a per-wall multiplier: with `Occlusion = 0.5` a noise is half as loud
 through one wall and a quarter through two. Rays are only cast for noises that would have been
 heard in the open.
+
+A noise may carry who made it as a fourth argument, `noises:Fire(position, loudness, kind, source)`;
+[PlayerNoise](/api/PlayerNoise) passes the player's character and a mover's `Noise` passes its rig.
+Hearing writes it as `HeardSource`, and how strongly it arrived as `HeardStrength`: the
+loudness times the share of its reach left, so a loud noise far away and a quiet one close by
+compare fairly. `MinStrength` ignores anything fainter. Its `Accept` option filters on it before the loudest noise is
+picked, so an enemy chasing one player can stop hearing the rest, and a louder second player
+cannot mask the steps it is following:
+
+```lua
+VluxyAI.Senses.Hearing.new(noises, {
+	Accept = function(source, agent)
+		local chased = agent.Blackboard.ChaseTarget
+		return chased == nil or source == chased
+	end,
+})
+```
 
 ## Doors
 
@@ -150,8 +167,8 @@ One line gives every enemy working doors:
 ```
 
 [Doors.Step](/api/Doors#Step) talks to your door script through three attributes on the door:
-it sets `AI_DOOR/Open` to `true` to open it, waits `AI_DOOR/OpenTime` seconds for the swing, and
-refuses the door while `AI_DOOR/Locked` is `true`. Your door script listens to `AI_DOOR/Open`,
+it sets `VLUXYAI_DOOR/Open` to `true` to open it, waits `VLUXYAI_DOOR/OpenTime` seconds for the swing, and
+refuses the door while `VLUXYAI_DOOR/Locked` is `true`. Your door script listens to `VLUXYAI_DOOR/Open`,
 swings the door, and sets it back to `false` when it closes. Set it yourself when a player opens
 the door, and an enemy that reaches an open door walks through without stopping. An open door
 should turn off `CanQuery` as well as `CanCollide`, or rays still hit it: the enemy would not see
@@ -193,7 +210,7 @@ A door is a labelled step, and there are two ways to author one. Both reach the 
   the doorway with a `PathfindingModifier` labelled `"Door"`: every path through it then has a
   labelled waypoint. [Navmesh](/api/Navmesh) collapses the run into one step and moves it to the
   waypoint just before the doorway (`StopBefore`), so the agent stops outside the closed door
-  rather than walking into it. The step arrives without an `Instance`; tag the door `AI_DOOR`
+  rather than walking into it. The step arrives without an `Instance`; tag the door `VLUXYAI_DOOR`
   (the default `Tag` of `Doors.Step`) and the nearest tagged instance is looked up for it. A
   door locked for good is better as a modifier without `PassThrough`: the navmesh then plans
   around it and nobody has to be refused. No nodes to author.
@@ -213,7 +230,7 @@ Writing the handler yourself looks like this:
 	Doors.Open(door)
 	task.wait(0.4)
 	return true
-end, { Tag = "AI_DOOR" })
+end, { Tag = "VLUXYAI_DOOR" })
 ```
 
 The navigator stops the mover at the step, reports `Interacting`, runs the handler, and walks
@@ -226,7 +243,7 @@ animation, unlocks the door and returns `true`.
 
 ## Safe rooms
 
-A safe room is a part tagged `AI_SAFE`, the size of the room. While its `AI_SAFE/Enabled`
+A safe room is a part tagged `VLUXYAI_SAFE`, the size of the room. While its `VLUXYAI_SAFE/Enabled`
 attribute is not `false`, no agent goes in, whatever its brain wants:
 
 - [Navmesh](/api/Navmesh) prices the area at `math.huge`, so it is never planned through.
@@ -237,7 +254,7 @@ attribute is not `false`, no agent goes in, whatever its brain wants:
 - After `VluxyAI.SafeAreas.Setup({ RigGroup = "Monsters" })` on the server, the part is solid to
   that collision group and to nothing else, so players walk through it and rigs cannot.
 
-Set `AI_SAFE/Enabled` to `false` to switch a room off (a generator failing, a timer running out)
+Set `VLUXYAI_SAFE/Enabled` to `false` to switch a room off (a generator failing, a timer running out)
 and back to `true` to make it safe again; every layer follows the attribute. The playground's
 three green rooms have a switch on the wall.
 
@@ -314,7 +331,9 @@ end)
 Search = VluxyAI.States.Roam({ Interest = "Interest", Stray = 0.2 }), -- the warmest spot, now and then any
 ```
 
-[PlayerNoise](/api/PlayerNoise) turns how fast players move into those noises, and
+[PlayerNoise](/api/PlayerNoise) turns how fast players move into those noises (a band's
+`Loudness` may be a function of the speed and the character, so a crouch read off an attribute
+can be silent), and
 [Hideout](/api/Hideout) with [States.Burrow](/api/States#Burrow) gives an enemy that vanishes
 somewhere to come back: the most suspicious spot nobody can see.
 

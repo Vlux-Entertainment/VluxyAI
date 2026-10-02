@@ -562,7 +562,7 @@ return {
 			services = {
 				CollectionService = {
 					GetTagged = function(_self, tag: string)
-						return if tag == "AI_SAFE" then { room } else {}
+						return if tag == "VLUXYAI_SAFE" then { room } else {}
 					end,
 				},
 			},

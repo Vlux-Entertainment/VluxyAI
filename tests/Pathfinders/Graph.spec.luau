@@ -493,4 +493,94 @@ return {
 		expect.equal(none, nil)
 		expect.includes(reason, "avoided")
 	end,
+	["FromInstances with ResolveByName takes a link outside the container to the node of that name"] = function(expect)
+		local warnings = {}
+		local Graph = Harness.Load("lib/Pathfinders/Graph.luau", {
+			warn = function(message)
+				table.insert(warnings, tostring(message))
+			end,
+		})
+		local function handle(target)
+			return {
+				Get = function()
+					return target
+				end,
+			}
+		end
+		local function fake(name: string, x: number, parent: string)
+			local instance = {
+				Name = name,
+				Position = Vector3.new(x, 1, 0),
+				CFrame = CFrame.new(Vector3.new(x, 1, 0)),
+				Size = Vector3.new(2, 2, 2),
+				Attributes = {} :: { [string]: any },
+				Children = {} :: { any },
+			}
+			function instance.IsA(_self, className: string)
+				return className == "BasePart"
+			end
+			function instance.GetChildren(self)
+				return self.Children
+			end
+			function instance.GetFullName(_self)
+				return `{parent}.{name}`
+			end
+			function instance.GetAttribute(self, attribute: string)
+				return self.Attributes[attribute]
+			end
+			function instance.GetAttributes(self)
+				return self.Attributes
+			end
+			return instance
+		end
+
+		-- The published original, detached: what a package copy's attributes still point at.
+		local originalC2 = fake("C2", 8, "LaundromatPackage")
+		local originalTwin = fake("Twin", 16, "LaundromatPackage")
+		local c1 = fake("C1", 0, "Workspace.Copy")
+		local c2 = fake("C2", 8, "Workspace.Copy")
+		local twinA = fake("Twin", 16, "Workspace.Copy")
+		local twinB = fake("Twin", 24, "Workspace.Copy")
+		c1.Attributes.Link1 = handle(originalC2)
+		c1.Attributes.Link2 = handle(originalTwin)
+		local value = {
+			Name = "Link",
+			Value = originalC2,
+			IsA = function(_self, className: string)
+				return className == "ObjectValue"
+			end,
+			GetAttribute = function()
+				return nil
+			end,
+			FindFirstChild = function()
+				return nil
+			end,
+			GetFullName = function()
+				return "Workspace.Copy.Twin.Link"
+			end,
+		}
+		table.insert(twinA.Children, value)
+
+		local nodes = { c1, c2, twinA, twinB }
+		local container = {
+			GetChildren = function()
+				return nodes
+			end,
+			GetFullName = function()
+				return "Workspace.Copy"
+			end,
+		}
+
+		local strict = Graph.FromInstances(container, { AutoLink = false }):GetNodes()
+		expect.equal(#strict[1].Links, 0, "without the option a link outside the container is skipped")
+		expect.equal(#warnings, 3)
+
+		table.clear(warnings)
+		local built = Graph.FromInstances(container, { AutoLink = false, ResolveByName = true }):GetNodes()
+		expect.equal(#built[1].Links, 1, "the shared name Twin is not resolved")
+		expect.equal(built[1].Links[1], 2, "the Instance attribute reaches the copy's own C2")
+		expect.equal(built[3].Links[1], 2, "so does a Link ObjectValue")
+		expect.equal(#warnings, 1)
+		expect.includes(warnings[1], "more than one node")
+	end,
 }

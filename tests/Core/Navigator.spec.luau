@@ -951,7 +951,7 @@ return {
 			services = {
 				CollectionService = {
 					GetTagged = function(_self, tag)
-						return if tag == "AI_DOOR" then { far, near } else {}
+						return if tag == "VLUXYAI_DOOR" then { far, near } else {}
 					end,
 				},
 			},
@@ -962,7 +962,7 @@ return {
 				Handler = function(_agent, step)
 					table.insert(seen, step.Instance)
 				end,
-				Tag = "AI_DOOR",
+				Tag = "VLUXYAI_DOOR",
 				Radius = 8,
 			},
 		})

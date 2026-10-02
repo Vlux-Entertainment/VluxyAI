@@ -51,7 +51,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	.AgentCanJump boolean? -- Passed to `CreatePath`. Default `false`.
 	.AgentCanClimb boolean? -- Passed to `CreatePath`. Default `false`.
 	.WaypointSpacing number? -- Passed to `CreatePath`. Default `2`.
-	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`. The `AI_SAFE` label of a [SafeAreas] area is always added at `math.huge` unless you set it yourself.
+	.Costs { [string]: number }? -- Material and modifier costs passed to `CreatePath`. Default `{}`. The `VLUXYAI_SAFE` label of a [SafeAreas] area is always added at `math.huge` unless you set it yourself.
 	.Simplify boolean? -- Run [Navmesh.Simplify] over every path. Default `true`.
 	.SimplifyAngle number? -- Degrees: a waypoint whose turn is smaller than this is shaved off by [Navmesh.Simplify]. Default `8`.
 	.CollapseLabels boolean? -- Run [Navmesh.CollapseLabels] over every path, so a `PathfindingModifier` volume that labels several waypoints in a row yields one labelled step, like a link. Default `true`.

@@ -46,18 +46,18 @@ local Perception = {}
 
 --[=[
 	@within Perception
-	@prop HIDDEN_ATTRIBUTE "AI_HIDDEN"
+	@prop HIDDEN_ATTRIBUTE "VLUXYAI_HIDDEN"
 
 	The attribute name that hides a character from every sense: set it to `true` on the
 	character (or on its root) while the player is in a locker, under a bed, or otherwise out of
 	the game's sight rules, and [Perception.AliveRoots] leaves them out until it is cleared.
 ]=]
-Perception.HIDDEN_ATTRIBUTE = "AI_HIDDEN"
+Perception.HIDDEN_ATTRIBUTE = "VLUXYAI_HIDDEN"
 
 --[=[
 	@within Perception
 	@param root BasePart -- A target root, or anything with `GetAttribute`.
-	@return boolean -- `true` when the root or its character carries `AI_HIDDEN = true`.
+	@return boolean -- `true` when the root or its character carries `VLUXYAI_HIDDEN = true`.
 ]=]
 function Perception.IsHidden(root: BasePart): boolean
 	local function flagged(instance: any): boolean
@@ -372,11 +372,11 @@ end
 
 --[=[
 	@within Perception
-	@prop LIGHT_TAG "AI_LIGHT"
+	@prop LIGHT_TAG "VLUXYAI_LIGHT"
 
 	The `CollectionService` tag a light must carry for [Perception.LightAt] to count it.
 ]=]
-Perception.LIGHT_TAG = "AI_LIGHT"
+Perception.LIGHT_TAG = "VLUXYAI_LIGHT"
 
 --[=[
 	@within Perception
