@@ -88,6 +88,18 @@ export type Broadcaster = {
 }
 
 --[[
+	The agent's pivot through Agent:GetPivot, so a headless agent streams its Record mover. A
+	spec's fake agent without GetPivot is read through its entity.
+]]
+local function pivotOf(agent: Types.Agent): CFrame
+	local getPivot = (agent :: any).GetPivot
+	if type(getPivot) == "function" then
+		return agent:GetPivot()
+	end
+	return agent.Entity:GetPivot()
+end
+
+--[[
 	The yaw of a pivot, the only part of the facing a rig needs.
 ]]
 local function yawOf(cframe: CFrame): number
@@ -188,7 +200,7 @@ function Broadcaster.Step(self: BroadcasterClass, deltaTime: number)
 	-- stall does not burst.
 	self._elapsed = math.min(self._elapsed - interval, interval)
 
-	local pivot = self._agent.Entity:GetPivot()
+	local pivot = pivotOf(self._agent)
 	local position = pivot.Position
 	local yaw = yawOf(pivot)
 
@@ -213,7 +225,7 @@ end
 	@return Snapshot -- The current state, position and yaw, for a client that just joined.
 ]=]
 function Broadcaster.Snapshot(self: BroadcasterClass): Types.Snapshot
-	local pivot = self._agent.Entity:GetPivot()
+	local pivot = pivotOf(self._agent)
 	return {
 		State = self._agent:GetState(),
 		Position = pivot.Position,

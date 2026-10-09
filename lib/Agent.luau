@@ -8,6 +8,10 @@
 	Roblox is touched in exactly one place: Start reaches for RunService unless told the ticks are
 	manual. Everything else is plain Luau, which is what lets a whole agent run under Lune with a
 	fake mover and a fake pathfinder.
+
+	An agent may have no Entity at all (a headless agent on a Record mover). Its type still says
+	Model, so code written against 0.11 keeps type-checking; GetPivot is the one door the library
+	goes through instead of Entity, and it asks the mover when there is no Entity.
 ]]
 
 local Cleaner = require(script.Parent.Utility.Cleaner)
@@ -81,7 +85,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	Validate.Definition(definition)
 
 	local entity = definition.Entity
-	local name = definition.Name or (entity :: any).Name or "Agent"
+	local name = definition.Name or (if entity ~= nil then (entity :: any).Name else nil) or "Agent"
 
 	local blackboard = Tables.DeepCopy(definition.Blackboard or {})
 	if definition.StrictBlackboard then
@@ -89,7 +93,7 @@ function Agent.new(definition: Types.AgentDefinition): Types.Agent
 	end
 
 	local self: self = {
-		Entity = entity,
+		Entity = entity :: any,
 		Name = name,
 		Blackboard = blackboard,
 		Data = Tables.DeepCopy(definition.Data or {}),
@@ -371,6 +375,9 @@ function Agent.Teleport(self: Agent, position: Vector3)
 	end
 
 	local entity = self.Entity :: any
+	if entity == nil then
+		FormatMessage.Error(`{self.Name}: Teleport needs a mover with Teleport, or an Entity`, 2)
+	end
 	local pivot = entity:GetPivot()
 	entity:PivotTo(pivot - pivot.Position + position)
 end
@@ -441,7 +448,33 @@ function Agent.GetPosition(self: Agent): Vector3
 		return self.Mover:GetPosition()
 	end
 
-	return self.Entity:GetPivot().Position
+	return self:GetPivot().Position
+end
+
+--[=[
+	@within Agent
+	@return CFrame -- Where the body is and which way it faces.
+	@error string -- The agent has neither an Entity nor a mover.
+
+	The entity's pivot; on a headless agent, the mover's `GetPivot`, or its position facing -Z
+	when the mover has no `GetPivot`. Senses, the [Broadcaster] and doors read this rather than
+	`agent.Entity`, so they work with or without a Model.
+]=]
+function Agent.GetPivot(self: Agent): CFrame
+	local entity = self.Entity :: Model?
+	if entity ~= nil then
+		return entity:GetPivot()
+	end
+
+	local mover = self.Mover
+	if mover == nil then
+		FormatMessage.Error(`{self.Name}: GetPivot needs an Entity or a Mover`, 2)
+	end
+	local getPivot = (mover :: any).GetPivot
+	if type(getPivot) == "function" then
+		return getPivot(mover)
+	end
+	return CFrame.new((mover :: Types.Mover):GetPosition())
 end
 
 --[=[
@@ -559,6 +592,16 @@ function Agent.Step(self: Agent, deltaTime: number)
 	local asContract = (self :: any) :: Types.Agent
 
 	self:_stepRamp(deltaTime)
+
+	-- A mover with no clock of its own (Movers.Record, a Manual CFrameMover) moves here, first,
+	-- so the senses read where the body is now.
+	local mover = self.Mover :: any
+	if mover ~= nil and type(mover.Step) == "function" then
+		mover:Step(deltaTime)
+		if not self._running then
+			return
+		end
+	end
 
 	-- A sense or a state may Destroy the agent mid-tick; nothing after it may run.
 	for _, sense in self.Senses do

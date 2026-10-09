@@ -233,7 +233,7 @@ function SafeWatch.Tick(self: SafeWatch, agent: Types.Agent, deltaTime: number)
 		end
 	end
 
-	local eye = (agent.Entity:GetPivot() + options.EyeOffset).Position
+	local eye = (Perception.PivotOf(agent) + options.EyeOffset).Position
 	local ignore = Perception.IgnoreList(agent)
 	local nearest: BasePart? = nil
 	local nearestDistance = math.huge

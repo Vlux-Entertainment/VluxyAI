@@ -44,13 +44,13 @@ export type Builder = typeof(setmetatable({} :: self, Builder))
 
 --[=[
 	@within Builder
-	@param entity Model -- The model the AI drives. Needs a `PrimaryPart`.
+	@param entity Model? -- The model the AI drives. Needs a `PrimaryPart`. Leave it out for a headless agent, whose mover holds the pivot ([Record]); name it with [Builder:SetName].
 	@return Builder
 ]=]
-function Builder.new(entity: Model): Builder
+function Builder.new(entity: Model?): Builder
 	local self: self = {
 		_definition = {
-			Entity = entity,
+			Entity = entity :: any,
 			Brain = nil :: any,
 		},
 		_built = false,

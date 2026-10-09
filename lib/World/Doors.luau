@@ -370,7 +370,7 @@ function OpenerClass.Tick(self: Opener, agent: Types.Agent, deltaTime: number)
 	local options = self._options
 	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
-	local pivot = agent.Entity:GetPivot()
+	local pivot = Perception.PivotOf(agent)
 	local origin = Perception.PositionOf(agent)
 	local look = Vector3.new(pivot.LookVector.X, 0, pivot.LookVector.Z)
 	look = if look.Magnitude > 1e-4 then look.Unit else look

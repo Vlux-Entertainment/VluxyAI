@@ -208,6 +208,9 @@ end
 ]]
 function Voice._playOnRig(self: Voice, agent: Types.Agent, line: VoiceLine, random: Random): number
 	local options = self._options
+	if (agent.Entity :: Model?) == nil then
+		FormatMessage.Error(`{agent.Name}: Voice has no rig to play from on a headless agent; give it a Play option`, 0)
+	end
 	local root = agent.Entity.PrimaryPart
 	if root == nil then
 		return 0

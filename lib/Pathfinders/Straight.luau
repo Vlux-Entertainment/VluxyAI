@@ -165,14 +165,15 @@ end
 --[=[
 	@within Straight
 	@param agent Agent
-	@return { Instance } -- The agent's entity and every player's character.
+	@return { Instance } -- The agent's entity (when it has one) and every player's character.
 
 	The default `Ignore`. Call it from your own `Ignore` to extend the list rather than replace it.
 ]=]
 function Straight.DefaultIgnore(agent: Types.Agent): { Instance }
 	local Players = game:GetService("Players")
 
-	local ignore: { Instance } = { agent.Entity }
+	local entity = agent.Entity :: Model?
+	local ignore: { Instance } = if entity ~= nil then { entity } else {}
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
 		if character then

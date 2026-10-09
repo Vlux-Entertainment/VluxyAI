@@ -46,12 +46,14 @@ end
 local function setup()
 	local heartbeat = Harness.ManualHeartbeat()
 	local Kill = Harness.Load("lib/Combat/Kill.luau", {
-		services = { RunService = {
-			Heartbeat = heartbeat,
-			IsServer = function()
-				return true
-			end,
-		} },
+		services = {
+			RunService = {
+				Heartbeat = heartbeat,
+				IsServer = function()
+					return true
+				end,
+			},
+		},
 	})
 	local Signal = Fakes.Signal()
 	local events = {}
