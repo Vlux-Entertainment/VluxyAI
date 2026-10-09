@@ -255,8 +255,12 @@ end
 	Does the agent carry this sound itself? Its own footsteps are not news.
 ]]
 local function isOwn(sound: any, agent: Types.Agent): boolean
+	local entity = agent.Entity :: Model?
+	if entity == nil then
+		return false
+	end
 	local isDescendantOf = sound.IsDescendantOf
-	return type(isDescendantOf) == "function" and isDescendantOf(sound, agent.Entity) == true
+	return type(isDescendantOf) == "function" and isDescendantOf(sound, entity) == true
 end
 
 ------------------------------------------------------------------------------------------------------------------------

@@ -130,13 +130,14 @@ end
 --[=[
 	@within Perception
 	@param agent Agent
-	@return { Instance } -- `{ agent.Entity }`.
+	@return { Instance } -- `{ agent.Entity }`, or `{}` for a headless agent.
 
 	The raycast filter for a ray cast from the agent outwards: its entity alone, which
 	`FilterDescendantsInstances` extends to everything under it. The default `Ignore` of [Sight].
 ]=]
 function Perception.IgnoreList(agent: Types.Agent): { Instance }
-	return { agent.Entity }
+	local entity = agent.Entity :: Model?
+	return if entity ~= nil then { entity } else {}
 end
 
 --[=[
@@ -153,7 +154,24 @@ function Perception.PositionOf(agent: Types.Agent): Vector3
 		return agent:GetPosition()
 	end
 
-	return agent.Entity:GetPivot().Position
+	return Perception.PivotOf(agent).Position
+end
+
+--[=[
+	@within Perception
+	@param agent Agent
+	@return CFrame
+
+	Where the agent is and which way it faces: [Agent:GetPivot], which works with or without a
+	Model. A spec's fake without `GetPivot` falls back to its entity's pivot.
+]=]
+function Perception.PivotOf(agent: Types.Agent): CFrame
+	local getPivot = (agent :: any).GetPivot
+	if type(getPivot) == "function" then
+		return agent:GetPivot()
+	end
+
+	return agent.Entity:GetPivot()
 end
 
 --[=[

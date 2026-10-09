@@ -9,6 +9,7 @@
 ]]
 
 local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Types = require(script.Parent.Parent.Types)
 
@@ -157,8 +158,12 @@ end
 	@param agent Agent
 	@param options SenseVisualOptions?
 	@return SenseVisual
+	@error string -- The agent is headless.
 ]=]
 function SenseVisual.new(agent: Types.Agent, options: SenseVisualOptions?): SenseVisual
+	if (agent.Entity :: Model?) == nil then
+		FormatMessage.Error(`SenseVisual.new: {agent.Name} is headless; it draws on the rig`, 2)
+	end
 	local resolved =
 		Options.Resolve("SenseVisual.new", DEFAULT_OPTIONS, options :: any, ALLOWED_OPTIONS) :: ResolvedOptions
 

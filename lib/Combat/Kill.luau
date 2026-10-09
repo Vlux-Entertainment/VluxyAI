@@ -202,6 +202,18 @@ end
 	Plays a one-shot by name on the killer's Locomotion, returning a stop for it. A name with no
 	animator behind it warns through Locomotion and plays nothing.
 ]]
+--[[
+	The killer's pivot through Agent:GetPivot, so a headless agent holds its victim too. A spec's
+	fake agent without GetPivot is read through its entity.
+]]
+local function pivotOf(agent: Types.Agent): CFrame
+	local getPivot = (agent :: any).GetPivot
+	if type(getPivot) == "function" then
+		return agent:GetPivot()
+	end
+	return agent.Entity:GetPivot()
+end
+
 local function playNamed(agent: Types.Agent, name: string): (() -> ())?
 	if not Locomotion.Play(agent, name) then
 		return nil
@@ -337,7 +349,8 @@ local function hold(
 
 	local stopKiller: (() -> ())? = if type(killerAnimation) == "string"
 		then playNamed(agent, killerAnimation)
-		else playAnimation(agent.Entity, killerAnimation)
+		elseif (agent.Entity :: Model?) ~= nil then playAnimation(agent.Entity, killerAnimation)
+		else nil
 	local stopVictim = playAnimation(victim, victimAnimation)
 	cleaner:Add(function()
 		if stopKiller then
@@ -358,7 +371,7 @@ local function hold(
 		end
 
 		elapsed += deltaTime
-		root.CFrame = agent.Entity:GetPivot() * offset
+		root.CFrame = pivotOf(agent) * offset
 
 		if elapsed >= duration then
 			finish(ending(victim, humanoid))

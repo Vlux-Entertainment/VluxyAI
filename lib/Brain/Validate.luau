@@ -291,8 +291,8 @@ end
 	[Validate.Brain]), that a pathfinder and a mover come as a pair and have their methods, that
 	every sense has `Tick`, and that the numbers are numbers.
 
-	The entity may be a plain table in a headless test; a real `Instance` must be a `Model` with a
-	`PrimaryPart`.
+	The entity may be a plain table in a test; a real `Instance` must be a `Model` with a
+	`PrimaryPart`. It may be left out when the mover has `GetPivot` ([Record]): a headless agent.
 ]=]
 function Validate.Definition(definition: any)
 	local root = "Definition"
@@ -307,6 +307,15 @@ function Validate.Definition(definition: any)
 		end
 		if (entity :: Model).PrimaryPart == nil then
 			fail(`{root}.Entity`, `({(entity :: Model):GetFullName()}) has no PrimaryPart`)
+		end
+	elseif entity == nil then
+		-- Headless: the mover holds the pivot instead.
+		local mover = definition.Mover
+		if type(mover) ~= "table" or type(mover.GetPivot) ~= "function" then
+			fail(
+				`{root}.Entity`,
+				"is missing; an agent with no Entity needs a Mover with GetPivot, such as Movers.Record"
+			)
 		end
 	elseif type(entity) ~= "table" then
 		fail(`{root}.Entity`, `must be a Model, got {describe(entity)}`)

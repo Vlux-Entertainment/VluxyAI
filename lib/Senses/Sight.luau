@@ -186,7 +186,7 @@ function Sight.Tick(self: Sight, agent: Types.Agent, deltaTime: number)
 	local options = self._options
 	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
-	local eye = agent.Entity:GetPivot() + options.EyeOffset
+	local eye = Perception.PivotOf(agent) + options.EyeOffset
 	local ignore = options.Ignore(agent)
 
 	local visible: { BasePart } = {}

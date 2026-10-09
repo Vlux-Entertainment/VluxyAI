@@ -173,7 +173,7 @@ function Surroundings.Tick(self: SurroundingsClass, agent: Types.Agent, deltaTim
 	end
 	local params = Perception.RaycastParams(ignore)
 
-	local pivot = agent.Entity:GetPivot()
+	local pivot = Perception.PivotOf(agent)
 	local origin = agent:GetPosition() + Vector3.new(0, options.Height, 0)
 	local yaw = math.atan2(-pivot.LookVector.X, -pivot.LookVector.Z)
 	local rotation = CFrame.Angles(0, yaw, 0)

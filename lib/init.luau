@@ -37,6 +37,7 @@ local StateLabel = require(script.Debug.StateLabel)
 
 local CFrameMover = require(script.Movers.CFrameMover)
 local HumanoidMover = require(script.Movers.Humanoid)
+local Record = require(script.Movers.Record)
 
 local Graph = require(script.Pathfinders.Graph)
 local Hybrid = require(script.Pathfinders.Hybrid)
@@ -111,6 +112,7 @@ export type AnimationInfo = Animator.AnimationInfo
 export type Broadcaster = Broadcaster.Broadcaster
 export type Replica = Replica.Replica
 export type KillHandle = Kill.KillHandle
+export type RecordOptions = Record.RecordOptions
 export type GraphNode = Graph.GraphNode
 export type GraphLink = Graph.GraphLink
 export type StepHandler = Types.StepHandler
@@ -156,10 +158,11 @@ local VluxyAI = {}
 --[=[
 	@within VluxyAI
 	@function new
-	@param entity Model
+	@param entity Model?
 	@return Builder
 
-	Starts a [Builder] for `entity`.
+	Starts a [Builder] for `entity`. With no entity it builds a headless agent: give it a
+	[Record] mover, which holds the pivot instead.
 ]=]
 VluxyAI.new = Builder.new
 
@@ -256,13 +259,14 @@ VluxyAI.Pathfinders = {
 
 --[=[
 	@within VluxyAI
-	@prop Movers { Humanoid: HumanoidMover, CFrame: CFrameMover }
+	@prop Movers { Humanoid: HumanoidMover, CFrame: CFrameMover, Record: Record }
 
-	The built-in [Types.Mover]s.
+	The built-in [Types.Mover]s. [Record] has no Instance at all, for headless agents.
 ]=]
 VluxyAI.Movers = {
 	Humanoid = HumanoidMover,
 	CFrame = CFrameMover,
+	Record = Record,
 }
 
 --[=[
@@ -495,6 +499,30 @@ export type PuppetPresetOptions = {
 
 local PUPPET_PRESET_KEYS = { "Navmesh", "Mover", "Navigation" }
 
+--[=[
+	@interface HeadlessPresetOptions
+	@within VluxyAI
+
+	.Name string? -- Used in messages. Default `"Agent"`.
+	.Position Vector3 -- Where it starts: the floor point.
+	.Yaw number? -- Starting yaw in radians. Default `0`.
+	.Mover CFrameMoverOptions? -- `Speed`, `TurnSpeed` and the rest, as [Record.new] takes them.
+	.Pathfinder Pathfinder? -- Default a [Navmesh] built from `Navmesh`. A [Graph] or [Straight] keeps PathfindingService out of it.
+	.Navmesh NavmeshOptions? -- Options for the default [Navmesh]. Ignored when `Pathfinder` is given.
+	.Navigation NavigationOptions? -- Navigator tuning. Default `{ RepathInterval = 0.25, MaxPathAge = 2 }`.
+]=]
+export type HeadlessPresetOptions = {
+	Name: string?,
+	Position: Vector3,
+	Yaw: number?,
+	Mover: CFrameMover.CFrameMoverOptions?,
+	Pathfinder: Types.Pathfinder?,
+	Navmesh: Navmesh.Options?,
+	Navigation: Types.NavigationOptions?,
+}
+
+local HEADLESS_PRESET_KEYS = { "Name", "Position", "Yaw", "Mover", "Pathfinder", "Navmesh", "Navigation" }
+
 --[[
 	Errors on a key a preset does not take, naming the ones it does.
 ]]
@@ -538,7 +566,7 @@ end
 
 --[=[
 	@within VluxyAI
-	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder, Puppet: (anchor: Model | BasePart, options: PuppetPresetOptions?) -> Builder }
+	@prop Presets { Humanoid: (model: Model, options: HumanoidPresetOptions?) -> Builder, Puppet: (anchor: Model | BasePart, options: PuppetPresetOptions?) -> Builder, Headless: (options: HeadlessPresetOptions) -> Builder }
 
 	Ready-made stacks. `Presets.Humanoid(model)` returns a [Builder] already carrying a
 	[Navmesh] pathfinder (graph-first [Hybrid] when `Graph` is given) with [Straight] as its
@@ -568,6 +596,22 @@ end
 		:AddSense(VluxyAI.Senses.Hearing.new(noises))
 		:Build()
 	local broadcaster = VluxyAI.Sync.Broadcaster.new(agent, { PositionRate = 10 })
+	```
+
+	`Presets.Headless(options)` is the same without any Instance on the server: a [Record] mover
+	holds the pivot, and the agent moves only when it is stepped. Start it with `Start(true)` and
+	step it from your own scheduler, or with `Start()` to tick on Heartbeat as usual.
+
+	```lua
+	local agent = VluxyAI.Presets.Headless({
+		Name = "Goblin 12",
+		Position = spawn,
+		Pathfinder = VluxyAI.Pathfinders.Graph.new(nodes),
+		Mover = { Speed = 10 },
+	})
+		:UseBrain(Brain)
+		:Build()
+		:Start(true)
 	```
 ]=]
 VluxyAI.Presets = {
@@ -617,6 +661,26 @@ VluxyAI.Presets = {
 			:UsePathfinder(Navmesh.new(resolved.Navmesh))
 			:UseMover(CFrameMover.new(model, moverOptions))
 			:SetNavigation(resolved.Navigation or { RepathInterval = 0.25, MaxPathAge = 2 })
+	end,
+
+	Headless = function(options: HeadlessPresetOptions): Builder.Builder
+		if type(options) ~= "table" then
+			FormatMessage.Error("Presets.Headless: options with a Position are required", 2)
+		end
+		checkPresetKeys("Headless", options :: any, HEADLESS_PRESET_KEYS)
+
+		local recordOptions: any = table.clone(options.Mover or {})
+		recordOptions.Position = options.Position
+		recordOptions.Yaw = options.Yaw
+
+		local builder = Builder.new()
+			:UsePathfinder(options.Pathfinder or Navmesh.new(options.Navmesh))
+			:UseMover(Record.new(recordOptions))
+			:SetNavigation(options.Navigation or { RepathInterval = 0.25, MaxPathAge = 2 })
+		if options.Name ~= nil then
+			builder:SetName(options.Name)
+		end
+		return builder
 	end,
 }
 

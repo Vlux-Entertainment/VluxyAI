@@ -424,7 +424,7 @@ return {
 		expect.includes(message, "[VluxyAI]")
 		expect.includes(
 			message,
-			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Noise, Speed, StepDistance, StuckTimeout, TurnSpeed'
+			'CFrameMover.new: unknown option "Speeed"; expected one of HeightOffset, Manual, Noise, Speed, StepDistance, StuckTimeout, TurnSpeed'
 		)
 
 		local message2 = expect.errors(function()

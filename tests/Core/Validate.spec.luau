@@ -92,10 +92,29 @@ return {
 		end, "Definition.Pathfindr is not a field VluxyAI knows; expected one of Blackboard, Brain, Data")
 	end,
 
-	["Entity must exist"] = function(expect)
+	["Entity must exist unless the mover holds the pivot"] = function(expect)
 		failsWith(expect, function(definition)
 			definition.Entity = nil
-		end, "Definition.Entity must be a Model, got a nil")
+		end, "Definition.Entity is missing; an agent with no Entity needs a Mover with GetPivot")
+	end,
+
+	["no Entity passes when the mover has GetPivot"] = function(expect)
+		local Validate = load()
+		local definition = goodDefinition()
+		definition.Entity = nil
+		definition.Mover.GetPivot = function()
+			return nil
+		end
+		Validate.Definition(definition)
+		expect.truthy(true)
+	end,
+
+	["no Entity and no mover names the field"] = function(expect)
+		local Validate = load()
+		local message = expect.errors(function()
+			Validate.Definition({ Brain = goodBrain() })
+		end)
+		expect.includes(message, "Definition.Entity is missing")
 	end,
 
 	["a real Instance must be a Model"] = function(expect)

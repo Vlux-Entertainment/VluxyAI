@@ -74,7 +74,8 @@ lib/
   Pathfinders/       Navmesh (PathfindingService), Straight (sweep), Ladder (first that works),
                      Graph (A* over authored nodes; links may carry Action/Label/Instance for doors),
                      Hybrid (graph for the level, local for geometry)
-  Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig), Start (shared first-step choice)
+  Movers/            Humanoid (MoveTo), CFrameMover (steps a pivot, no rig; Manual = stepped by the agent),
+                     Record (a pivot in a table, no Instance: headless agents), Start (shared first-step choice)
   Animator/          NPCAnimator (tracks by name), Locomotion (idle/walk from real speed, one-shots, Freeze),
                      Footsteps (client-side step audio from measured movement) and Voice (random lines by
                      state, as a sense; played on the server from the rig, announced as "Voice")
@@ -157,6 +158,8 @@ Rules that keep it composable and testable:
   hand them a plain table.
 - `Agent:Start(true)` skips the Heartbeat loop; specs and custom schedulers then call
   `agent:Step(dt)` themselves.
+- An agent may have no Entity (headless, on `Movers.Record`); `agent.Entity` is still typed `Model`.
+  Library code reads `agent:GetPivot()` / `Perception.PivotOf(agent)`, never `agent.Entity:GetPivot()`.
 - Arrival is judged by horizontal distance: a humanoid root and a floor waypoint differ in height.
 - `examples/` are not part of the package. They are the reference for how the API is meant to
   read; keep them short and boring.

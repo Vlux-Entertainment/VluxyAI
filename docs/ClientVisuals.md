@@ -103,6 +103,22 @@ A puppet has no agent and, anchored, no physics velocity, so animate it from its
 WalkSpeed = 10, RunSpeed = 22 })` measures the rig's smoothed pivot speed every frame, blends idle,
 walk and run, and scales their playback to match. It is undone when the replica is destroyed.
 
+## Headless
+
+A puppet's anchor is still one Instance per enemy on the server, and under Workspace it replicates
+to every client. **Headless** drops it: the agent has no Entity at all and its pivot lives in a
+[Record](/api/Record) mover, a CFrame in a table.
+`VluxyAI.Presets.Headless({ Position = spawn, Pathfinder = graph, Mover = { Speed = 10 } })` builds
+it, or `VluxyAI.new():UseMover(VluxyAI.Movers.Record.new({ Position = spawn }))` by hand.
+
+A Record moves only inside `agent:Step`, so start the agent with `Start(true)` and step it from
+your own scheduler, as many agents per frame as your budget allows; or `Start()` it to tick on
+Heartbeat as usual. `agent:GetPivot()` is its position and yaw, and the senses, doors and the
+`Broadcaster` all read it, so a headless agent streams to puppet replicas like any other, or you
+batch `GetPivot` into your own remote. Rig-only parts (Locomotion, Voice's default playback, the
+Debug visuals) say so when given a headless agent. `Graph` and `Navmesh` both plan without a
+body; `Straight` raycasts and works too.
+
 ## Kills
 
 [Kill](/api/Kill) gives an agent two ways to finish a character, both decided on the server and

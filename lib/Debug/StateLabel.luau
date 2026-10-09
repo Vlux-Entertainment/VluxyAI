@@ -6,6 +6,7 @@
 ]]
 
 local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Options = require(script.Parent.Parent.Utility.Options)
 local Types = require(script.Parent.Parent.Types)
 
@@ -93,8 +94,12 @@ end
 	@param agent Agent
 	@param options StateLabelOptions?
 	@return StateLabel
+	@error string -- The agent is headless.
 ]=]
 function StateLabel.new(agent: Types.Agent, options: StateLabelOptions?): StateLabel
+	if (agent.Entity :: Model?) == nil then
+		FormatMessage.Error(`StateLabel.new: {agent.Name} is headless; the label hangs on the rig`, 2)
+	end
 	local RunService = game:GetService("RunService")
 
 	local resolved = Options.Resolve("StateLabel.new", DEFAULT_OPTIONS, options :: any) :: ResolvedOptions

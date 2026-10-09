@@ -256,6 +256,9 @@ function Locomotion.Attach(agent: Types.Agent, options: LocomotionOptions?): Ani
 	if agent:IsDestroyed() then
 		FormatMessage.Error(`{agent.Name}: Locomotion.Attach on a destroyed agent`, 2)
 	end
+	if (agent.Entity :: Model?) == nil then
+		FormatMessage.Error(`{agent.Name}: Locomotion.Attach needs a rig; this agent is headless`, 2)
+	end
 	if agent.Entity.PrimaryPart == nil then
 		FormatMessage.Error(`{agent.Name}: Locomotion.Attach needs a PrimaryPart on the rig`, 2)
 	end

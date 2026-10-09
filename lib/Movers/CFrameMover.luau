@@ -15,6 +15,11 @@
 	Steps are floor positions and a pivot is a body centre, so without a `HeightOffset` the mover
 	measures the gap on its first Follow (pivot height above the first step) and keeps it, rather
 	than sinking the body to floor level.
+
+	`Manual` swaps the Heartbeat connections for a `Step` method on the instance, which the agent
+	calls from its own Step. It is an instance field rather than a class method so that a mover
+	on Heartbeat never has one: the agent steps whatever mover offers it, and must not move a
+	Heartbeat mover twice.
 ]]
 
 local Cleaner = require(script.Parent.Parent.Utility.Cleaner)
@@ -36,6 +41,7 @@ local DEFAULT_OPTIONS = table.freeze({
 	HeightOffset = nil :: number?,
 	StepDistance = 0.25,
 	StuckTimeout = 5,
+	Manual = false,
 })
 
 -- Progress toward the current step smaller than this does not reset the stuck clock.
@@ -55,6 +61,7 @@ type ResolvedOptions = {
 	HeightOffset: number?,
 	StepDistance: number,
 	StuckTimeout: number,
+	Manual: boolean,
 }
 
 type self = {
@@ -95,6 +102,7 @@ export type CFrameMover = typeof(setmetatable({} :: self, CFrameMover))
 	.StepDistance number? -- Horizontal distance to a step that counts as reached. Default `0.25`.
 	.StuckTimeout number? -- Seconds without getting closer to the current step before giving up with `Arrived(false)`. Default `5`. Progress under 0.05 studs per check does not count, so speeds below about 0.01 studs per second read as stuck.
 	.Noise MoverNoise? -- Fire a [Hearing] noise signal every `Interval` seconds while walking, so other agents hear this one coming. Off by default.
+	.Manual boolean? -- No Heartbeat: the mover only moves when its `Step(deltaTime)` is called, which [Agent:Step] does for you. For agents stepped by your own scheduler. Default `false`.
 ]=]
 --[=[
 	@interface MoverNoise
@@ -117,6 +125,7 @@ export type CFrameMoverOptions = {
 	HeightOffset: number?,
 	StepDistance: number?,
 	StuckTimeout: number?,
+	Manual: boolean?,
 }
 
 --[=[
@@ -280,7 +289,11 @@ function CFrameMover.new(target: PVInstance, options: CFrameMoverOptions?): Type
 		_faceCleaner = cleaner:Extend(),
 	}
 
-	return setmetatable(self, CFrameMover) :: any
+	local mover = setmetatable(self, CFrameMover)
+	if resolved.Manual then
+		(mover :: any).Step = CFrameMover._manualStep
+	end
+	return mover :: any
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -318,7 +331,38 @@ function CFrameMover._makeNoise(self: CFrameMover, deltaTime: number)
 
 	local loudness = noise.Loudness
 	local amount = if type(loudness) == "function" then loudness(self._speed) elseif loudness ~= nil then loudness else 1
-	noise.Signal:Fire(self._target:GetPivot().Position, amount, nil, self._target)
+	-- A Record's target is a plain table, which is no source a Hearing sense can compare.
+	local source = if typeof(self._target) == "Instance" then self._target else nil
+	noise.Signal:Fire(self._target:GetPivot().Position, amount, nil, source)
+end
+
+--[[
+	One frame of turning toward the Face target while no path runs.
+]]
+function CFrameMover._turn(self: CFrameMover, deltaTime: number)
+	local position = self._facing
+	if self._path ~= nil or position == nil then
+		return
+	end
+
+	local pivot = self._target:GetPivot()
+	local goal = Vector3.new(position.X, pivot.Position.Y, position.Z)
+	local turned = CFrameMover.Advance(pivot, goal, 0, self._options.TurnSpeed, deltaTime)
+	self._target:PivotTo(turned)
+end
+
+--[[
+	The `Step` a Manual mover carries: one frame of walking, or of turning when there is no path.
+]]
+function CFrameMover._manualStep(self: CFrameMover, deltaTime: number)
+	if self._destroyed then
+		return
+	end
+	if self._path ~= nil then
+		self:_onHeartbeat(deltaTime)
+	else
+		self:_turn(deltaTime)
+	end
 end
 
 --[[
@@ -409,6 +453,9 @@ function CFrameMover.Follow(self: CFrameMover, path: Types.Path)
 	-- re-planned mid-walk never turns it back.
 	self._index = if #path > 0 then Start.Choose(path, self._target:GetPivot().Position, SKIP_DISTANCE) else 1
 
+	if self._options.Manual then
+		return
+	end
 	local RunService = game:GetService("RunService")
 	self._moveCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
 		self:_onHeartbeat(deltaTime)
@@ -435,20 +482,13 @@ end
 function CFrameMover.Face(self: CFrameMover, position: Vector3?)
 	self._facing = position
 	self._faceCleaner:Clean()
-	if position == nil or self._destroyed then
+	if position == nil or self._destroyed or self._options.Manual then
 		return
 	end
 
 	local RunService = game:GetService("RunService")
 	self._faceCleaner:Connect(RunService.Heartbeat, function(deltaTime: number)
-		if self._path ~= nil then
-			return
-		end
-
-		local pivot = self._target:GetPivot()
-		local goal = Vector3.new(position.X, pivot.Position.Y, position.Z)
-		local turned = CFrameMover.Advance(pivot, goal, 0, self._options.TurnSpeed, deltaTime)
-		self._target:PivotTo(turned)
+		self:_turn(deltaTime)
 	end)
 end
 
@@ -483,6 +523,14 @@ end
 ]=]
 function CFrameMover.GetPosition(self: CFrameMover): Vector3
 	return self._target:GetPivot().Position
+end
+
+--[=[
+	@within CFrameMover
+	@return CFrame -- The pivot: position and yaw. What [Agent:GetPivot] reads on an agent with no entity.
+]=]
+function CFrameMover.GetPivot(self: CFrameMover): CFrame
+	return self._target:GetPivot()
 end
 
 --[=[

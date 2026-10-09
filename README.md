@@ -55,7 +55,8 @@ local agent = VluxyAI.Presets.Humanoid(rig) -- any Model with a PrimaryPart and 
   authored graph (`States.GraphRoam`), staring and burrowing.
 - **Pathfinding:** `Navmesh` (PathfindingService), `Straight`, `Ladder`, `Graph` (A\* over authored
   nodes, read from a folder of parts) and `Hybrid`; doors and other scripted steps through `OnStep`.
-- **Movers:** `Humanoid` (`MoveTo`) and `CFrame` (pivots anything, no rig needed).
+- **Movers:** `Humanoid` (`MoveTo`), `CFrame` (pivots anything, no rig needed) and `Record` (a
+  pivot in a table, for headless agents with no Instance on the server).
 - **Senses:** sight, hearing (with noise kinds, sources and strength), proximity, tagged sounds,
   awareness, being watched, neighbours, safe areas, clues, hideouts and stamina.
 - **Groups and world:** a director (tension and difficulty), shared points of interest, claims,
@@ -74,7 +75,7 @@ own. Before 0.11.0 they were `AI_*`.
 
 ```toml
 [dependencies]
-VluxyAI = "greenviper126/vluxyai@0.11.0"
+VluxyAI = "greenviper126/vluxyai@0.12.0"
 ```
 
 Then `wally install`. The package has no dependencies and is `shared` realm: requiring it on a

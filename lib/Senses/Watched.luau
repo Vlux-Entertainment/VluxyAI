@@ -156,7 +156,7 @@ function Watched.Tick(self: Watched, agent: Types.Agent, deltaTime: number)
 	local options = self._options
 	local blackboard = Tables.Prefixed(agent.Blackboard, options.Prefix)
 
-	local position = agent.Entity:GetPivot().Position
+	local position = Perception.PivotOf(agent).Position
 	local extraIgnore = options.Ignore(agent)
 
 	local watchers: { BasePart } = {}
@@ -176,7 +176,7 @@ function Watched.Tick(self: Watched, agent: Types.Agent, deltaTime: number)
 				table.insert(ignore, root)
 			end
 
-			if not Perception.LineOfSight(eye.Position, position, ignore, agent.Entity) then
+			if not Perception.LineOfSight(eye.Position, position, ignore, agent.Entity :: Model?) then
 				continue
 			end
 		end

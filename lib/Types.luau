@@ -231,6 +231,8 @@ export type Pathfinder = {
 	.Face ((self: any, position: Vector3?) -> ())? -- Optional. Turn toward `position` while standing still; `nil` stops. [Agent:LookAt] calls it.
 	.Teleport ((self: any, position: Vector3) -> ())? -- Optional. Put the body at `position` at once, dropping any path. [Agent:Teleport] calls it.
 	.SetNudge ((self: any, offset: Vector3?) -> ())? -- Optional. Aim at each step plus `offset` (never the last step), so a steering sense can push the body sideways; `nil` clears. [Neighbours] calls it.
+	.GetPivot ((self: any) -> CFrame)? -- Optional. Position and facing. Required for an agent with no Entity: [Agent:GetPivot] reads it.
+	.Step ((self: any, deltaTime: number) -> ())? -- Optional. A mover with no clock of its own: [Agent:Step] calls it first, with the same delta time. Leave it out on a mover that runs on Heartbeat, or it moves twice.
 
 	Executes a [Types.Path] and nothing else. Rules that keep a mover and the [Navigator] honest:
 
@@ -242,7 +244,8 @@ export type Pathfinder = {
 	  itself: within `ArriveDistance` it reports arrival, otherwise it re-plans or reports failure.
 	- `Arrived(false)` from a stuck detector makes the navigator re-plan on its cadence.
 
-	`VluxyAI.Movers` ships `Humanoid` (uses `MoveTo`) and `CFrame` (steps a pivot, no rig needed);
+	`VluxyAI.Movers` ships `Humanoid` (uses `MoveTo`), `CFrame` (steps a pivot, no rig needed) and
+	`Record` (a pivot in a table, no Instance at all);
 	your own is any table with this shape. Make the signals with `VluxyAI.Signal.new()`.
 ]=]
 export type Mover = {
@@ -258,6 +261,8 @@ export type Mover = {
 	Face: ((self: any, position: Vector3?) -> ())?,
 	Teleport: ((self: any, position: Vector3) -> ())?,
 	SetNudge: ((self: any, offset: Vector3?) -> ())?,
+	GetPivot: ((self: any) -> CFrame)?,
+	Step: ((self: any, deltaTime: number) -> ())?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -507,7 +512,7 @@ export type Navigator = {
 	@interface AgentDefinition
 	@within Types
 
-	.Entity Model -- The model the AI drives. Needs a `PrimaryPart`.
+	.Entity Model? -- The model the AI drives. Needs a `PrimaryPart`. Leave it out for a headless agent, whose `Mover` has `GetPivot` ([Record]).
 	.Brain Brain -- The state table.
 	.Pathfinder Pathfinder? -- Required if `Mover` is given.
 	.Mover Mover? -- Required if `Pathfinder` is given.
@@ -519,13 +524,13 @@ export type Navigator = {
 	.Steps { [string]: StepHandler | StepRegistration }? -- What to do at labelled steps, by label. See [Builder:OnStep].
 	.Direct Pathfinder? -- Checks whether the agent can walk straight at its target; while it can, nothing is planned. Must not yield. See [Builder:UseDirect].
 	.StrictBlackboard boolean? -- Warn once when a state reads a blackboard key that looks like a typo of one a sense wrote (`SeenTaget`). For development; costs a metatable on every read. Default `false`.
-	.Name string? -- Used in messages. Default `Entity.Name`.
+	.Name string? -- Used in messages. Default `Entity.Name`, or `"Agent"` with no entity.
 
 	Everything an [Agent] is built from. The [Builder] produces one of these; you can also write it
 	as a table and hand it to `VluxyAI.NewAgent`. `Validate` checks it either way.
 ]=]
 export type AgentDefinition = {
-	Entity: Model,
+	Entity: Model?,
 	Brain: Brain,
 	Pathfinder: Pathfinder?,
 	Mover: Mover?,
@@ -544,7 +549,7 @@ export type AgentDefinition = {
 	@interface Agent
 	@within Types
 
-	.Entity Model -- The model being driven.
+	.Entity Model -- The model being driven. `nil` on a headless agent, though typed as a Model so rig code reads simply; library code goes through `GetPivot`.
 	.Name string -- For messages.
 	.Blackboard Blackboard -- Written by senses, read by states.
 	.Data { [string]: any } -- Free scratch space for your states.
@@ -561,6 +566,7 @@ export type AgentDefinition = {
 	.MoveTo (self: Agent, target: Vector3) -> () -- Shorthand for `Navigator:MoveTo`. Errors without a navigator; warns and does nothing before `Start`.
 	.Stop (self: Agent) -> () -- Shorthand for `Navigator:Stop`. No-op without a navigator.
 	.GetPosition (self: Agent) -> Vector3 -- The mover's position, or the entity's pivot.
+	.GetPivot (self: Agent) -> CFrame -- The entity's pivot, or the mover's on a headless agent.
 	.HasArrived (self: Agent) -> boolean -- `true` while the navigator status is `Arrived`.
 	.GetPathStatus (self: Agent) -> PathStatus -- The navigator status, or `Idle` without a navigator.
 	.SetSpeed (self: Agent, speed: number, seconds: number?) -> () -- The base speed; the mover gets it times the speed scale. With `seconds`, ramps there over the ticks. No-op without a mover.
@@ -606,6 +612,7 @@ export type Agent = {
 	MoveTo: (self: Agent, target: Vector3) -> (),
 	Stop: (self: Agent) -> (),
 	GetPosition: (self: Agent) -> Vector3,
+	GetPivot: (self: Agent) -> CFrame,
 	HasArrived: (self: Agent) -> boolean,
 	GetPathStatus: (self: Agent) -> PathStatus,
 	SetSpeed: (self: Agent, speed: number, seconds: number?) -> (),

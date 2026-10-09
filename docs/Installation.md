@@ -20,7 +20,7 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
 [dependencies]
-VluxyAI = "greenviper126/vluxyai@0.11.0"
+VluxyAI = "greenviper126/vluxyai@0.12.0"
 ```
 
 Run `wally install`. Wally creates a `Packages` folder holding VluxyAI. It has no dependencies
